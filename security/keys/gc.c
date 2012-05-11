@@ -139,12 +139,12 @@ void key_gc_keytype(struct key_type *ktype)
 static void key_gc_keyring(struct key *keyring, time_t limit)
  {
 	struct keyring_list *klist;
-	struct key *key;
 	int loop;
 
 	kenter("%x", key_serial(keyring));
 
-	if (test_bit(KEY_FLAG_REVOKED, &keyring->flags))
+	if (keyring->flags & ((1 << KEY_FLAG_INVALIDATED) |
+			      (1 << KEY_FLAG_REVOKED)))
 		goto dont_gc;
 
 	/* scan the keyring looking for dead keys */
@@ -156,9 +156,8 @@ static void key_gc_keyring(struct key *keyring, time_t limit)
 	loop = klist->nkeys;
 	smp_rmb();
 	for (loop--; loop >= 0; loop--) {
-		key = rcu_dereference(klist->keys[loop]);
-		if (test_bit(KEY_FLAG_DEAD, &key->flags) ||
-		    (key->expiry > 0 && key->expiry <= limit))
+		struct key *key = rcu_dereference(klist->keys[loop]);
+		if (key_is_dead(key, limit))
 			goto do_gc;
 	}
 
