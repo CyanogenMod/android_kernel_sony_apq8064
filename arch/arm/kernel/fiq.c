@@ -145,6 +145,11 @@ void fiq_set_type(int fiq, unsigned int type)
 	irq_set_irq_type(fiq + FIQ_START, type);
 }
 
+void fiq_set_type(int fiq, unsigned int type)
+{
+	irq_set_irq_type(fiq + FIQ_START, type);
+}
+
 EXPORT_SYMBOL(set_fiq_handler);
 EXPORT_SYMBOL(__set_fiq_regs);	/* defined in fiqasm.S */
 EXPORT_SYMBOL(__get_fiq_regs);	/* defined in fiqasm.S */
