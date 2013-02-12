@@ -1,7 +1,7 @@
 /*
    BlueZ - Bluetooth protocol stack for Linux
    Copyright (C) 2010  Nokia Corporation
-   Copyright (c) 2011-2012 Code Aurora Forum.  All rights reserved.
+   Copyright (c) 2011-2012 The Linux Foundation.  All rights reserved.
    Copyright (C) 2012 Sony Mobile Communications AB.
 
    This program is free software; you can redistribute it and/or modify

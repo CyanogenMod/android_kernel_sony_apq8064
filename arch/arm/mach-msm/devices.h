@@ -1,7 +1,7 @@
 /* linux/arch/arm/mach-msm/devices.h
  *
  * Copyright (C) 2008 Google, Inc.
- * Copyright (c) 2009-2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009-2012, The Linux Foundation. All rights reserved.
  * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This software is licensed under the terms of the GNU General Public

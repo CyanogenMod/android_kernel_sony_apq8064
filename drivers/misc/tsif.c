@@ -1,7 +1,7 @@
 /*
  * TSIF Driver
  *
- * Copyright (c) 2009-2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009-2012, The Linux Foundation. All rights reserved.
  * Copyright (c) 2010-2012, Sony Ericsson Mobile Communications AB
  * Copyright (C) 2012 Sony Mobile Communications AB.
  *
