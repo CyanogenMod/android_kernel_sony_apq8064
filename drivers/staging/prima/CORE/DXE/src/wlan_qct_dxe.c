@@ -91,6 +91,7 @@ when           who        what, where, why
   *-------------------------------------------------------------------------*/
 /* This is temp, someone have to allocate for me, and must be part of global context */
 static WLANDXE_CtrlBlkType    *tempDxeCtrlBlk                = NULL;
+#ifdef WLAN_DEBUG
 static char                   *channelType[WDTS_CHANNEL_MAX] =
    {
       "TX_LOW_PRI",
@@ -103,6 +104,7 @@ static char                   *channelType[WDTS_CHANNEL_MAX] =
       "H2H_TEST_RX"
 #endif /* WLANDXE_TEST_CHANNEL_ENABLE */
    };
+#endif
 static  wpt_packet               *rx_reaped_buf[WLANDXE_MAX_REAPED_RX_FRAMES];
 
 /*-------------------------------------------------------------------------
@@ -152,18 +154,22 @@ static wpt_status dxeChannelMonitor
 
    if((NULL == monitorDescription) || (NULL == channelEntry))
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
                "INVALID Input ARG");
+#endif
       return eWLAN_PAL_STATUS_E_INVAL;
    }
 
    if(channelEntry->channelType > WDTS_CHANNEL_RX_HIGH_PRI)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
                "INVALID Channel type");
+#endif
       return eWLAN_PAL_STATUS_E_INVAL;
    }
-
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
             "=== %s Channel Number %d, Channel Type %s",
             monitorDescription, channelEntry->assignedDMAChannel, channelType[channelEntry->channelType]);
@@ -182,7 +188,7 @@ static wpt_status dxeChannelMonitor
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
             "numFragmentCurrentChain %d, numTotalFrame %d ===",
             channelEntry->numFragmentCurrentChain,    channelEntry->numTotalFrame);
-
+#endif
    return status;
 }
 
@@ -218,12 +224,14 @@ static wpt_status dxeMemoryDump
       return status;
    }
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Location 0x%x, Size %d", dumpTarget, dumpPointer, dumpSize);
-
+#endif
    numBytes = dumpSize % T_WLANDXE_MEMDUMP_BYTE_PER_LINE;
+#ifdef WLAN_DEBUG
    for(idx = 0; idx < dumpSize; idx++)
    {
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
@@ -233,13 +241,15 @@ static wpt_status dxeMemoryDump
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW, "\n");
       }
    }
+#endif
+#ifdef WLAN_DEBUG
    if(0 != numBytes)
    {
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW, "\n");
    }
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
-
+#endif
    return status;
 }
 #endif /* WLANDXE_DEBUG_MEMORY_DUMP */
@@ -268,6 +278,7 @@ wpt_status dxeDescriptorDump
    wpt_status                status      = eWLAN_PAL_STATUS_SUCCESS;
 
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
             "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
@@ -287,7 +298,7 @@ wpt_status dxeDescriptorDump
                    WLANDXE_U32_SWAP_ENDIAN(targetDesc->dxedesc.dxe_short_desc.phyNextL));
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
             "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
-
+#endif
    return status;
 }
 
@@ -314,40 +325,51 @@ wpt_status dxeChannelRegisterDump
    wpt_status                status      = eWLAN_PAL_STATUS_SUCCESS;
    wpt_uint32                regValue    = 0;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
             "%s Channel register dump for %s, base address 0x%x", 
                    channelType[channelEntry->channelType],
                    dumpTarget,
                    channelEntry->channelRegister.chDXEBaseAddr);
+#endif
    regValue = 0;
    wpalReadRegister(channelEntry->channelRegister.chDXECtrlRegAddr, &regValue);
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
             "Control Register 0x%x", regValue);
-
+#endif
    regValue = 0;
    wpalReadRegister(channelEntry->channelRegister.chDXEStatusRegAddr, &regValue);
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
             "Status Register 0x%x", regValue);
+#endif
    regValue = 0;
 
    wpalReadRegister(channelEntry->channelRegister.chDXESadrlRegAddr, &regValue);
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
             "Source Address Register 0x%x", regValue);
+#endif
    regValue = 0;
 
    wpalReadRegister(channelEntry->channelRegister.chDXEDadrlRegAddr, &regValue);
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
             "Destination Address Register 0x%x", regValue);
+#endif
    regValue = 0;
 
    wpalReadRegister(channelEntry->channelRegister.chDXELstDesclRegAddr, &regValue);
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
             "Last Descriptor Address Register 0x%x", regValue);
-
+#endif
    wpalReadRegister(channelEntry->channelRegister.chDXEDesclRegAddr, &regValue);
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
             "Next Descriptor Address Register 0x%x", regValue);
-
+#endif
    return status;
 }
 
@@ -377,11 +399,13 @@ void dxeChannelAllDescDump
 
    targetCtrlBlk = channelEntry->headCtrlBlk;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
             "%s %d descriptor chains, head desc ctrl 0x%x",
             channelType[channelEntry->channelType],
             channelEntry->numDesc,
             targetCtrlBlk->linkedDesc->descCtrl.ctrl);
+#endif
    previousCtrlValue = targetCtrlBlk->linkedDesc->descCtrl.ctrl;
 
    if((WDTS_CHANNEL_RX_LOW_PRI == channel) ||
@@ -389,12 +413,14 @@ void dxeChannelAllDescDump
    {
       for(channelLoop = 0; channelLoop < channelEntry->numDesc; channelLoop++)
       {
+#ifdef WLAN_DEBUG
          if(previousCtrlValue != targetCtrlBlk->linkedDesc->descCtrl.ctrl)
          {
             HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
                      "%5d : 0x%x", targetCtrlBlk->ctrlBlkOrder,
                      targetCtrlBlk->linkedDesc->descCtrl.ctrl);
          }
+#endif
          previousCtrlValue = targetCtrlBlk->linkedDesc->descCtrl.ctrl;
          targetCtrlBlk = (WLANDXE_DescCtrlBlkType *)targetCtrlBlk->nextCtrlBlk;
       }
@@ -403,12 +429,14 @@ void dxeChannelAllDescDump
    {
       for(channelLoop = 0; channelLoop < channelEntry->numDesc; channelLoop++)
       {
+#ifdef WLAN_DEBUG
          if(targetCtrlBlk->linkedDesc->descCtrl.ctrl & WLANDXE_DESC_CTRL_VALID)
          {
             HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
                      "%5d : 0x%x", targetCtrlBlk->ctrlBlkOrder,
                      targetCtrlBlk->linkedDesc->descCtrl.ctrl);
          }
+#endif
          targetCtrlBlk = (WLANDXE_DescCtrlBlkType *)targetCtrlBlk->nextCtrlBlk;
       }
    }
@@ -436,9 +464,10 @@ void dxeTxThreadChannelDebugHandler
 {
    wpt_uint8                channelLoop;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    /* Whatever RIVA power condition try to wakeup RIVA through SMSM
     * This will not simply wakeup RIVA
     * Just incase TX not wanted stuck, Trigger TX again */
@@ -456,8 +485,10 @@ void dxeTxThreadChannelDebugHandler
    }
 
    wpalMemoryFree(msgPtr);
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return;
 }
 
@@ -483,9 +514,10 @@ void dxeRxThreadChannelDebugHandler
    wpt_status               status = eWLAN_PAL_STATUS_SUCCESS;
    wpt_uint8                channelLoop;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    /* Whatever RIVA power condition try to wakeup RIVA through SMSM
     * This will not simply wakeup RIVA
     * Just incase TX not wanted stuck, Trigger TX again */
@@ -508,6 +540,7 @@ void dxeRxThreadChannelDebugHandler
    msgPtr->callback = dxeTxThreadChannelDebugHandler;
    status = wpalPostTxMsg(WDI_GET_PAL_CTX(),
                           msgPtr);
+#ifdef WLAN_DEBUG
    if ( eWLAN_PAL_STATUS_SUCCESS != status )
    {
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
@@ -517,9 +550,9 @@ void dxeRxThreadChannelDebugHandler
 
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return;
 }
-
 /*==========================================================================
   @  Function Name 
       dxeRXHealthMonitor
@@ -565,10 +598,11 @@ void dxeRXHealthMonitor
       }
    }
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
             "Scheduled RX, num free BD/PDU %d, loop Count %d",
             regValue, hwWakeLoop, 0);
-
+#endif
    for(chLoop = WDTS_CHANNEL_RX_LOW_PRI; chLoop < WDTS_CHANNEL_MAX; chLoop++)
    {
       testCHCtrlBlk = &tempDxeCtrlBlk->dxeChannel[chLoop];
@@ -577,6 +611,7 @@ void dxeRXHealthMonitor
       wpalReadRegister(testCHCtrlBlk->channelRegister.chDXEDesclRegAddr, &chDescReg);
       wpalReadRegister(testCHCtrlBlk->channelRegister.chDXELstDesclRegAddr, &chLDescReg);
 
+#ifdef WLAN_DEBUG
       wpalTrace(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO,
                 "%11s : CCR 0x%x, CSR 0x%x, CDR 0x%x, CLDR 0x%x, HCBO %d, HCBDP 0x%x, HCBDC 0x%x, TCBO %d,TCBDP 0x%x, TCBDC 0x%x",
                 channelType[chLoop],
@@ -585,10 +620,11 @@ void dxeRXHealthMonitor
                 testCHCtrlBlk->headCtrlBlk->linkedDesc->descCtrl.ctrl,
                 testCHCtrlBlk->tailCtrlBlk->ctrlBlkOrder, testCHCtrlBlk->tailCtrlBlk->linkedDescPhyAddr,
                 testCHCtrlBlk->tailCtrlBlk->linkedDesc->descCtrl.ctrl);
-
+#endif
       if((chControlReg & WLANDXE_DESC_CTRL_VALID) && 
          (chLDescReg != testCHCtrlBlk->headCtrlBlk->linkedDescPhyAddr))
       {
+#ifdef WLAN_DEBUG
          wpalTrace(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                    "%11s : CCR 0x%x, CSR 0x%x, CDR 0x%x, CLDR 0x%x, "
                    "HCBO %d, HCBDP 0x%x, HCBDC 0x%x, TCBO %d,TCBDP 0x%x, TCBDC 0x%x",
@@ -600,12 +636,14 @@ void dxeRXHealthMonitor
                    testCHCtrlBlk->tailCtrlBlk->linkedDesc->descCtrl.ctrl);
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                   "%11s : RX CH EN Descriptor Async, resync it", channelType[chLoop], 0, 0);
+#endif
          wpalWriteRegister(testCHCtrlBlk->channelRegister.chDXELstDesclRegAddr,
                            testCHCtrlBlk->headCtrlBlk->linkedDescPhyAddr);
       }
       else if(!(chControlReg & WLANDXE_DESC_CTRL_VALID) && 
                (chDescReg != testCHCtrlBlk->headCtrlBlk->linkedDescPhyAddr))
       {
+#ifdef WLAN_DEBUG
          wpalTrace(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                    "%11s : CCR 0x%x, CSR 0x%x, CDR 0x%x, CLDR 0x%x, "
                    "HCBO %d, HCBDP 0x%x, HCBDC 0x%x, TCBO %d,TCBDP 0x%x, TCBDC 0x%x",
@@ -617,6 +655,7 @@ void dxeRXHealthMonitor
                    testCHCtrlBlk->tailCtrlBlk->linkedDesc->descCtrl.ctrl);
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                   "%11s : RX CH DIS Descriptor Async, resync it", channelType[chLoop], 0, 0);
+#endif
          wpalWriteRegister(testCHCtrlBlk->channelRegister.chDXEDesclRegAddr,
                            testCHCtrlBlk->headCtrlBlk->linkedDescPhyAddr);
       }
@@ -625,13 +664,16 @@ void dxeRXHealthMonitor
    channelCtrlBlk = (WLANDXE_ChannelCBType *)healthMonitorMsg->pContext;
    if(channelCtrlBlk->hitLowResource)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                "%11s : Still Low Resource, kick DXE TX and restart timer",
                channelType[channelCtrlBlk->channelType], 0, 0);
+#endif
       /* Still Low Resource, Kick DXE again and start timer again */
       wpalTimerStart(&channelCtrlBlk->healthMonitorTimer,
                      T_WLANDXE_PERIODIC_HEALTH_M_TIME);
    }
+#ifdef WLAN_DEBUG
    else
    {
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
@@ -640,7 +682,7 @@ void dxeRXHealthMonitor
       /* Recovered from low resource condition
        * Not need to do anything */
    }
-
+#endif
    return;
 }
 
@@ -688,17 +730,20 @@ void dxeTXHealthMonitor
       wpalReadRegister(WLANDXE_BMU_AVAILABLE_BD_PDU, &regValue);
       if(0 != regValue)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                   "num free BD/PDU %d, loop Count %d",
                   regValue, hwWakeLoop, 0);
+#endif
          break;
       }
    }
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
             "Scheduled TX, num free BD/PDU %d, loop Count %d",
             regValue, hwWakeLoop, 0);
-
+#endif
    for(chLoop = 0; chLoop < WDTS_CHANNEL_RX_LOW_PRI; chLoop++)
    {
       testCHCtrlBlk = &tempDxeCtrlBlk->dxeChannel[chLoop];
@@ -707,6 +752,7 @@ void dxeTXHealthMonitor
       wpalReadRegister(testCHCtrlBlk->channelRegister.chDXEDesclRegAddr, &chDescReg);
       wpalReadRegister(testCHCtrlBlk->channelRegister.chDXELstDesclRegAddr, &chLDescReg);
 
+#ifdef WLAN_DEBUG
       wpalTrace(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO,
                 "%11s : CCR 0x%x, CSR 0x%x, CDR 0x%x, CLDR 0x%x, HCBO %d, HCBDP 0x%x, HCBDC 0x%x, TCBO %d,TCBDP 0x%x, TCBDC 0x%x",
                 channelType[chLoop],
@@ -715,10 +761,11 @@ void dxeTXHealthMonitor
                 testCHCtrlBlk->headCtrlBlk->linkedDesc->descCtrl.ctrl,
                 testCHCtrlBlk->tailCtrlBlk->ctrlBlkOrder, testCHCtrlBlk->tailCtrlBlk->linkedDescPhyAddr,
                 testCHCtrlBlk->tailCtrlBlk->linkedDesc->descCtrl.ctrl);
-
+#endif
       if((chControlReg & WLANDXE_DESC_CTRL_VALID) && 
          (chLDescReg != testCHCtrlBlk->tailCtrlBlk->linkedDescPhyAddr))
       {
+#ifdef WLAN_DEBUG
          wpalTrace(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                    "%11s : CCR 0x%x, CSR 0x%x, CDR 0x%x, CLDR 0x%x, "
                    "HCBO %d, HCBDP 0x%x, HCBDC 0x%x, TCBO %d,TCBDP 0x%x, TCBDC 0x%x",
@@ -730,12 +777,14 @@ void dxeTXHealthMonitor
                    testCHCtrlBlk->tailCtrlBlk->linkedDesc->descCtrl.ctrl);
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                   "%11s : TX CH EN Descriptor Async, resync it", channelType[chLoop], 0, 0);
+#endif
          wpalWriteRegister(testCHCtrlBlk->channelRegister.chDXELstDesclRegAddr,
                            testCHCtrlBlk->tailCtrlBlk->linkedDescPhyAddr);
       }
       else if(!(chControlReg & WLANDXE_DESC_CTRL_VALID) && 
                (chDescReg != testCHCtrlBlk->tailCtrlBlk->linkedDescPhyAddr))
       {
+#ifdef WLAN_DEBUG
          wpalTrace(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                    "%11s : CCR 0x%x, CSR 0x%x, CDR 0x%x, CLDR 0x%x, "
                    "HCBO %d, HCBDP 0x%x, HCBDC 0x%x, TCBO %d,TCBDP 0x%x, TCBDC 0x%x",
@@ -747,6 +796,7 @@ void dxeTXHealthMonitor
                    testCHCtrlBlk->tailCtrlBlk->linkedDesc->descCtrl.ctrl);
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                   "%11s : TX CH DIS Descriptor Async, resync it", channelType[chLoop], 0, 0);
+#endif
          wpalWriteRegister(testCHCtrlBlk->channelRegister.chDXEDesclRegAddr,
                            testCHCtrlBlk->tailCtrlBlk->linkedDescPhyAddr);
       }
@@ -757,13 +807,14 @@ void dxeTXHealthMonitor
    channelCtrlBlk->healthMonitorMsg->callback = dxeRXHealthMonitor;
    status = wpalPostRxMsg(WDI_GET_PAL_CTX(),
                           channelCtrlBlk->healthMonitorMsg);
+#ifdef WLAN_DEBUG
    if (eWLAN_PAL_STATUS_SUCCESS != status)
    {
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "TX Low resource Kick DXE MSG Serialize fail",
                status, 0, 0);
    }
-
+#endif
    return;
 }
 
@@ -799,20 +850,22 @@ void dxeHealthMonitorTimeout
    /* Timeout Fired, DXE TX should kick on TX thread
     * Serailize to TX Thread */
    channelCtrlBlk = (WLANDXE_ChannelCBType *)channelCtxt;
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO,
             "%11s : Health Monitor timer expired",
             channelType[channelCtrlBlk->channelType], 0, 0);
-
+#endif
    channelCtrlBlk->healthMonitorMsg->callback = dxeTXHealthMonitor;
    status = wpalPostTxMsg(WDI_GET_PAL_CTX(),
                           channelCtrlBlk->healthMonitorMsg);
+#ifdef WLAN_DEBUG
    if (eWLAN_PAL_STATUS_SUCCESS != status)
    {
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "TX Low resource Kick DXE MSG Serialize fail",
                status, 0, 0);
    }
-
+#endif
    return;
 }
 
@@ -848,14 +901,17 @@ static wpt_status dxeCtrlBlkAlloc
    WLANDXE_DescCtrlBlkType  *prevCtrlBlk = NULL;
    WLANDXE_DescCtrlBlkType  *nextCtrlBlk = NULL;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    /* Sanity check */
    if((NULL == dxeCtrlBlk) || (NULL == channelEntry))
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeCtrlBlkAlloc Channel Entry is not valid");
+#endif
       return eWLAN_PAL_STATUS_E_INVAL;
    }
 
@@ -865,9 +921,11 @@ static wpt_status dxeCtrlBlkAlloc
       currentCtrlBlk = (WLANDXE_DescCtrlBlkType *)wpalMemoryAllocate(sizeof(WLANDXE_DescCtrlBlkType));
       if(NULL == currentCtrlBlk)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeCtrlBlkOpen MemAlloc Fail for channel %d",
                   channelEntry->channelType);
+#endif
          freeCtrlBlk = channelEntry->headCtrlBlk;
          for(fIdx = 0; fIdx < idx; fIdx++)
          {
@@ -915,9 +973,11 @@ static wpt_status dxeCtrlBlkAlloc
       }
       else
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeCtrlBlkOpen Invalid Ctrl Blk location %d",
                   channelEntry->channelType);
+#endif
          wpalMemoryFree(currentCtrlBlk);
          return eWLAN_PAL_STATUS_E_FAULT;
       }
@@ -926,7 +986,9 @@ static wpt_status dxeCtrlBlkAlloc
       channelEntry->numFreeDesc++;
    }
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,"%s Exit", __FUNCTION__);
+#endif
    return status;
 }
 
@@ -966,14 +1028,17 @@ static wpt_status dxeDescAllocAndLink
    WLANDXE_DescCtrlBlkType  *currDescCtrlBlk = testTXChannelCB->headCtrlBlk;
 #endif /* WLANDXE_TEST_CHANNEL_ENABLE*/
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    /* Sanity Check */
    if((NULL == dxeCtrlBlk) || (NULL == channelEntry))
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeDescLinkAlloc Channel Entry is not valid");
+#endif
       return eWLAN_PAL_STATUS_E_INVAL;
    }
 
@@ -986,8 +1051,10 @@ static wpt_status dxeDescAllocAndLink
                             &physAddress);
    if(NULL == channelEntry->descriptorAllocation)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeDescLinkAlloc Descriptor Alloc Fail");
+#endif
       return eWLAN_PAL_STATUS_E_RESOURCES;
    }
    currentDesc = channelEntry->descriptorAllocation;
@@ -1000,8 +1067,10 @@ static wpt_status dxeDescAllocAndLink
 #ifndef WLANDXE_TEST_CHANNEL_ENABLE
       // descriptors were allocated in a chunk -- use the current one
       memset((wpt_uint8 *)currentDesc, 0, sizeof(WLANDXE_DescType));
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
                "Allocated Descriptor VA 0x%x, PA 0x%x", currentDesc, physAddress);
+#endif
 #else
       if(WDTS_CHANNEL_H2H_TEST_RX != channelEntry->channelType)
       {
@@ -1021,15 +1090,19 @@ static wpt_status dxeDescAllocAndLink
 #ifndef WLANDXE_TEST_CHANNEL_ENABLE
       currentDesc = (WLANDXE_DescType *)wpalAcpuDdrDxeDescMemoryAllocate(&physAddress);
       memset((wpt_uint8 *)currentDesc, 0, sizeof(WLANDXE_DescType));
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
                "Allocated Descriptor VA 0x%x, PA 0x%x", currentDesc, physAddress);
+#endif
 #else
       if(WDTS_CHANNEL_H2H_TEST_RX != channelEntry->channelType)
       {
          currentDesc = (WLANDXE_DescType *)wpalAcpuDdrDxeDescMemoryAllocate(&physAddress);
          memset((wpt_uint8 *)currentDesc, 0, sizeof(WLANDXE_DescType));
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
                   "Allocated Descriptor VA 0x%x, PA 0x%x", currentDesc, physAddress);
+#endif
       }
       else
       {
@@ -1041,9 +1114,11 @@ static wpt_status dxeDescAllocAndLink
 #endif /* FEATURE_R33D */
       if(NULL == currentDesc)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeDescLinkAlloc MemAlloc Fail for channel %d",
                   channelEntry->channelType);
+#endif
          return eWLAN_PAL_STATUS_E_FAULT;
       }
 
@@ -1111,9 +1186,11 @@ static wpt_status dxeDescAllocAndLink
                                               currentCtrlBlk);
          if( !WLAN_PAL_IS_STATUS_SUCCESS(status) )
          {
+#ifdef WLAN_DEBUG
             HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                      "dxeDescLinkAlloc RX Buffer Alloc Fail for channel %d",
                      channelEntry->channelType);
+#endif
             return status;
          }
          --channelEntry->numFreeDesc;
@@ -1131,8 +1208,10 @@ static wpt_status dxeDescAllocAndLink
 #endif
    }
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return status;
 }
 
@@ -1157,9 +1236,10 @@ static wpt_status dxeSetInterruptPath
    wpt_uint32                 idx;
    WLANDXE_ChannelCBType     *channelEntry = NULL;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    for(idx = 0; idx < WDTS_CHANNEL_MAX; idx++)
    {
       channelEntry = &dxeCtrlBlk->dxeChannel[idx];
@@ -1179,19 +1259,25 @@ static wpt_status dxeSetInterruptPath
       {
          interruptPath |= (1 << (channelEntry->assignedDMAChannel + 16));
       }
+#ifdef WLAN_DEBUG
       else
       {
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "H2H TEST RX???? %d", channelEntry->channelType);
       }
+#endif
    }
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
             "Interrupt Path Must be 0x%x", interruptPath);
+#endif
    dxeCtrlBlk->interruptPath = interruptPath;
    wpalWriteRegister(WLANDXE_CCU_DXE_INT_SELECT, interruptPath);
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return status;
 }
 
@@ -1218,9 +1304,10 @@ static wpt_status dxeEngineCoreStart
    wpt_status                 status = eWLAN_PAL_STATUS_SUCCESS;
    wpt_uint32                 registerData = 0;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    /* START This core init is not needed for the integrated system */
    /* Reset First */
    registerData = WLANDXE_DMA_CSR_RESET_MASK;
@@ -1241,8 +1328,10 @@ static wpt_status dxeEngineCoreStart
    /* END This core init is not needed for the integrated system */
 
    dxeSetInterruptPath(dxeCtrlBlk);
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return status;
 }
 
@@ -1283,22 +1372,27 @@ static wpt_status dxeChannelInitProgram
    WLANDXE_DescType         *currentDesc = NULL;
    WLANDXE_DescCtrlBlkType  *currentCtrlBlk = NULL;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    /* Sanity Check */
    if((NULL == dxeCtrlBlk) || (NULL == channelEntry))
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeChannelInitProgram Channel Entry is not valid");
+#endif
       return eWLAN_PAL_STATUS_E_INVAL;
    }
 
    /* Program Source address and destination adderss */
    if(!channelEntry->channelConfig.useShortDescFmt)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeChannelInitProgram Long Descriptor not support yet");
+#endif
       return eWLAN_PAL_STATUS_E_FAILURE;
    }
 
@@ -1308,8 +1402,10 @@ static wpt_status dxeChannelInitProgram
                                    channelEntry->headCtrlBlk->linkedDescPhyAddr);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeChannelInitProgram Write DESC Address register fail");
+#endif
       return status;
    }
 
@@ -1322,8 +1418,10 @@ static wpt_status dxeChannelInitProgram
                                       channelEntry->channelConfig.refWQ);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeChannelInitProgram Write TX DAddress register fail");
+#endif
          return status;
       }
    }
@@ -1343,8 +1441,10 @@ static wpt_status dxeChannelInitProgram
                                       channelEntry->channelConfig.refWQ);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeChannelInitProgram Write RX SAddress WQ register fail");
+#endif
          return status;
       }
 
@@ -1353,8 +1453,10 @@ static wpt_status dxeChannelInitProgram
                                       WLANDXE_U32_SWAP_ENDIAN(channelEntry->DescBottomLoc->dxedesc.dxe_short_desc.phyNextL));
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeChannelInitProgram Write RX DAddress register fail");
+#endif
          return status;
       }
 
@@ -1363,8 +1465,10 @@ static wpt_status dxeChannelInitProgram
                              channelEntry->extraConfig.chan_mask);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeChannelInitProgram Write RX Control register fail");
+#endif
          return status;
       }
    }
@@ -1376,14 +1480,18 @@ static wpt_status dxeChannelInitProgram
                                       WLANDXE_U32_SWAP_ENDIAN(channelEntry->DescBottomLoc->dxedesc.dxe_short_desc.phyNextL));
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeChannelInitProgram Write RX DAddress register fail");
+#endif
          return status;
       }
    }
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return status;
 }
 
@@ -1415,9 +1523,10 @@ static wpt_status dxeChannelStart
    wpt_uint32                regValue   = 0;
    wpt_uint32                intMaskVal = 0;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    channelEntry->extraConfig.chEnabled    = eWLAN_PAL_TRUE;
    channelEntry->extraConfig.chConfigured = eWLAN_PAL_TRUE;
 
@@ -1427,8 +1536,10 @@ static wpt_status dxeChannelStart
                                   &regValue);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeChannelStart Read Channel Enable register fail");
+#endif
       return status;
    }
 
@@ -1437,22 +1548,28 @@ static wpt_status dxeChannelStart
                                   &intMaskVal);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeChannelStart Read INT_MASK register fail");
-      return status;         
+#endif
+      return status;
    }
    intMaskVal |= channelEntry->extraConfig.intMask;
    status = wpalWriteRegister(WLANDXE_INT_MASK_REG_ADDRESS,
                                    intMaskVal);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeChannelStart Write INT_MASK register fail");
-      return status;         
+#endif
+      return status;
    }
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return status;
 }
 
@@ -1482,14 +1599,17 @@ static wpt_status dxeChannelStop
    wpt_status                status     = eWLAN_PAL_STATUS_SUCCESS;
    wpt_uint32                intMaskVal = 0;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    /* Sanity */
    if((NULL == dxeCtrlBlk) || (NULL == channelEntry))
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeChannelStop Invalid arg input");
+#endif
       return eWLAN_PAL_STATUS_E_INVAL; 
    }
 
@@ -1498,25 +1618,31 @@ static wpt_status dxeChannelStop
                                   &intMaskVal);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeChannelStop Read INT_MASK register fail");
-      return status;         
+#endif
+      return status;
    }
    intMaskVal ^= channelEntry->extraConfig.intMask;
    status = wpalWriteRegister(WLANDXE_INT_MASK_REG_ADDRESS,
                                    intMaskVal);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeChannelStop Write INT_MASK register fail");
-      return status;         
+#endif
+      return status;
    }
 
    channelEntry->extraConfig.chEnabled    = eWLAN_PAL_FALSE;
 
    /* Stop Channel ??? */
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return status;
 }
 
@@ -1553,14 +1679,17 @@ static wpt_status dxeChannelClose
    WLANDXE_DescType         *currentDescriptor = NULL;
    WLANDXE_DescType         *nextDescriptor    = NULL;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    /* Sanity */
    if((NULL == dxeCtrlBlk) || (NULL == channelEntry))
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeChannelStop Invalid arg input");
+#endif
       return eWLAN_PAL_STATUS_E_INVAL; 
    }
 
@@ -1623,8 +1752,10 @@ static wpt_status dxeChannelClose
    }
 #endif
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return status;
 }
 
@@ -1655,30 +1786,36 @@ static wpt_status dxeChannelCleanInt
 {
    wpt_status                status = eWLAN_PAL_STATUS_SUCCESS;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    /* Read Channel Status Register to know why INT Happen */
    status = wpalReadRegister(channelEntry->channelRegister.chDXEStatusRegAddr,
                                   chStat);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeChannelCleanInt Read CH STAT register fail");
-      return eWLAN_PAL_STATUS_E_FAULT;         
+#endif
+      return eWLAN_PAL_STATUS_E_FAULT;
    }
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Channel INT Clean, Status 0x%x",
             channelType[channelEntry->channelType], *chStat);
-
+#endif
    /* Clean up all the INT within this channel */
    status = wpalWriteRegister(WLANDXE_INT_CLR_ADDRESS,
                                    (1 << channelEntry->assignedDMAChannel));
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeChannelCleanInt Write CH Clean register fail");
-      return eWLAN_PAL_STATUS_E_FAULT;         
+#endif
+      return eWLAN_PAL_STATUS_E_FAULT;
    }
 
    /* Clean up Error INT Bit */
@@ -1688,9 +1825,11 @@ static wpt_status dxeChannelCleanInt
                                       (1 << channelEntry->assignedDMAChannel));
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeChannelCleanInt Read CH STAT register fail");
-         return eWLAN_PAL_STATUS_E_FAULT;         
+#endif
+         return eWLAN_PAL_STATUS_E_FAULT;
       }
    }
 
@@ -1701,9 +1840,11 @@ static wpt_status dxeChannelCleanInt
                                       (1 << channelEntry->assignedDMAChannel));
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeChannelCleanInt Read CH STAT register fail");
-         return eWLAN_PAL_STATUS_E_FAULT;         
+#endif
+         return eWLAN_PAL_STATUS_E_FAULT;
       }
    }
 
@@ -1714,14 +1855,18 @@ static wpt_status dxeChannelCleanInt
                                       (1 << channelEntry->assignedDMAChannel));
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeChannelCleanInt Read CH STAT register fail");
-         return eWLAN_PAL_STATUS_E_FAULT;         
+#endif
+         return eWLAN_PAL_STATUS_E_FAULT;
       }
    }
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return status;
 }
 
@@ -1757,8 +1902,10 @@ void dxeRXPacketAvailableCB
    /* Simple Sanity */
    if((NULL == freePacket) || (NULL == usrData))
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
                "Get Free RX Buffer fail, Critical Error");
+#endif
       HDXE_ASSERT(0);
       return;
    }
@@ -1767,15 +1914,18 @@ void dxeRXPacketAvailableCB
 
    if(WLANDXE_CTXT_COOKIE != dxeCtxt->dxeCookie)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
                "DXE Context data corrupted, Critical Error");
+#endif
       HDXE_ASSERT(0);
       return;
    }
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO,
             "DXE RX packet available, post MSG to RX Thread");
-
+#endif
    dxeCtxt->freeRXPacket = freePacket;
 
    /* Serialize RX Packet Available message upon RX thread */
@@ -1786,8 +1936,10 @@ void dxeRXPacketAvailableCB
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
       HDXE_ASSERT(eWLAN_PAL_STATUS_SUCCESS == status);
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
                "dxeRXPacketAvailableCB serialize fail");
+#endif
    }
 
    return;
@@ -1877,13 +2029,17 @@ static wpt_status dxeRXFrameSingleBufferAlloc
                                            &virtualAddressPCIe);
    HDXE_ASSERT(0 != physicalAddressPCIe);
    HDXE_ASSERT(0 != virtualAddressPCIe);
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED,
             "RX Shadow Memory Va 0x%x, Pa 0x%x",
             virtualAddressPCIe, physicalAddressPCIe);
+#endif
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeRXFrameBufferAlloc Shadow Mem Alloc fail");
+#endif
       return status;
    }
    currentCtrlBlock->shadowBufferVa = virtualAddressPCIe;
@@ -1893,8 +2049,10 @@ static wpt_status dxeRXFrameSingleBufferAlloc
    status = wpalLockPacketForTransfer(currentPalPacketBuffer);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeRXFrameBufferAlloc unable to lock packet");
+#endif
       return status;
    }
 
@@ -1902,8 +2060,10 @@ static wpt_status dxeRXFrameSingleBufferAlloc
    status = wpalIteratorInit(&iterator, currentPalPacketBuffer);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeRXFrameBufferAlloc iterator init fail");
+#endif
       return status;
    }
    status = wpalIteratorNext(&iterator,
@@ -1912,8 +2072,10 @@ static wpt_status dxeRXFrameSingleBufferAlloc
                              &allocatedSize);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeRXFrameBufferAlloc iterator Get Next pointer fail");
+#endif
       return status;
    }
    currentPalPacketBuffer->pBDPhys = physAddress;
@@ -1965,8 +2127,10 @@ static wpt_status dxeRXFrameRefillRing
 
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                   "dxeRXFrameRefillRing, out of RX buffer pool, break here");
+#endif
          break;
       }
 
@@ -1991,7 +2155,7 @@ static wpt_status dxeRXFrameRefillRing
       currentCtrlBlk = currentCtrlBlk->nextCtrlBlk;
       --channelEntry->numFreeDesc;
    }
-   
+
    channelEntry->tailCtrlBlk = currentCtrlBlk;
 
    return status;
@@ -2051,15 +2215,19 @@ static wpt_int32 dxeRXFrameRouteUpperLayer
                                        WLANDXE_DEFAULT_RX_OS_BUFFER_SIZE);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeRXFrameReady Prepare RX Frame fail");
+#endif
          return -1;
       }
       status = wpalFreeRxFrame(currentCtrlBlk->shadowBufferVa);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeRXFrameReady Free Shadow RX Frame fail");
+#endif
          return -1;
       }
 
@@ -2067,8 +2235,10 @@ static wpt_int32 dxeRXFrameRouteUpperLayer
       status = wpalUnlockPacket(currentCtrlBlk->xfrFrame);
       if (eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeRXFrameReady unable to unlock packet");
+#endif
          return -1;
       }
 #endif /* FEATURE_R33D */
@@ -2139,14 +2309,17 @@ static wpt_status dxeRXFrameReady
    wpt_uint32                descLoop;
    wpt_uint32                invalidatedFound = 0;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    /* Sanity Check */
    if((NULL == dxeCtxt) || (NULL == channelEntry))
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeRXFrameReady Channel Entry is not valid");
+#endif
       return eWLAN_PAL_STATUS_E_INVAL;
    }
 
@@ -2154,8 +2327,10 @@ static wpt_status dxeRXFrameReady
 
    if(0 > frameCount)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeRXFrameReady RX frame route fail");
+#endif
          return eWLAN_PAL_STATUS_E_INVAL;
       }
 
@@ -2167,6 +2342,7 @@ static wpt_status dxeRXFrameReady
       currentDesc    = currentCtrlBlk->linkedDesc;
       descCtrl       = currentDesc->descCtrl.ctrl;
 
+#ifdef WLAN_DEBUG
       if(WLANDXE_POWER_STATE_BMPS != dxeCtxt->hostPowerState)
       {
           HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
@@ -2174,7 +2350,7 @@ static wpt_status dxeRXFrameReady
                    (int)dxeCtxt->hostPowerState,
                    channelType[channelEntry->channelType]);
       }
-
+#endif
       /* Current interupt empty and previous interrupt also empty
        * detected successive empty interrupt
        * or first interrupt empty, this should not happen */
@@ -2190,21 +2366,27 @@ static wpt_status dxeRXFrameReady
          {
             if(!(WLANDXE_U32_SWAP_ENDIAN(descCtrl) & WLANDXE_DESC_CTRL_VALID))
             {
+#ifdef WLAN_DEBUG
                HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                         "Found Invalidated Descriptor %d", (int)descLoop);
+#endif
                if(eWLAN_PAL_STATUS_SUCCESS == wpalIsPacketLocked(currentCtrlBlk->xfrFrame))
                {
+#ifdef WLAN_DEBUG
                   HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                            "Packet locked, Resync Host and HW");
+#endif
                   channelEntry->headCtrlBlk = currentCtrlBlk;
                   invalidatedFound = 1;
                   break;
                }
+#ifdef WLAN_DEBUG
                else
                {
                   HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                            "Packet Not Locked, cannot transfer frame");
                }
+#endif
             }
             currentCtrlBlk = (WLANDXE_DescCtrlBlkType *)currentCtrlBlk->nextCtrlBlk;
             currentDesc    = currentCtrlBlk->linkedDesc;
@@ -2216,11 +2398,15 @@ static wpt_status dxeRXFrameReady
           * Try re-sync here */
          if((invalidatedFound) && (0 != descLoop))
          {
+#ifdef WLAN_DEBUG
             HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                      "Found New Sync location with HW, handle frames from there");
+#endif
             frameCount = dxeRXFrameRouteUpperLayer(dxeCtxt, channelEntry);
+#ifdef WLAN_DEBUG
             HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                      "re-sync routed %d frames to upper layer", (int)frameCount);
+#endif
             channelEntry->numFragmentCurrentChain = frameCount;
          }
          /* Successive Empty interrupt
@@ -2229,24 +2415,30 @@ static wpt_status dxeRXFrameReady
           * This is just Out of RX buffer pool, not need to anything here */
          else if((invalidatedFound) && (0 == descLoop))
          {
+#ifdef WLAN_DEBUG
             HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                      "Out of RX Low resource, and INT came in, do nothing till get RX resource");
+#endif
          }
          /* Critical error, reload driver */
          else
          {
+#ifdef WLAN_DEBUG
             HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                      "Could not found invalidated descriptor");
             HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                      "RX successive empty interrupt, Could not find invalidated DESC reload driver");
+#endif
             dxeCtxt->driverReloadInProcessing = eWLAN_PAL_TRUE;
             wpalWlanReload();
          }
       }
    }
    channelEntry->numFragmentCurrentChain = frameCount;
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return status;
 }
 
@@ -2274,8 +2466,9 @@ static wpt_status dxeNotifySmsm
 
    if(kickDxe)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED, "Kick off DXE");
-
+#endif
      if(tempDxeCtrlBlk->lastKickOffDxe == 0)
      {
        setSt |= WPAL_SMSM_WLAN_TX_ENABLE; 
@@ -2291,24 +2484,30 @@ static wpt_status dxeNotifySmsm
        HDXE_ASSERT(0);
      }
    }
+#ifdef WLAN_DEBUG
    else
    {
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED, "no need to kick off DXE");
    }
-
+#endif
    if(ringEmpty)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED, "SMSM Tx Ring Empty");
+#endif
      clrSt |= WPAL_SMSM_WLAN_TX_RINGS_EMPTY; 
    }
    else
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED, "SMSM Tx Ring Not Empty");
-     setSt |= WPAL_SMSM_WLAN_TX_RINGS_EMPTY; 
+#endif
+     setSt |= WPAL_SMSM_WLAN_TX_RINGS_EMPTY;
    }
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_HIGH, "C%x S%x", clrSt, setSt);
-
+#endif
    wpalNotifySmsm(clrSt, setSt);
 
    return eWLAN_PAL_STATUS_SUCCESS;
@@ -2406,8 +2605,10 @@ void dxeRXEventHandler
 
    if(eWLAN_PAL_TRUE == dxeCtxt->driverReloadInProcessing)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "RX Ready WLAN Driver re-loading in progress");
+#endif
       return;
    }
 
@@ -2416,43 +2617,48 @@ void dxeRXEventHandler
    dxeRXFrameRefillRing(dxeCtxt, &dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_HIGH_PRI]);
 
    dxeCtxt = (WLANDXE_CtrlBlkType *)(msgContent->pContext);
-      
+
    if((!dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_HIGH_PRI].extraConfig.chEnabled) ||
       (!dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI].extraConfig.chEnabled))
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
          "DXE already stopped in RX event handler. Just return");
+#endif
       return;
    }
 
    if((WLANDXE_POWER_STATE_IMPS == dxeCtxt->hostPowerState) ||
       (WLANDXE_POWER_STATE_DOWN == dxeCtxt->hostPowerState))
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
          "%s Riva is in %d, Just Pull frames without any register touch ",
            __FUNCTION__, dxeCtxt->hostPowerState);
-
+#endif
       /* Not to touch any register, just pull frame directly from chain ring
        * First high priority */
       channelCb = &dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_HIGH_PRI];
       status = dxeRXFrameReady(dxeCtxt,
                                channelCb);
+#ifdef WLAN_DEBUG
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeRXEventHandler Pull from RX high channel fail");        
       }
-
+#endif
        /* Second low priority */
       channelCb = &dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI];
       status = dxeRXFrameReady(dxeCtxt,
                                channelCb);
+#ifdef WLAN_DEBUG
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeRXEventHandler Pull from RX low channel fail");        
       }
-
+#endif
       /* Interrupt will not enabled at here, it will be enabled at PS mode change */
       tempDxeCtrlBlk->rxIntDisabledByIMPS = eWLAN_PAL_TRUE;
 
@@ -2465,13 +2671,16 @@ void dxeRXEventHandler
                              &intSrc);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeRXEventHandler Read INT_SRC register fail");
-      return;         
+#endif
+      return;
    }
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED,
             "RX Event Handler INT Source 0x%x", intSrc);
-
+#endif
 #ifndef WLANDXE_TEST_CHANNEL_ENABLE
    /* Test High Priority Channel interrupt is enabled or not */
    channelCb = &dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_HIGH_PRI];
@@ -2480,9 +2689,11 @@ void dxeRXEventHandler
       status = dxeChannelCleanInt(channelCb, &chHighStat);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeRXEventHandler INT Clean up fail");
-         return;         
+#endif
+         return;
       }
       if(WLANDXE_CH_STAT_INT_ERR_MASK & chHighStat)
       {
@@ -2500,8 +2711,10 @@ void dxeRXEventHandler
          status = dxeRXFrameReady(dxeCtxt,
                                   channelCb);
       }
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO,
                "RX HIGH CH EVNT STAT 0x%x, %d frames handled", chHighStat, channelCb->numFragmentCurrentChain);
+#endif
       /* Update the Rx DONE histogram */
       channelCb->rxDoneHistogram = (channelCb->rxDoneHistogram << 1);
       if(WLANDXE_CH_STAT_INT_DONE_MASK & chHighStat)
@@ -2521,9 +2734,11 @@ void dxeRXEventHandler
       status = dxeChannelCleanInt(channelCb, &chStat);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeRXEventHandler INT Clean up fail");
-         return;         
+#endif
+         return;
       }
 
       if(WLANDXE_CH_STAT_INT_ERR_MASK & chStat)
@@ -2541,9 +2756,11 @@ void dxeRXEventHandler
       if(WLANDXE_CH_STAT_INT_DONE_MASK & chStat)
       {
          channelCb->rxDoneHistogram |= 1;
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
             "DXE Channel Number %d, Rx DONE Histogram 0x%016llx",
             channelCb->assignedDMAChannel, channelCb->rxDoneHistogram);
+#endif
       }
       else
       {
@@ -2559,9 +2776,11 @@ void dxeRXEventHandler
       status = dxeChannelCleanInt(channelCb, &chLowStat);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeRXEventHandler INT Clean up fail");
-         return;         
+#endif
+         return;
       }
 
       if(WLANDXE_CH_STAT_INT_ERR_MASK & chLowStat)
@@ -2585,14 +2804,18 @@ void dxeRXEventHandler
       {
          channelCb->rxDoneHistogram &= ~1;
       }
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO,
                "RX LOW CH EVNT STAT 0x%x, %d frames handled", chLowStat, channelCb->numFragmentCurrentChain);
+#endif
    }
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeRXEventHandler Handle Frame Ready Fail");
-      return;         
+#endif
+      return;
    }
 
    /* Enable system level ISR */
@@ -2600,9 +2823,11 @@ void dxeRXEventHandler
    status = wpalEnableInterrupt(DXE_INTERRUPT_RX_READY);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeRXEventHandler Enable RX Ready interrupt fail");
-      return;         
+#endif
+      return;
    }
 
    /* Prepare Control Register EN Channel */
@@ -2612,17 +2837,20 @@ void dxeRXEventHandler
    }
    if(!(WLANDXE_CH_STAT_INT_ED_MASK & chHighStat))
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED,
                "dxeRXEventHandler RX High, Not yet ED, re-enable CH");
+#endif
       wpalWriteRegister(dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_HIGH_PRI].channelRegister.chDXECtrlRegAddr,
                         dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_HIGH_PRI].extraConfig.chan_mask);
    }
+#ifdef WLAN_DEBUG
    else
    {
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED,
                "dxeRXEventHandler RX High, CH STAT = ED_MASK, will RIVA PC");
    }
-
+#endif
    /* Prepare Control Register EN Channel */
    if(!(dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI].extraConfig.chan_mask & WLANDXE_CH_CTRL_EN_MASK))
    {
@@ -2630,11 +2858,14 @@ void dxeRXEventHandler
    }
    if(!(WLANDXE_CH_STAT_INT_ED_MASK & chLowStat))
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED,
                "dxeRXEventHandler RX Low, Not yet ED, re-enable CH");
+#endif
       wpalWriteRegister(dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI].channelRegister.chDXECtrlRegAddr,
                         dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI].extraConfig.chan_mask);
    }
+#ifdef WLAN_DEBUG
    else
    {
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED,
@@ -2643,6 +2874,7 @@ void dxeRXEventHandler
 
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return;
 }
 
@@ -2674,14 +2906,17 @@ void dxeRXPacketAvailableEventHandler
    wpt_status                status     = eWLAN_PAL_STATUS_SUCCESS;
    WLANDXE_ChannelCBType    *channelCb  = NULL;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    /* Sanity Check */
    if(NULL == rxPktAvailMsg)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeRXPacketAvailableEventHandler Context is not valid");
+#endif
       return;
    }
 
@@ -2689,19 +2924,20 @@ void dxeRXPacketAvailableEventHandler
 
    do
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                "dxeRXPacketAvailableEventHandler, start refilling ring");
-
+#endif
       channelCb = &dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_HIGH_PRI];
       status = dxeRXFrameRefillRing(dxeCtxt,channelCb);
-   
+
       // Wait for another callback to indicate when Rx resources are available
       // again.
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
          break;
       }
-   
+
       channelCb = &dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI];
       status = dxeRXFrameRefillRing(dxeCtxt,channelCb);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
@@ -2753,16 +2989,22 @@ static void dxeRXISR
                                   &regValue);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeTXCompISR Read INT_SRC_RAW fail");
+#endif
       return;
    }
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
             "INT_SRC_RAW 0x%x", regValue);
+#endif
    if(0 == regValue)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                "This is not DXE Interrupt, Reject it 0x%x", regValue);
+#endif
       return;
    }
 #endif /* FEATURE_R33D */
@@ -2773,9 +3015,11 @@ static void dxeRXISR
    status = wpalDisableInterrupt(DXE_INTERRUPT_RX_READY);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeRXFrameReadyISR Disable RX ready interrupt fail");
-      return;         
+#endif
+      return;
    }
 
    /* Serialize RX Ready interrupt upon RX thread */
@@ -2785,8 +3029,10 @@ static void dxeRXISR
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
       HDXE_ASSERT(eWLAN_PAL_STATUS_SUCCESS == status);
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
                "dxeRXFrameReadyISR interrupt serialize fail");
+#endif
    }
 
    return;
@@ -2830,9 +3076,10 @@ static wpt_status dxeTXPushFrame
    wpt_iterator                iterator;
 #endif /* FEATURE_R33D */
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    if(WLANDXE_POWER_STATE_BMPS == tempDxeCtrlBlk->hostPowerState)
    {
       tempDxeCtrlBlk->rivaPowerState = WLANDXE_RIVA_POWER_STATE_BMPS_UNKNOWN;
@@ -2852,8 +3099,10 @@ static wpt_status dxeTXPushFrame
    status = wpalLockPacketForTransfer(palPacket);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeTXPushFrame unable to lock packet");
+#endif
       return status;
    }
 
@@ -2861,8 +3110,10 @@ static wpt_status dxeTXPushFrame
 #endif /* FEATURE_R33D */
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeTXPushFrame iterator init fail");
+#endif
       return status;
    }
 
@@ -2901,14 +3152,18 @@ static wpt_status dxeTXPushFrame
       if((NULL == sourcePhysicalAddress) ||
          (0    == xferSize))
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
                   "dxeTXPushFrame end of current frame");
+#endif
          break;
       }
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeTXPushFrame Get next frame fail");
+#endif
          return status;
       }
 #endif /* FEATURE_R33D */
@@ -2954,18 +3209,21 @@ static wpt_status dxeTXPushFrame
       currentCtrlBlk = currentCtrlBlk->nextCtrlBlk;
    }
    channelEntry->numTotalFrame++;
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "NUM TX FRAG %d, Total Frame %d",
             channelEntry->numFragmentCurrentChain, channelEntry->numTotalFrame);
-
+#endif
    /* Program Channel control register
     * Set as end of packet
     * Enable interrupt also for first code lock down
     * performace optimization, this will be revisited */
    if(NULL == LastDesc)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeTXPushFrame NULL Last Descriptor, broken chain");
+#endif
       return eWLAN_PAL_STATUS_E_FAULT;
    }
    LastDesc->descCtrl.ctrl  = channelEntry->extraConfig.cw_ctrl_write_eop_int;
@@ -2980,8 +3238,10 @@ static wpt_status dxeTXPushFrame
       /* Update channel head as next avaliable linked slot */
       channelEntry->headCtrlBlk = currentCtrlBlk;
       tempDxeCtrlBlk->ringNotEmpty = eWLAN_PAL_TRUE;
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW, "SMSM_ret LO=%d HI=%d", tempDxeCtrlBlk->dxeChannel[WDTS_CHANNEL_TX_LOW_PRI].numRsvdDesc,
                tempDxeCtrlBlk->dxeChannel[WDTS_CHANNEL_TX_HIGH_PRI].numRsvdDesc );
+#endif
       dxeNotifySmsm(eWLAN_PAL_TRUE, eWLAN_PAL_FALSE);
       return status;
    }
@@ -3004,16 +3264,20 @@ static wpt_status dxeTXPushFrame
                                       channelEntry->extraConfig.chan_mask);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeTXPushFrame Write Channel Ctrl Register fail");
+#endif
          return status;
       }
 
       /* Update channel head as next avaliable linked slot */
       channelEntry->headCtrlBlk = currentCtrlBlk;
 
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
                "%s Exit", __FUNCTION__);
+#endif
       return status;
    }
 
@@ -3029,8 +3293,10 @@ static wpt_status dxeTXPushFrame
                                       channelEntry->channelConfig.refWQ);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeTXPushFrame Program dest address register fail");
+#endif
          return status;
       }
       /* If descriptor format is SHORT */
@@ -3040,16 +3306,20 @@ static wpt_status dxeTXPushFrame
                                          0);
          if(eWLAN_PAL_STATUS_SUCCESS != status)
          {
+#ifdef WLAN_DEBUG
             HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                      "dxeTXPushFrame Program dest address register fail");
+#endif
             return status;
          }
       }
+#ifdef WLAN_DEBUG
       else
       {
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeTXPushFrame LONG Descriptor Format!!!");
       }
+#endif
    }
 #ifdef WLANDXE_TEST_CHANNEL_ENABLE
    else if(WDTS_CHANNEL_H2H_TEST_TX  == channelEntry->channelType)
@@ -3059,8 +3329,10 @@ static wpt_status dxeTXPushFrame
                                       WLANDXE_U32_SWAP_ENDIAN(firstDesc->dxedesc.dxe_short_desc.dstMemAddrL));
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeTXPushFrame Program dest address register fail");
+#endif
          return status;
       }
       /* If descriptor format is SHORT */
@@ -3070,16 +3342,20 @@ static wpt_status dxeTXPushFrame
                                          0);
          if(eWLAN_PAL_STATUS_SUCCESS != status)
          {
+#ifdef WLAN_DEBUG
             HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                      "dxeTXPushFrame Program dest address register fail");
+#endif
             return status;
          }
       }
+#ifdef WLAN_DEBUG
       else
       {
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeTXPushFrame LONG Descriptor Format!!!");
       }
+#endif
    }
 #endif /* WLANDXE_TEST_CHANNEL_ENABLE */
 
@@ -3090,8 +3366,10 @@ static wpt_status dxeTXPushFrame
                                    WLANDXE_U32_SWAP_ENDIAN(firstDesc->dxedesc.dxe_short_desc.srcMemAddrL));
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeTXPushFrame Program src address register fail");
+#endif
       return status;
    }
    /* If descriptor format is SHORT */
@@ -3101,24 +3379,29 @@ static wpt_status dxeTXPushFrame
                                       0);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeTXPushFrame Program dest address register fail");
+#endif
          return status;
       }
    }
+#ifdef WLAN_DEBUG
    else
    {
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeTXPushFrame LONG Descriptor Format!!!");
    }
-
+#endif
    /* Linked list Descriptor pointer */
    status = wpalWriteRegister(channelEntry->channelRegister.chDXEDesclRegAddr,
                                    channelEntry->headCtrlBlk->linkedDescPhyAddr);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeTXPushFrame Write DESC Address register fail");
+#endif
       return status;
    }
    /* If descriptor format is SHORT */
@@ -3128,25 +3411,30 @@ static wpt_status dxeTXPushFrame
                                       0);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeTXPushFrame Program dest address register fail");
+#endif
          return status;
       }
    }
+#ifdef WLAN_DEBUG
    else
    {
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeTXPushFrame LONG Descriptor Format!!!");
    }
-
+#endif
    /* Transfer Size */
    xferSize = WLANDXE_U32_SWAP_ENDIAN(firstDesc->xfrSize);
    status = wpalWriteRegister(channelEntry->channelRegister.chDXESzRegAddr,
                                    xferSize);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeTXPushFrame Write DESC Address register fail");
+#endif
       return status;
    }
 
@@ -3156,16 +3444,20 @@ static wpt_status dxeTXPushFrame
                                    channelEntry->extraConfig.chan_mask);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeTXPushFrame Write Channel Ctrl Register fail");
+#endif
       return status;
    }
 
    /* Update channel head as next avaliable linked slot */
    channelEntry->headCtrlBlk = currentCtrlBlk;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return status;
 }
 
@@ -3197,21 +3489,26 @@ static wpt_status dxeTXCompFrame
    wpt_uint32                descCtrlValue  = 0;
    unsigned int             *lowThreshold   = NULL;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    /* Sanity */
    if((NULL == hostCtxt) || (NULL == channelEntry))
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeTXCompFrame Invalid ARG");
+#endif
       return eWLAN_PAL_STATUS_E_INVAL;
    }
 
    if(NULL == hostCtxt->txCompCB)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeTXCompFrame TXCompCB is not registered");
+#endif
       return eWLAN_PAL_STATUS_SUCCESS;
    }
 
@@ -3234,8 +3531,10 @@ static wpt_status dxeTXCompFrame
       if((descCtrlValue & WLANDXE_DESC_CTRL_VALID))
       {
          /* caught up with head, bail out */
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED,
                   "dxeTXCompFrame caught up with head - next DESC has VALID set");
+#endif
          break;
       }
 
@@ -3253,8 +3552,10 @@ static wpt_status dxeTXCompFrame
          status = wpalUnlockPacket(currentCtrlBlk->xfrFrame);
          if (eWLAN_PAL_STATUS_SUCCESS != status)
          {
+#ifdef WLAN_DEBUG
             HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                      "dxeRXFrameReady unable to unlock packet");
+#endif
             wpalMutexRelease(&channelEntry->dxeChannelLock);
             return status;
          }
@@ -3274,8 +3575,10 @@ static wpt_status dxeTXCompFrame
        * in theory, COMP CB must be called already ??? */
       if(currentCtrlBlk == channelEntry->headCtrlBlk)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED,
                   "dxeTXCompFrame caught up with head ptr");
+#endif
          break;
       }
       /* VALID Bit check ???? */
@@ -3298,8 +3601,10 @@ static wpt_status dxeTXCompFrame
          *lowThreshold = WLANDXE_TX_LOW_RES_THRESHOLD;
       }
 
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                "DXE TX %d channel recovered from low resource", channelEntry->channelType);
+#endif
       hostCtxt->lowResourceCB(hostCtxt->clientCtxt,
                               channelEntry->channelType,
                               eWLAN_PAL_TRUE);
@@ -3309,8 +3614,10 @@ static wpt_status dxeTXCompFrame
 
    wpalMutexRelease(&channelEntry->dxeChannelLock);
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return status;
 }
 
@@ -3346,16 +3653,19 @@ void dxeTXEventHandler
    wpt_uint8                 bEnableISR = 0;
    static wpt_uint8          successiveIntWithIMPS = 0;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    dxeCtxt = (WLANDXE_CtrlBlkType *)(msgContent->pContext);
    dxeCtxt->ucTxMsgCnt = 0;
-   
+
    if(eWLAN_PAL_TRUE == dxeCtxt->driverReloadInProcessing)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "wlan: TX COMP WLAN Driver re-loading in progress");
+#endif
       return;
    }
 
@@ -3363,31 +3673,37 @@ void dxeTXEventHandler
    if(WLANDXE_POWER_STATE_IMPS == dxeCtxt->hostPowerState)
    {
       successiveIntWithIMPS++;
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeTXEventHandler IMPS TX COMP INT successiveIntWithIMPS %d", successiveIntWithIMPS);
+#endif
       status = dxeTXCompFrame(dxeCtxt, &dxeCtxt->dxeChannel[WDTS_CHANNEL_TX_HIGH_PRI]);
+#ifdef WLAN_DEBUG
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeTXEventHandler IMPS HC COMP interrupt fail");
       }
-	  
+#endif
       status = dxeTXCompFrame(dxeCtxt, &dxeCtxt->dxeChannel[WDTS_CHANNEL_TX_LOW_PRI]);
+#ifdef WLAN_DEBUG
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeTXEventHandler IMPS LC COMP interrupt fail");
       }
-
+#endif
       if(((dxeCtxt->txCompletedFrames) &&
          (eWLAN_PAL_FALSE == dxeCtxt->txIntEnable)) &&
          (successiveIntWithIMPS == 1))
       {
          dxeCtxt->txIntEnable =  eWLAN_PAL_TRUE; 
          wpalEnableInterrupt(DXE_INTERRUPT_TX_COMPLE);
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                   "TX COMP INT Enabled, remain TX frame count on ring %d",
                   dxeCtxt->txCompletedFrames);
+#endif
          /*Kicking the DXE after the TX Complete interrupt was enabled - to avoid 
            the posibility of a race*/
          dxePsComplete(dxeCtxt, eWLAN_PAL_TRUE);
@@ -3395,9 +3711,11 @@ void dxeTXEventHandler
       else
       {
          dxeCtxt->txIntEnable =  eWLAN_PAL_FALSE;
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "TX COMP INT NOT Enabled, RIVA still wake up? remain TX frame count on ring %d, successiveIntWithIMPS %d",
                   dxeCtxt->txCompletedFrames, successiveIntWithIMPS);
+#endif
       }
       return;
    }
@@ -3406,8 +3724,10 @@ void dxeTXEventHandler
    if((!dxeCtxt->dxeChannel[WDTS_CHANNEL_TX_HIGH_PRI].extraConfig.chEnabled) ||
       (!dxeCtxt->dxeChannel[WDTS_CHANNEL_TX_LOW_PRI].extraConfig.chEnabled))
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
          "DXE already stopped in TX event handler. Just return");
+#endif
       return;
    }
 
@@ -3417,13 +3737,16 @@ void dxeTXEventHandler
                                   &intSrc);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeTXCompleteEventHandler Read INT_DONE_SRC register fail");
-      return;         
+#endif
+      return;
    }
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED,
             "TX Event Handler INT Source 0x%x", intSrc);
-
+#endif
    /* Test High Priority Channel is the INT source or not */
    channelCb = &dxeCtxt->dxeChannel[WDTS_CHANNEL_TX_HIGH_PRI];
    if(intSrc & (1 << channelCb->assignedDMAChannel))
@@ -3431,15 +3754,19 @@ void dxeTXEventHandler
       status = dxeChannelCleanInt(channelCb, &chStat);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeTXEventHandler INT Clean up fail");
-         return;         
+#endif
+         return;
       }
 
       if(WLANDXE_CH_STAT_INT_ERR_MASK & chStat)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
                  "dxeTXEventHandler TX HI status=%x", chStat);
+#endif
          HDXE_ASSERT(0);
       }
       else if(WLANDXE_CH_STAT_INT_DONE_MASK & chStat)
@@ -3456,12 +3783,12 @@ void dxeTXEventHandler
                                  channelCb);
          bEnableISR = 1;
       }
+#ifdef WLAN_DEBUG
       else
       {
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                  "dxeTXEventHandler TX HI status=%x", chStat);
       }
-
       if(WLANDXE_CH_STAT_MASKED_MASK & chStat)
       {
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_HIGH,
@@ -3470,6 +3797,7 @@ void dxeTXEventHandler
 
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_HIGH,
                "TX HIGH STAT 0x%x RESRVD %d", chStat, channelCb->numRsvdDesc);
+#endif
    }
 
    /* Test Low Priority Channel interrupt is enabled or not */
@@ -3479,15 +3807,19 @@ void dxeTXEventHandler
       status = dxeChannelCleanInt(channelCb, &chStat);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeTXEventHandler INT Clean up fail");
-         return;         
+#endif
+         return;
       }
 
       if(WLANDXE_CH_STAT_INT_ERR_MASK & chStat)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
                  "dxeTXEventHandler TX LO status=%x", chStat);
+#endif
          HDXE_ASSERT(0);
       }
       else if(WLANDXE_CH_STAT_INT_DONE_MASK & chStat)
@@ -3504,6 +3836,7 @@ void dxeTXEventHandler
                                  channelCb);
          bEnableISR = 1;
       }
+#ifdef WLAN_DEBUG
       else
       {
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
@@ -3517,8 +3850,8 @@ void dxeTXEventHandler
       }
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO,
                "TX LOW STAT 0x%x RESRVD %d", chStat, channelCb->numRsvdDesc);
+#endif
    }
-
 
 #ifdef WLANDXE_TEST_CHANNEL_ENABLE
    /* Test H2H TX Channel interrupt is enabled or not */
@@ -3529,15 +3862,19 @@ void dxeTXEventHandler
                                      &chStat);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeChannelCleanInt Read CH STAT register fail");
-         return;         
+#endif
+         return;
       }
 
       if(WLANDXE_CH_STAT_INT_ERR_MASK & chStat)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
                   "WLANDXE_CH_STAT_INT_ERR_MASK occurred");
+#endif
          HDXE_ASSERT(0);
       }
       else if(WLANDXE_CH_STAT_INT_DONE_MASK & chStat)
@@ -3547,16 +3884,20 @@ void dxeTXEventHandler
                                  channelCb);
          if(eWLAN_PAL_STATUS_SUCCESS != status)
          {
+#ifdef WLAN_DEBUG
             HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                      "dxeTXEventHandler INT Clean up fail");
-            return;         
+#endif
+            return;
          }
       }
+#ifdef WLAN_DEBUG
       else
       {
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "unexpected channel state %d", chStat);
       }
+#endif
    }
 #endif /* WLANDXE_TEST_CHANNEL_ENABLE */
 
@@ -3565,17 +3906,21 @@ void dxeTXEventHandler
    {
       dxeCtxt->txIntEnable =  eWLAN_PAL_TRUE; 
       wpalEnableInterrupt(DXE_INTERRUPT_TX_COMPLE);
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                "TX COMP INT Enabled, remain TX frame count on ring %d",
                dxeCtxt->txCompletedFrames);
+#endif
    }
 
    /*Kicking the DXE after the TX Complete interrupt was enabled - to avoid 
      the posibility of a race*/
    dxePsComplete(dxeCtxt, eWLAN_PAL_TRUE);
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return;
 }
 
@@ -3604,9 +3949,10 @@ void dxeTXCompleteProcessing
    wpt_status                status     = eWLAN_PAL_STATUS_SUCCESS;
    WLANDXE_ChannelCBType    *channelCb  = NULL;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-  
+#endif
    /* Test High Priority Channel is the INT source or not */
    channelCb = &dxeCtxt->dxeChannel[WDTS_CHANNEL_TX_HIGH_PRI];
 
@@ -3625,20 +3971,23 @@ void dxeTXCompleteProcessing
    {
       dxeCtxt->txIntEnable =  eWLAN_PAL_TRUE; 
       wpalEnableInterrupt(DXE_INTERRUPT_TX_COMPLE);
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                "%s %s : %d, %s : %d", __FUNCTION__,
                channelType[dxeCtxt->dxeChannel[WDTS_CHANNEL_TX_HIGH_PRI].channelType],
                dxeCtxt->dxeChannel[WDTS_CHANNEL_TX_HIGH_PRI].numRsvdDesc,
                channelType[dxeCtxt->dxeChannel[WDTS_CHANNEL_TX_LOW_PRI].channelType],
                dxeCtxt->dxeChannel[WDTS_CHANNEL_TX_LOW_PRI].numRsvdDesc);
+#endif
    }
-   
+
    /*Kicking the DXE after the TX Complete interrupt was enabled - to avoid 
      the posibility of a race*/
    dxePsComplete(dxeCtxt, eWLAN_PAL_FALSE);
-   
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return;
 }
 
@@ -3673,20 +4022,25 @@ void dxeTXReSyncDesc
 
    if(NULL == msgContent)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeTXReSyncDesc Invalid Control Block");
-      return;  
+#endif
+      return;
    }
-
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "dxeTXReSyncDesc Try to re-sync TX channel if any problem");
+#endif
    pDxeCtrlBlk = (WLANDXE_CtrlBlkType *)(msgContent->pContext);
 
    for(channelLoop = WDTS_CHANNEL_TX_LOW_PRI; channelLoop < WDTS_CHANNEL_RX_LOW_PRI; channelLoop++)
    {
       channelEntry = &pDxeCtrlBlk->dxeChannel[channelLoop];
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
                "%11s : Try to detect TX descriptor async", channelType[channelEntry->channelType]);
+#endif
       wpalReadRegister(channelEntry->channelRegister.chDXEDesclRegAddr,
                        &nextDescReg);
       /* Async detect without TX pending frame */
@@ -3694,8 +4048,10 @@ void dxeTXReSyncDesc
       {
          if(nextDescReg != channelEntry->tailCtrlBlk->linkedDescPhyAddr)
          {
+#ifdef WLAN_DEBUG
             HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
                      "TX Async no Pending frame");
+#endif
             dxeChannelMonitor("!!! TX Async no Pending frame !!!", channelEntry);
             dxeChannelRegisterDump(channelEntry, "!!! TX Async no Pending frame !!!");
             wpalWriteRegister(channelEntry->channelRegister.chDXEDesclRegAddr,
@@ -3713,8 +4069,10 @@ void dxeTXReSyncDesc
             {
                if(nextDescReg != validCtrlBlk->linkedDescPhyAddr)
                {
+#ifdef WLAN_DEBUG
                   HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
                            "TX Async");
+#endif
                   dxeChannelMonitor("!!! TX Async !!!", channelEntry);
                   dxeChannelRegisterDump(channelEntry, "!!! TX Async !!!");
                   wpalWriteRegister(channelEntry->channelRegister.chDXEDesclRegAddr,
@@ -3732,8 +4090,10 @@ void dxeTXReSyncDesc
                 * check */
                if(nextDescReg != channelEntry->headCtrlBlk->linkedDescPhyAddr)
                {
+#ifdef WLAN_DEBUG
                   HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
                            "TX Async with not completed transfered frames, next descriptior must be head");
+#endif
                   dxeChannelMonitor("!!! TX Async !!!", channelEntry);
                   dxeChannelRegisterDump(channelEntry, "!!! TX Async !!!");
                   wpalWriteRegister(channelEntry->channelRegister.chDXEDesclRegAddr,
@@ -3752,25 +4112,30 @@ void dxeTXReSyncDesc
       channelEntry = &pDxeCtrlBlk->dxeChannel[channelLoop];
       if(channelEntry->tailCtrlBlk == channelEntry->headCtrlBlk)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
                   "%11s : No TX Pending frame",
                   channelType[channelEntry->channelType]);
          /* No Pending frame, Do nothing */
+#endif
       }
       else
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
                   "%11s : TX Pending frame, process it",
                   channelType[channelEntry->channelType]);
+#endif
          validCtrlBlk = channelEntry->tailCtrlBlk;
          for(descLoop = 0; descLoop < channelEntry->numDesc; descLoop++)
          {
             if(validCtrlBlk->linkedDesc->descCtrl.ctrl & WLANDXE_DESC_CTRL_VALID)
             {
+#ifdef WLAN_DEBUG
                HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
                         "%11s : when exit IMPS found valid descriptor",
                         channelType[channelEntry->channelType]);
-
+#endif
                /* Found valid descriptor, kick DXE */
                wpalWriteRegister(channelEntry->channelRegister.chDXECtrlRegAddr,
                                  channelEntry->extraConfig.chan_mask);
@@ -3819,9 +4184,10 @@ static void dxeTXISR
    wpt_uint32                regValue;
 #endif /* FEATURE_R33D */
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    /* Return from here if the RIVA is in IMPS, to avoid register access */
    if(WLANDXE_POWER_STATE_DOWN == dxeCtxt->hostPowerState)
    {
@@ -3831,13 +4197,17 @@ static void dxeTXISR
       status = wpalDisableInterrupt(DXE_INTERRUPT_TX_COMPLE);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeRXFrameReadyISR Disable RX ready interrupt fail");
-         return;         
+#endif
+         return;
       }
       dxeCtxt->txIntDisabledByIMPS = eWLAN_PAL_TRUE;
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
          "%s Riva is in %d, return from here ", __FUNCTION__, dxeCtxt->hostPowerState);
+#endif
       return;
    }
 
@@ -3846,16 +4216,22 @@ static void dxeTXISR
                                   &regValue);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeTXCompISR Read INT_SRC_RAW fail");
+#endif
       return;
    }
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "INT_SRC_RAW 0x%x", regValue);
+#endif
    if(0 == regValue)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                "This is not DXE Interrupt, Reject it");
+#endif
       return;
    }
 #endif /* FEATURE_R33D */
@@ -3864,26 +4240,31 @@ static void dxeTXISR
    status = wpalDisableInterrupt(DXE_INTERRUPT_TX_COMPLE);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeTXCompISR Disable TX complete interrupt fail");
-      return;         
+#endif
+      return;
    }
    dxeCtxt->txIntEnable = eWLAN_PAL_FALSE;
 
 
    if( dxeCtxt->ucTxMsgCnt )
    {
+#ifdef WLAN_DEBUG
     HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO,
                  "Avoiding serializing TX Complete event");
+#endif
     return;
    }
-   
+
    dxeCtxt->ucTxMsgCnt = 1;
 
    /* Serialize TX complete interrupt upon TX thread */
    HDXE_ASSERT(NULL != dxeCtxt->txIsrMsg);
    status = wpalPostTxMsg(WDI_GET_PAL_CTX(),
                           dxeCtxt->txIsrMsg);
+#ifdef WLAN_DEBUG
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
@@ -3892,6 +4273,7 @@ static void dxeTXISR
 
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return;
 }
 
@@ -3928,32 +4310,39 @@ void *WLANDXE_Open
    WLANDXE_DescCtrlBlkType   *nextDescCB = NULL;
 #endif /* WLANDXE_TEST_CHANNEL_ENABLE */
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    /* This is temporary allocation */
    tempDxeCtrlBlk = (WLANDXE_CtrlBlkType *)wpalMemoryAllocate(sizeof(WLANDXE_CtrlBlkType));
    if(NULL == tempDxeCtrlBlk)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_Open Control Block Alloc Fail");
-      return NULL;  
+#endif
+      return NULL;
    }
    wpalMemoryZero(tempDxeCtrlBlk, sizeof(WLANDXE_CtrlBlkType));
 
    status = dxeCommonDefaultConfig(tempDxeCtrlBlk);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_Open Common Configuration Fail");
+#endif
       WLANDXE_Close(tempDxeCtrlBlk);
-      return NULL;         
+      return NULL;
    }
 
    for(idx = 0; idx < WDTS_CHANNEL_MAX; idx++)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                "WLANDXE_Open Channel %s Open Start", channelType[idx]);
+#endif
       currentChannel = &tempDxeCtrlBlk->dxeChannel[idx];
       if(idx == WDTS_CHANNEL_TX_LOW_PRI)
       {
@@ -3987,27 +4376,32 @@ void *WLANDXE_Open
                                        currentChannel);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "WLANDXE_Open Channel Basic Configuration Fail for channel %d", idx);
+#endif
          WLANDXE_Close(tempDxeCtrlBlk);
-         return NULL;         
+         return NULL;
       }
 
       /* Allocate DXE Control Block will be used by host DXE driver */
       status = dxeCtrlBlkAlloc(tempDxeCtrlBlk, currentChannel);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "WLANDXE_Open Alloc DXE Control Block Fail for channel %d", idx);
-
+#endif
          WLANDXE_Close(tempDxeCtrlBlk);
-         return NULL;         
+         return NULL;
       }
       status = wpalMutexInit(&currentChannel->dxeChannelLock); 
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                   "WLANDXE_Open Lock Init Fail for channel %d", idx);
+#endif
          WLANDXE_Close(tempDxeCtrlBlk);
          return NULL;
       }
@@ -4017,8 +4411,10 @@ void *WLANDXE_Open
                     (void *)currentChannel);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                   "WLANDXE_Open Health Monitor timer init fail %d", idx);
+#endif
          WLANDXE_Close(tempDxeCtrlBlk);
          return NULL;
       }
@@ -4026,8 +4422,10 @@ void *WLANDXE_Open
       currentChannel->healthMonitorMsg = (wpt_msg *)wpalMemoryAllocate(sizeof(wpt_msg));
       if(NULL == currentChannel->healthMonitorMsg)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                   "WLANDXE_Open Health Monitor MSG Alloc fail %d", idx);
+#endif
          WLANDXE_Close(tempDxeCtrlBlk);
          return NULL;
       }
@@ -4035,16 +4433,20 @@ void *WLANDXE_Open
       currentChannel->healthMonitorMsg->callback = dxeTXHealthMonitor;
       currentChannel->healthMonitorMsg->pContext = (void *)currentChannel;
 
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                "WLANDXE_Open Channel %s Open Success", channelType[idx]);
+#endif
    }
 
    /* Allocate and Init RX READY ISR Serialize Buffer */
    tempDxeCtrlBlk->rxIsrMsg = (wpt_msg *)wpalMemoryAllocate(sizeof(wpt_msg));
    if(NULL == tempDxeCtrlBlk->rxIsrMsg)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_Open Alloc RX ISR Fail");
+#endif
       WLANDXE_Close(tempDxeCtrlBlk);
       return NULL;
    }
@@ -4056,8 +4458,10 @@ void *WLANDXE_Open
    tempDxeCtrlBlk->txIsrMsg = (wpt_msg *)wpalMemoryAllocate(sizeof(wpt_msg));
    if(NULL == tempDxeCtrlBlk->txIsrMsg)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_Open Alloc TX ISR Fail");
+#endif
       WLANDXE_Close(tempDxeCtrlBlk);
       return NULL;
    }
@@ -4069,15 +4473,17 @@ void *WLANDXE_Open
    tempDxeCtrlBlk->rxPktAvailMsg = (wpt_msg *)wpalMemoryAllocate(sizeof(wpt_msg));
    if(NULL == tempDxeCtrlBlk->rxPktAvailMsg)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_Open Alloc RX Packet Available Message Fail");
+#endif
       WLANDXE_Close(tempDxeCtrlBlk);
       return NULL;
    }
    wpalMemoryZero(tempDxeCtrlBlk->rxPktAvailMsg, sizeof(wpt_msg));
    tempDxeCtrlBlk->rxPktAvailMsg->callback = dxeRXPacketAvailableEventHandler;
    tempDxeCtrlBlk->rxPktAvailMsg->pContext = (void *)tempDxeCtrlBlk;
-   
+
    tempDxeCtrlBlk->freeRXPacket = NULL;
    tempDxeCtrlBlk->dxeCookie    = WLANDXE_CTXT_COOKIE;
    tempDxeCtrlBlk->rxIntDisabledByIMPS = eWLAN_PAL_FALSE;
@@ -4092,8 +4498,10 @@ void *WLANDXE_Open
                                   WPAL_SMSM_WLAN_TX_RINGS_EMPTY);
    if(0 != smsmInitState)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "SMSM Channel init fail %d", smsmInitState);
+#endif
       for(idx = 0; idx < WDTS_CHANNEL_MAX; idx++)
       {
          dxeChannelClose(tempDxeCtrlBlk, &tempDxeCtrlBlk->dxeChannel[idx]);
@@ -4104,10 +4512,12 @@ void *WLANDXE_Open
       return NULL;
    }
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
             "WLANDXE_Open Success");
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return (void *)tempDxeCtrlBlk;
 }
 
@@ -4140,43 +4550,54 @@ wpt_status WLANDXE_ClientRegistration
    wpt_status                 status  = eWLAN_PAL_STATUS_SUCCESS;
    WLANDXE_CtrlBlkType       *dxeCtxt;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    /* Sanity */
    if(NULL == pDXEContext)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_ClientRegistration Invalid DXE CB");
-      return eWLAN_PAL_STATUS_E_INVAL;   
+#endif
+      return eWLAN_PAL_STATUS_E_INVAL;
    }
 
    if(NULL == rxFrameReadyCB)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_ClientRegistration Invalid RX READY CB");
-      return eWLAN_PAL_STATUS_E_INVAL;   
+#endif
+      return eWLAN_PAL_STATUS_E_INVAL;
    }
 
    if(NULL == txCompleteCB)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_ClientRegistration Invalid txCompleteCB");
-      return eWLAN_PAL_STATUS_E_INVAL;   
+#endif
+      return eWLAN_PAL_STATUS_E_INVAL;
    }
 
    if(NULL == lowResourceCB)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_ClientRegistration Invalid lowResourceCB");
-      return eWLAN_PAL_STATUS_E_INVAL;   
+#endif
+      return eWLAN_PAL_STATUS_E_INVAL;
    }
 
    if(NULL == userContext)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_ClientRegistration Invalid userContext");
-      return eWLAN_PAL_STATUS_E_INVAL;   
+#endif
+      return eWLAN_PAL_STATUS_E_INVAL;
    }
 
    dxeCtxt = (WLANDXE_CtrlBlkType *)pDXEContext;
@@ -4187,8 +4608,10 @@ wpt_status WLANDXE_ClientRegistration
    dxeCtxt->lowResourceCB = lowResourceCB;
    dxeCtxt->clientCtxt    = userContext;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return status;
 }
 
@@ -4215,15 +4638,18 @@ wpt_status WLANDXE_Start
    wpt_uint32                 idx;
    WLANDXE_CtrlBlkType       *dxeCtxt = NULL;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    /* Sanity */
    if(NULL == pDXEContext)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_Start Invalid DXE CB");
-      return eWLAN_PAL_STATUS_E_INVAL;   
+#endif
+      return eWLAN_PAL_STATUS_E_INVAL;
    }
    dxeCtxt = (WLANDXE_CtrlBlkType *)pDXEContext;
 
@@ -4233,25 +4659,30 @@ wpt_status WLANDXE_Start
    status = dxeEngineCoreStart(dxeCtxt);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_Start DXE HW init Fail");
-      return status;         
+#endif
+      return status;
    }
 
    /* Individual Channel Start */
    for(idx = 0; idx < WDTS_CHANNEL_MAX; idx++)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                "WLANDXE_Start Channel %s Start", channelType[idx]);
-
+#endif
       /* Allocate DXE descriptor will be shared by Host driver and DXE engine */
       /* Make connection between DXE descriptor and DXE control block */
       status = dxeDescAllocAndLink(tempDxeCtrlBlk, &dxeCtxt->dxeChannel[idx]);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "WLANDXE_Start Alloc DXE Descriptor Fail for channel %d", idx);
-         return status;         
+#endif
+         return status;
       }
 
       /* Program each channel register with configuration arguments */
@@ -4259,9 +4690,11 @@ wpt_status WLANDXE_Start
                                      &dxeCtxt->dxeChannel[idx]);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "WLANDXE_Start %d Program DMA channel Fail", idx);
-         return status;         
+#endif
+         return status;
       }
 
       /* ??? Trigger to start DMA channel
@@ -4270,12 +4703,16 @@ wpt_status WLANDXE_Start
                                &dxeCtxt->dxeChannel[idx]);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "WLANDXE_Start %d Channel Start Fail", idx);
-         return status;         
+#endif
+         return status;
       }
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                "WLANDXE_Start Channel %s Start Success", channelType[idx]);
+#endif
    }
 
    /* Register ISR to OS */
@@ -4285,9 +4722,11 @@ wpt_status WLANDXE_Start
                                        dxeCtxt);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_Start TX comp interrupt registration Fail");
-      return status;         
+#endif
+      return status;
    }
 
    /* Register RX ready interrupt into platform */
@@ -4296,9 +4735,11 @@ wpt_status WLANDXE_Start
                                        dxeCtxt);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_Start RX Ready interrupt registration Fail");
-      return status;         
+#endif
+      return status;
    }
 
    /* Enable system level ISR */
@@ -4306,13 +4747,16 @@ wpt_status WLANDXE_Start
    status = wpalEnableInterrupt(DXE_INTERRUPT_RX_READY);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeTXCompleteEventHandler Enable TX complete interrupt fail");
-      return status;         
+#endif
+      return status;
    }
-
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return status;
 }
 
@@ -4343,35 +4787,41 @@ wpt_status WLANDXE_TxFrame
    WLANDXE_CtrlBlkType       *dxeCtxt        = NULL;
    unsigned int              *lowThreshold   = NULL;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    /* Sanity */
    if(NULL == pDXEContext)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_Start Invalid DXE CB");
-      return eWLAN_PAL_STATUS_E_INVAL;   
+#endif
+      return eWLAN_PAL_STATUS_E_INVAL;
    }
 
    if(NULL == pPacket)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_Start Invalid pPacket");
-      return eWLAN_PAL_STATUS_E_INVAL;   
+#endif
+      return eWLAN_PAL_STATUS_E_INVAL;
    }
 
    if((WDTS_CHANNEL_MAX < channel) || (WDTS_CHANNEL_MAX == channel))
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_Start Invalid channel");
-      return eWLAN_PAL_STATUS_E_INVAL;   
+#endif
+      return eWLAN_PAL_STATUS_E_INVAL;
    }
 
    dxeCtxt = (WLANDXE_CtrlBlkType *)pDXEContext;
 
    currentChannel = &dxeCtxt->dxeChannel[channel];
-   
 
    wpalMutexAcquire(&currentChannel->dxeChannelLock);
 
@@ -4414,8 +4864,10 @@ wpt_status WLANDXE_TxFrame
    status = dxeTXPushFrame(currentChannel, pPacket);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_TxFrame TX Push Frame fail");
+#endif
       wpalMutexRelease(&currentChannel->dxeChannelLock);
       return status;
    }
@@ -4428,10 +4880,12 @@ wpt_status WLANDXE_TxFrame
                              eWLAN_PAL_FALSE);
       currentChannel->hitLowResource = eWLAN_PAL_TRUE;
 
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                "%11s : Low Resource currentChannel->numRsvdDesc %d",
                channelType[currentChannel->channelType],
                currentChannel->numRsvdDesc);
+#endif
       dxeNotifySmsm(eWLAN_PAL_FALSE, eWLAN_PAL_TRUE);
       dxeNotifySmsm(eWLAN_PAL_TRUE, eWLAN_PAL_FALSE);
       wpalTimerStart(&currentChannel->healthMonitorTimer,
@@ -4439,8 +4893,10 @@ wpt_status WLANDXE_TxFrame
    }
    wpalMutexRelease(&currentChannel->dxeChannelLock);
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return status;
 }
 
@@ -4473,8 +4929,10 @@ WLANDXE_CompleteTX
   /* Sanity Check */
   if( NULL == pContext )
   {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_CompleteTX invalid param");
+#endif
       return eWLAN_PAL_STATUS_E_INVAL;
   }
 
@@ -4566,14 +5024,17 @@ wpt_status WLANDXE_Stop
    wpt_uint32                 idx;
    WLANDXE_CtrlBlkType       *dxeCtxt = NULL;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    /* Sanity */
    if(NULL == pDXEContext)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_Stop Invalid DXE CB");
+#endif
       return eWLAN_PAL_STATUS_E_INVAL;   
    }
 
@@ -4583,8 +5044,10 @@ wpt_status WLANDXE_Stop
       status = dxeChannelStop(dxeCtxt, &dxeCtxt->dxeChannel[idx]);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "WLANDXE_Stop Channel %d Stop Fail", idx);
+#endif
          return status;
       }
    }
@@ -4593,8 +5056,10 @@ wpt_status WLANDXE_Stop
    wpalUnRegisterInterrupt(DXE_INTERRUPT_TX_COMPLE);
    wpalUnRegisterInterrupt(DXE_INTERRUPT_RX_READY);
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return status;
 }
 
@@ -4630,15 +5095,18 @@ wpt_status WLANDXE_Close
    WLANDXE_DescCtrlBlkType   *nextDescCB = NULL;
 #endif /* WLANDXE_TEST_CHANNEL_ENABLE */
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    /* Sanity */
    if(NULL == pDXEContext)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_Stop Invalid DXE CB");
-      return eWLAN_PAL_STATUS_E_INVAL;   
+#endif
+      return eWLAN_PAL_STATUS_E_INVAL;
    }
 
    dxeCtxt = (WLANDXE_CtrlBlkType *)pDXEContext;
@@ -4682,8 +5150,10 @@ wpt_status WLANDXE_Close
 
    wpalMemoryFree(pDXEContext);
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return status;
 }
 
@@ -4707,6 +5177,7 @@ wpt_status WLANDXE_TriggerTX
 {
    wpt_status               status = eWLAN_PAL_STATUS_SUCCESS;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
 
@@ -4714,6 +5185,7 @@ wpt_status WLANDXE_TriggerTX
 
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return status;
 }
 
@@ -4742,9 +5214,10 @@ void dxeTxThreadSetPowerStateEventHandler
    wpt_status                status = eWLAN_PAL_STATUS_E_FAILURE;
    WLANDXE_PowerStateType    reqPowerState;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    dxeCtxt = (WLANDXE_CtrlBlkType *)(msgContent->pContext);
    reqPowerState = (WLANDXE_PowerStateType)msgContent->val;
    dxeCtxt->setPowerStateCb = (WLANDXE_SetPowerStateCbType)msgContent->ptr;
@@ -4798,8 +5271,10 @@ void dxeTxThreadSetPowerStateEventHandler
    }
    /* Free MSG buffer */
    wpalMemoryFree(msgPtr);
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
    return;
 }
 
@@ -4826,15 +5301,17 @@ void dxeRxThreadSetPowerStateEventHandler
 {
    wpt_status               status = eWLAN_PAL_STATUS_SUCCESS;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    /* Now serialise the message through Tx thread also to make sure
     * no register access when RIVA is in powersave */
    /*Use the same message pointer just change the call back function */
    msgPtr->callback = dxeTxThreadSetPowerStateEventHandler;
    status = wpalPostTxMsg(WDI_GET_PAL_CTX(),
                        msgPtr);
+#ifdef WLAN_DEBUG
    if ( eWLAN_PAL_STATUS_SUCCESS != status )
    {
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
@@ -4844,6 +5321,7 @@ void dxeRxThreadSetPowerStateEventHandler
 
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
+#endif
 }
 
 /*==========================================================================
@@ -4873,12 +5351,16 @@ wpt_status WLANDXE_SetPowerState
    wpt_msg                 *rxCompMsg;
    wpt_msg                 *txDescReSyncMsg;
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
+#endif
    if(NULL == pDXEContext)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "NULL pDXEContext passed by caller", 0, 0, 0);
+#endif
       return eWLAN_PAL_STATUS_E_FAILURE;
    }
    pDxeCtrlBlk = (WLANDXE_CtrlBlkType *)pDXEContext;
@@ -4891,8 +5373,10 @@ wpt_status WLANDXE_SetPowerState
             txDescReSyncMsg = (wpt_msg *)wpalMemoryAllocate(sizeof(wpt_msg));
             if(NULL == txDescReSyncMsg)
             {
+#ifdef WLAN_DEBUG
                HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                         "WLANDXE_SetPowerState, TX Resync MSG MEM alloc Fail");
+#endif
             }
             else
             {
@@ -4900,11 +5384,13 @@ wpt_status WLANDXE_SetPowerState
                txDescReSyncMsg->pContext = pDxeCtrlBlk;
                status = wpalPostTxMsg(WDI_GET_PAL_CTX(),
                                       txDescReSyncMsg);
+#ifdef WLAN_DEBUG
                if(eWLAN_PAL_STATUS_SUCCESS != status)
                {
                   HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                            "WLANDXE_SetPowerState, Post TX re-sync MSG fail");
                }
+#endif
             }
          }
          hostPowerState = WLANDXE_POWER_STATE_FULL;
@@ -4942,8 +5428,10 @@ wpt_status WLANDXE_SetPowerState
       rxCompMsg          = (wpt_msg *)wpalMemoryAllocate(sizeof(wpt_msg));
       if(NULL == rxCompMsg)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "WLANDXE_SetPowerState, MSG MEM alloc Fail");
+#endif
          return eWLAN_PAL_STATUS_E_RESOURCES;
       }
 
@@ -4956,12 +5444,14 @@ wpt_status WLANDXE_SetPowerState
       rxCompMsg->ptr      = cBack;
       status = wpalPostRxMsg(WDI_GET_PAL_CTX(),
                           rxCompMsg);
+#ifdef WLAN_DEBUG
       if ( eWLAN_PAL_STATUS_SUCCESS != status )
       {
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "Rx thread Set power state req serialize fail status=%d",
                   status, 0, 0);
       }
+#endif
    }
    else
    {
@@ -4981,8 +5471,10 @@ wpt_status WLANDXE_SetPowerState
                status = wpalEnableInterrupt(DXE_INTERRUPT_RX_READY);
                if(eWLAN_PAL_STATUS_SUCCESS != status)
                {
+#ifdef WLAN_DEBUG
                   HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                            "%s Enable RX ready interrupt fail", __FUNCTION__);
+#endif
                   return status;
                }
             }
@@ -4994,8 +5486,10 @@ wpt_status WLANDXE_SetPowerState
                status = wpalEnableInterrupt(DXE_INTERRUPT_TX_COMPLE);
                if(eWLAN_PAL_STATUS_SUCCESS != status)
                {
+#ifdef WLAN_DEBUG
                   HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                            "%s Enable TX comp interrupt fail", __FUNCTION__);
+#endif
                   return status;
                }
             }
@@ -5014,9 +5508,10 @@ wpt_status WLANDXE_SetPowerState
       }
    }
 
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __FUNCTION__);
-
+#endif
    return status;
 }
 
@@ -5038,13 +5533,16 @@ wpt_uint32 WLANDXE_GetFreeTxDataResNumber
    void *pDXEContext
 )
 {
+#ifdef WLAN_DEBUG
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __FUNCTION__);
-
+#endif
    if(NULL == pDXEContext)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "NULL parameter passed by caller", 0, 0, 0);
+#endif
       return (0);
    }
 
@@ -5088,39 +5586,48 @@ void WLANDXE_ChannelDebug
        * This will not simply wakeup RIVA
        * Just incase TX not wanted stuck, Trigger TX again */
       dxeNotifySmsm(eWLAN_PAL_TRUE, eWLAN_PAL_TRUE);
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
                "Host power state %d, RIVA power state %d",
                 tempDxeCtrlBlk->hostPowerState, tempDxeCtrlBlk->rivaPowerState);
+#endif
       /* Get free BD count */
       wpalReadRegister(WLANDXE_BMU_AVAILABLE_BD_PDU, &regValue);
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
                "TX Pending frames count %d, Current available BD %d",
                 tempDxeCtrlBlk->txCompletedFrames, (int)regValue);
-
+#endif
       channelDebugMsg = (wpt_msg *)wpalMemoryAllocate(sizeof(wpt_msg));
       if(NULL == channelDebugMsg)
       {
+#ifdef WLAN_DEBUG
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "WLANDXE_ChannelDebug, MSG MEM alloc Fail");
+#endif
          return ;
       }
 
       channelDebugMsg->callback = dxeRxThreadChannelDebugHandler;
       status = wpalPostRxMsg(WDI_GET_PAL_CTX(), channelDebugMsg);
+#ifdef WLAN_DEBUG
       if ( eWLAN_PAL_STATUS_SUCCESS != status )
       {
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "Tx thread Set power state req serialize fail status=%d",
                   status, 0, 0);
       }
+#endif
    }
 
    /* Debug Type 2, toggling stall detect enable/disable */
    if(enableStallDetect)
    {
+#ifdef WLAN_DEBUG
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                "DXE TX Stall detect",
                0, 0, 0);
+#endif
       /* Start Stall detect timer and detect stall */
       wpalTimerStart(&tempDxeCtrlBlk->dxeChannel[WDTS_CHANNEL_TX_LOW_PRI].healthMonitorTimer,
                      T_WLANDXE_PERIODIC_HEALTH_M_TIME);

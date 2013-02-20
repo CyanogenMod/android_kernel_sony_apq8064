@@ -96,23 +96,29 @@ VOS_STATUS wpalPacketRXLowResourceCB(vos_pkt_t *pPacket, v_VOID_t *userData)
 
    if (NULL == pPacket)
    {
+#ifdef WLAN_DEBUG
       WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR, 
                   "Get new RX PAL packet fail");
+#endif
       return VOS_STATUS_E_FAILURE;
    }
    vosStatus = vos_pkt_reserve_head_fast( pPacket, &pData,
                                           VPKT_SIZE_BUFFER );
    if(VOS_STATUS_SUCCESS != vosStatus)
    {
+#ifdef WLAN_DEBUG
       WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR, 
                   "Prepare RX packet for DXE fail");
+#endif
       return VOS_STATUS_E_FAILURE;
    }
 
    if((NULL == wpalPacketAvailableCB) || (NULL == userData))
    {
+#ifdef WLAN_DEBUG
       WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR, 
                   "Invalid ARG for new RX packet");
+#endif
       return VOS_STATUS_E_FAILURE;
    }
 
@@ -166,8 +172,10 @@ wpt_packet * wpalPacketAlloc(wpt_packet_type pktType, wpt_uint32 nPktSize,
       break;
 
    default:
+#ifdef WLAN_DEBUG
       WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR, 
                   " try to allocate unsupported packet type (%d)\n", pktType);
+#endif
       break;
    }
 
@@ -221,8 +229,10 @@ wpt_uint32 wpalPacketGetLength(wpt_packet *pPkt)
    // Validate the parameter pointers
    if (unlikely(NULL == pPkt))
    {
+#ifdef WLAN_DEBUG
       WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR,
                 "%s : NULL packet pointer", __FUNCTION__);
+#endif
       return eWLAN_PAL_STATUS_E_INVAL;
    }
 
@@ -235,12 +245,13 @@ wpt_uint32 wpalPacketGetLength(wpt_packet *pPkt)
    {
       len += pktLen;
    }
+#ifdef WLAN_DEBUG
    else
    {
       WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR, "%s  failed\n",
          __FUNCTION__);
    }
-
+#endif
    return ((wpt_uint32)len);
 }/*wpalPacketGetLength*/
 
@@ -263,8 +274,10 @@ wpt_status wpalPacketRawTrimHead(wpt_packet *pPkt, wpt_uint32 size)
    // Validate the parameter pointers
    if (unlikely(NULL == pPkt))
    {
+#ifdef WLAN_DEBUG
       WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR,
                 "%s : NULL packet pointer", __FUNCTION__);
+#endif
       return eWLAN_PAL_STATUS_E_INVAL;
    }
 
@@ -273,8 +286,10 @@ wpt_status wpalPacketRawTrimHead(wpt_packet *pPkt, wpt_uint32 size)
 
    if( !VOS_IS_STATUS_SUCCESS(vos_pkt_trim_head(WPAL_TO_VOS_PKT(pPkt), (v_SIZE_t)size)) )
    {
+#ifdef WLAN_DEBUG
       WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR, "%s  Invalid trim(%d)\n",
          __FUNCTION__, size);
+#endif
       status = eWLAN_PAL_STATUS_E_INVAL;
    }
 
@@ -296,8 +311,10 @@ wpt_status wpalPacketRawTrimTail(wpt_packet *pPkt, wpt_uint32 size)
    // Validate the parameter pointers
    if (unlikely(NULL == pPkt))
    {
+#ifdef WLAN_DEBUG
       WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR,
                 "%s : NULL packet pointer", __FUNCTION__);
+#endif
       return eWLAN_PAL_STATUS_E_INVAL;
    }
 
@@ -305,8 +322,10 @@ wpt_status wpalPacketRawTrimTail(wpt_packet *pPkt, wpt_uint32 size)
                (eWLAN_PAL_PKT_TYPE_RX_RAW == WPAL_PACKET_GET_TYPE(pPkt)) );
    if( !VOS_IS_STATUS_SUCCESS(vos_pkt_trim_tail(WPAL_TO_VOS_PKT(pPkt), (v_SIZE_t)size)) )
    {
+#ifdef WLAN_DEBUG
       WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR, "%s  Invalid trim(%d)\n",
          __FUNCTION__, size);
+#endif
       status = eWLAN_PAL_STATUS_E_INVAL;
    }
 
@@ -331,8 +350,10 @@ wpt_uint8 *wpalPacketGetRawBuf(wpt_packet *pPkt)
    // Validate the parameter pointers
    if (unlikely(NULL == pPkt))
    {
+#ifdef WLAN_DEBUG
       WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR,
                 "%s : NULL packet pointer", __FUNCTION__);
+#endif
       return NULL;
    }
 
@@ -341,8 +362,10 @@ wpt_uint8 *wpalPacketGetRawBuf(wpt_packet *pPkt)
        (eWLAN_PAL_PKT_TYPE_TX_802_11_MGMT == WPAL_PACKET_GET_TYPE(pPkt)) )
    {
       vos_pkt_peek_data(WPAL_TO_VOS_PKT(pPkt), 0, (v_VOID_t**)&pRet, 1);
+#ifdef WLAN_DEBUG
       WPAL_ASSERT(NULL != pRet);
-   }            
+#endif
+   }
 
    return pRet;
 }/*wpalPacketGetRawBuf*/
@@ -363,17 +386,21 @@ wpt_status wpalPacketSetRxLength(wpt_packet *pPkt, wpt_uint32 len)
    // Validate the parameter pointers
    if (unlikely(NULL == pPkt))
    {
+#ifdef WLAN_DEBUG
       WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR,
                 "%s : NULL packet pointer", __FUNCTION__);
+#endif
       return eWLAN_PAL_STATUS_E_INVAL;
    }
 
    /*Only allowed for RX Raw packets */
    if( (eWLAN_PAL_PKT_TYPE_RX_RAW != WPAL_PACKET_GET_TYPE(pPkt)))
    {
+#ifdef WLAN_DEBUG
      WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR, 
                 "%s  Invalid packet type(%d)\n",  __FUNCTION__, 
                 WPAL_PACKET_GET_TYPE(pPkt));
+#endif
      return eWLAN_PAL_STATUS_E_INVAL;
    }
 
@@ -464,16 +491,20 @@ wpt_status wpalIteratorInit(wpt_iterator *pIter, wpt_packet *pPacket)
    // Validate the parameter pointers
    if (unlikely((NULL == pPacket)||(NULL==pIter)))
    {
+#ifdef WLAN_DEBUG
       WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR,
                 "%s : NULL input pointers %x %x", __FUNCTION__, pPacket, pIter);
+#endif
       return eWLAN_PAL_STATUS_E_INVAL;
    }
 
    pPktInfo = (wpt_iterator_info*)pPacket->pInternalData;
    if (unlikely(NULL == pPktInfo))
    {
+#ifdef WLAN_DEBUG
       WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR,
                 "%s : Invalid Packet Info", __FUNCTION__);
+#endif
       return eWLAN_PAL_STATUS_E_INVAL;
    }
 
@@ -492,8 +523,10 @@ wpt_status wpalIteratorInit(wpt_iterator *pIter, wpt_packet *pPacket)
      // Validate the memory allocation
      if (unlikely(NULL == pCurInfo))
      {
+#ifdef WLAN_DEBUG
         WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "%s : Failed to allocate memory ", __FUNCTION__);
+#endif
         return eWLAN_PAL_STATUS_E_INVAL;
      }
 
@@ -532,8 +565,10 @@ wpt_status wpalIteratorNext(wpt_iterator *pIter, wpt_packet *pPacket, void **ppA
    if (unlikely(( NULL == pIter )||( NULL == pPacket ) || 
       ( NULL == ppAddr ) || ( NULL == pLen )))
    {
+#ifdef WLAN_DEBUG
      WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR, 
                 "%s  Invalid input parameters \n",  __FUNCTION__ );
+#endif
      return eWLAN_PAL_STATUS_E_INVAL;
    }
 
@@ -592,8 +627,10 @@ wpt_status wpalLockPacketForTransfer( wpt_packet *pPacket)
    // Validate the parameter pointers
    if (unlikely(NULL == pPacket))
    {
+#ifdef WLAN_DEBUG
       WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR,
                 "%s : NULL input pointer", __FUNCTION__);
+#endif
       return eWLAN_PAL_STATUS_E_INVAL;
    }
 
@@ -631,10 +668,12 @@ wpt_status wpalLockPacketForTransfer( wpt_packet *pPacket)
 
    default:
       {
+#ifdef WLAN_DEBUG
          WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR, 
                     " WLAN_PAL: %s: Invalid packet type %d!",  __FUNCTION__, 
                     WPAL_PACKET_GET_TYPE(pPacket) ); 
-         WPAL_ASSERT(0); 
+         WPAL_ASSERT(0);
+#endif
          return eWLAN_PAL_STATUS_E_FAILURE;
       }
    }
@@ -648,8 +687,10 @@ wpt_status wpalLockPacketForTransfer( wpt_packet *pPacket)
    // Validate the memory allocation
    if (unlikely(NULL == pInfo))
    {
+#ifdef WLAN_DEBUG
       WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR,
                 "%s : Failed to allocate memory ", __FUNCTION__);
+#endif
       return eWLAN_PAL_STATUS_E_INVAL;
    }
 
@@ -677,8 +718,10 @@ wpt_status wpalUnlockPacket( wpt_packet *pPacket)
    // Validate the parameter pointers
    if (unlikely(NULL == pPacket))
    {
+#ifdef WLAN_DEBUG
       WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR,
                 "%s : NULL input pointer pPacket", __FUNCTION__);
+#endif
       return eWLAN_PAL_STATUS_E_INVAL;
    }
 
@@ -687,8 +730,10 @@ wpt_status wpalUnlockPacket( wpt_packet *pPacket)
    // Validate pInfo
    if (unlikely(NULL == pInfo))
    {
+#ifdef WLAN_DEBUG
       WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_FATAL,
                 "%s : NULL input pointer pInfo", __FUNCTION__);
+#endif
       return eWLAN_PAL_STATUS_E_INVAL;
    }
 
@@ -726,10 +771,12 @@ wpt_status wpalUnlockPacket( wpt_packet *pPacket)
 
    default:
       {
+#ifdef WLAN_DEBUG
          WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR, 
                     " WLAN_PAL: %s: Invalid packet type %d!",  __FUNCTION__, 
                     WPAL_PACKET_GET_TYPE(pPacket) ); 
-         WPAL_ASSERT(0); 
+         WPAL_ASSERT(0);
+#endif
          return eWLAN_PAL_STATUS_E_FAILURE;
       }
    }
@@ -757,8 +804,10 @@ wpt_status wpalIsPacketLocked( wpt_packet *pPacket)
    /* Validate the parameter pointers */
    if (NULL == pPacket)
    {
+#ifdef WLAN_DEBUG
       WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR,
                 "%s : NULL input pointer", __FUNCTION__);
+#endif
       return eWLAN_PAL_STATUS_E_INVAL;
    }
 
