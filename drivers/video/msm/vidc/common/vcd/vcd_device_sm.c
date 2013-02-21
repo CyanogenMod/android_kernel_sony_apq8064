@@ -759,6 +759,7 @@ static u32 vcd_open_cmn
 	client = dev_ctxt->cctxt_list_head;
 	dev_ctxt->cctxt_list_head = cctxt;
 	cctxt->next = client;
+	dev_ctxt->turbo_mode_set = 0;
 
 	*clnt_cctxt = cctxt;
 
@@ -857,7 +858,7 @@ static u32 vcd_close_in_ready
 	} else {
 		VCD_MSG_ERROR("Unsupported API in client state %d",
 				  cctxt->clnt_state.state);
-		vcd_destroy_client_context(cctxt);
+
 		rc = VCD_ERR_BAD_STATE;
 	}
 
