@@ -50,8 +50,6 @@ static int ion_iommu_heap_allocate(struct ion_heap *heap,
 		struct sg_table *table;
 		unsigned int i;
 
-		buffer->vma_inserted = 0;
-
 		data = kmalloc(sizeof(*data), GFP_KERNEL);
 		if (!data)
 			return -ENOMEM;
@@ -116,11 +114,8 @@ static void ion_iommu_heap_free(struct ion_buffer *buffer)
 	if (!data)
 		return;
 
-	for (i = 0; i < data->nrpages; i++) {
-		__dec_zone_page_state(data->pages[i], NR_FILE_PAGES);
+	for (i = 0; i < data->nrpages; i++)
 		__free_page(data->pages[i]);
-	}
-	buffer->vma_inserted = 0;
 
 	kfree(data->pages);
 	kfree(data);
@@ -175,13 +170,7 @@ int ion_iommu_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 			return -EINVAL;
 		}
 		curr_addr += PAGE_SIZE;
-
-		if (!buffer->vma_inserted)
-			__inc_zone_page_state(data->pages[i], NR_FILE_PAGES);
 	}
-	if (!buffer->vma_inserted)
-		buffer->vma_inserted = 1;
-
 	return 0;
 }
 

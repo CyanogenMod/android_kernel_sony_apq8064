@@ -43,8 +43,6 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 	int i, j;
 	int npages = PAGE_ALIGN(size) / PAGE_SIZE;
 
-	buffer->vma_inserted = 0;
-
 	table = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
 	if (!table)
 		return -ENOMEM;
@@ -76,12 +74,8 @@ void ion_system_heap_free(struct ion_buffer *buffer)
 	struct scatterlist *sg;
 	struct sg_table *table = buffer->priv_virt;
 
-	for_each_sg(table->sgl, sg, table->nents, i) {
-		struct page *page = sg_page(sg);
-		__dec_zone_page_state(page, NR_FILE_PAGES);
-		__free_page(page);
-	}
-	buffer->vma_inserted = 0;
+	for_each_sg(table->sgl, sg, table->nents, i)
+		__free_page(sg_page(sg));
 	if (buffer->sg_table)
 		sg_free_table(buffer->sg_table);
 	kfree(buffer->sg_table);
@@ -170,20 +164,13 @@ int ion_system_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 		int i;
 
 		for_each_sg(table->sgl, sg, table->nents, i) {
-			struct page *page = sg_page(sg);
 			if (offset) {
 				offset--;
 				continue;
 			}
-			vm_insert_page(vma, addr, page);
+			vm_insert_page(vma, addr, sg_page(sg));
 			addr += PAGE_SIZE;
-
-			if (!buffer->vma_inserted)
-				__inc_zone_page_state(page, NR_FILE_PAGES);
 		}
-		if (!buffer->vma_inserted)
-			buffer->vma_inserted = 1;
-
 		return 0;
 	}
 }
@@ -495,7 +482,7 @@ int ion_system_contig_heap_map_iommu(struct ion_buffer *buffer,
 	}
 	page = virt_to_page(buffer->vaddr);
 
-	sglist = vmalloc(sizeof(*sglist));
+	sglist = kmalloc(sizeof(*sglist), GFP_KERNEL);
 	if (!sglist)
 		goto out1;
 
@@ -517,13 +504,13 @@ int ion_system_contig_heap_map_iommu(struct ion_buffer *buffer,
 		if (ret)
 			goto out2;
 	}
-	vfree(sglist);
+	kfree(sglist);
 	return ret;
 out2:
 	iommu_unmap_range(domain, data->iova_addr, buffer->size);
 
 out1:
-	vfree(sglist);
+	kfree(sglist);
 	msm_free_iova_address(data->iova_addr, domain_num, partition_num,
 						data->mapped_size);
 out:
