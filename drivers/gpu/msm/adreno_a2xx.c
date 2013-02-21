@@ -1507,7 +1507,7 @@ static void a2xx_drawctxt_save(struct adreno_device *adreno_dev,
 {
 	struct kgsl_device *device = &adreno_dev->dev;
 
-	if (context == NULL || (context->flags & CTXT_FLAGS_BEING_DESTOYED))
+	if (context == NULL)
 		return;
 
 	if (context->flags & CTXT_FLAGS_GPU_HANG)
@@ -1746,9 +1746,6 @@ static void a2xx_cp_intrcallback(struct kgsl_device *device)
 		KGSL_CMD_WARN(rb->device, "ringbuffer ib1/rb interrupt\n");
 		queue_work(device->work_queue, &device->ts_expired_ws);
 		wake_up_interruptible_all(&device->wait_queue);
-		atomic_notifier_call_chain(&(device->ts_notifier_list),
-					   device->id,
-					   NULL);
 	}
 }
 
@@ -1840,7 +1837,7 @@ static void a2xx_rb_init(struct adreno_device *adreno_dev,
 	unsigned int *cmds, cmds_gpu;
 
 	/* ME_INIT */
-	cmds = adreno_ringbuffer_allocspace(rb, NULL, 19);
+	cmds = adreno_ringbuffer_allocspace(rb, 19);
 	cmds_gpu = rb->buffer_desc.gpuaddr + sizeof(uint)*(rb->wptr-19);
 
 	GSL_RB_WRITE(cmds, cmds_gpu, cp_type3_packet(CP_ME_INIT, 18));
@@ -1983,10 +1980,10 @@ static void a2xx_start(struct adreno_device *adreno_dev)
 			0x18000000);
 	}
 
-	if (adreno_is_a20x(adreno_dev))
-		/* For A20X based targets increase number of clocks
-		 * that RBBM will wait before de-asserting Register
-		 * Clock Active signal */
+	if (adreno_is_a203(adreno_dev))
+		/* For A203 increase number of clocks that RBBM
+		 * will wait before de-asserting Register Clock
+		 * Active signal */
 		adreno_regwrite(device, REG_RBBM_CNTL, 0x0000FFFF);
 	else
 		adreno_regwrite(device, REG_RBBM_CNTL, 0x00004442);

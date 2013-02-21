@@ -117,7 +117,7 @@ memdesc_sg_phys(struct kgsl_memdesc *memdesc,
 		unsigned int physaddr, unsigned int size)
 {
 	memdesc->sg = kgsl_sg_alloc(1);
-	if (memdesc->sg == NULL)
+	if (!memdesc->sg)
 		return -ENOMEM;
 
 	kmemleak_not_leak(memdesc->sg);

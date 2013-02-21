@@ -52,10 +52,9 @@ void adreno_ringbuffer_submit(struct adreno_ringbuffer *rb)
 	adreno_regwrite(rb->device, REG_CP_RB_WPTR, rb->wptr);
 }
 
-static int
-adreno_ringbuffer_waitspace(struct adreno_ringbuffer *rb,
-				struct adreno_context *context,
-				unsigned int numcmds, int wptr_ahead)
+static void
+adreno_ringbuffer_waitspace(struct adreno_ringbuffer *rb, unsigned int numcmds,
+			  int wptr_ahead)
 {
 	int nopcount;
 	unsigned int freecmds;
@@ -129,28 +128,19 @@ adreno_ringbuffer_waitspace(struct adreno_ringbuffer *rb,
 		continue;
 
 err:
-		if (!adreno_dump_and_recover(rb->device)) {
-			if (context && context->flags & CTXT_FLAGS_GPU_HANG) {
-				KGSL_CTXT_WARN(rb->device,
-				"Context %p caused a gpu hang. Will not accept commands for context %d\n",
-				context, context->id);
-				return -EDEADLK;
-			}
-			wait_time = jiffies + wait_timeout;
-		} else {
-			/* GPU is hung and we cannot recover */
-			BUG();
-		}
+		if (!adreno_dump_and_recover(rb->device))
+				wait_time = jiffies + wait_timeout;
+			else
+				/* GPU is hung and we cannot recover */
+				BUG();
 	}
-	return 0;
 }
 
 unsigned int *adreno_ringbuffer_allocspace(struct adreno_ringbuffer *rb,
-					struct adreno_context *context,
-					unsigned int numcmds)
+					     unsigned int numcmds)
 {
-	unsigned int *ptr = NULL;
-	int ret = 0;
+	unsigned int	*ptr = NULL;
+
 	BUG_ON(numcmds >= rb->sizedwords);
 
 	GSL_RB_GET_READPTR(rb, &rb->rptr);
@@ -160,25 +150,20 @@ unsigned int *adreno_ringbuffer_allocspace(struct adreno_ringbuffer *rb,
 		/* reserve dwords for nop packet */
 		if ((rb->wptr + numcmds) > (rb->sizedwords -
 				GSL_RB_NOP_SIZEDWORDS))
-			ret = adreno_ringbuffer_waitspace(rb, context,
-							numcmds, 1);
+			adreno_ringbuffer_waitspace(rb, numcmds, 1);
 	} else {
 		/* wptr behind rptr */
 		if ((rb->wptr + numcmds) >= rb->rptr)
-			ret = adreno_ringbuffer_waitspace(rb, context,
-							numcmds, 0);
+			adreno_ringbuffer_waitspace(rb, numcmds, 0);
 		/* check for remaining space */
 		/* reserve dwords for nop packet */
-		if (!ret && (rb->wptr + numcmds) > (rb->sizedwords -
+		if ((rb->wptr + numcmds) > (rb->sizedwords -
 				GSL_RB_NOP_SIZEDWORDS))
-			ret = adreno_ringbuffer_waitspace(rb, context,
-							numcmds, 1);
+			adreno_ringbuffer_waitspace(rb, numcmds, 1);
 	}
 
-	if (!ret) {
-		ptr = (unsigned int *)rb->buffer_desc.hostptr + rb->wptr;
-		rb->wptr += numcmds;
-	}
+	ptr = (unsigned int *)rb->buffer_desc.hostptr + rb->wptr;
+	rb->wptr += numcmds;
 
 	return ptr;
 }
@@ -209,10 +194,10 @@ static int _load_firmware(struct kgsl_device *device, const char *fwfile,
 	return (*data != NULL) ? 0 : -ENOMEM;
 }
 
-static int adreno_ringbuffer_load_pm4_ucode(struct kgsl_device *device)
+int adreno_ringbuffer_read_pm4_ucode(struct kgsl_device *device)
 {
 	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
-	int i, ret = 0;
+	int ret = 0;
 
 	if (adreno_dev->pm4_fw == NULL) {
 		int len;
@@ -234,24 +219,41 @@ static int adreno_ringbuffer_load_pm4_ucode(struct kgsl_device *device)
 
 		adreno_dev->pm4_fw_size = len / sizeof(uint32_t);
 		adreno_dev->pm4_fw = ptr;
+		adreno_dev->pm4_fw_version = adreno_dev->pm4_fw[1];
+	}
+
+err:
+	return ret;
+}
+
+
+int adreno_ringbuffer_load_pm4_ucode(struct kgsl_device *device)
+{
+	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
+	int i;
+
+	if (adreno_dev->pm4_fw == NULL) {
+		int ret = adreno_ringbuffer_read_pm4_ucode(device);
+		if (ret)
+			return ret;
 	}
 
 	KGSL_DRV_INFO(device, "loading pm4 ucode version: %d\n",
-		adreno_dev->pm4_fw[0]);
+		adreno_dev->pm4_fw_version);
 
 	adreno_regwrite(device, REG_CP_DEBUG, CP_DEBUG_DEFAULT);
 	adreno_regwrite(device, REG_CP_ME_RAM_WADDR, 0);
 	for (i = 1; i < adreno_dev->pm4_fw_size; i++)
 		adreno_regwrite(device, REG_CP_ME_RAM_DATA,
-				     adreno_dev->pm4_fw[i]);
-err:
-	return ret;
+			adreno_dev->pm4_fw[i]);
+
+	return 0;
 }
 
-static int adreno_ringbuffer_load_pfp_ucode(struct kgsl_device *device)
+int adreno_ringbuffer_read_pfp_ucode(struct kgsl_device *device)
 {
 	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
-	int i, ret = 0;
+	int ret = 0;
 
 	if (adreno_dev->pfp_fw == NULL) {
 		int len;
@@ -272,18 +274,34 @@ static int adreno_ringbuffer_load_pfp_ucode(struct kgsl_device *device)
 
 		adreno_dev->pfp_fw_size = len / sizeof(uint32_t);
 		adreno_dev->pfp_fw = ptr;
+		adreno_dev->pfp_fw_version = adreno_dev->pfp_fw[5];
+	}
+
+err:
+	return ret;
+}
+
+int adreno_ringbuffer_load_pfp_ucode(struct kgsl_device *device)
+{
+	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
+	int i;
+
+	if (adreno_dev->pfp_fw == NULL) {
+		int ret = adreno_ringbuffer_read_pfp_ucode(device);
+		if (ret)
+			return ret;
 	}
 
 	KGSL_DRV_INFO(device, "loading pfp ucode version: %d\n",
-		adreno_dev->pfp_fw[0]);
+			adreno_dev->pfp_fw_version);
 
 	adreno_regwrite(device, adreno_dev->gpudev->reg_cp_pfp_ucode_addr, 0);
 	for (i = 1; i < adreno_dev->pfp_fw_size; i++)
 		adreno_regwrite(device,
-			adreno_dev->gpudev->reg_cp_pfp_ucode_data,
-			adreno_dev->pfp_fw[i]);
-err:
-	return ret;
+		adreno_dev->gpudev->reg_cp_pfp_ucode_data,
+		adreno_dev->pfp_fw[i]);
+
+	return 0;
 }
 
 int adreno_ringbuffer_start(struct adreno_ringbuffer *rb, unsigned int init_ram)
@@ -390,7 +408,6 @@ int adreno_ringbuffer_start(struct adreno_ringbuffer *rb, unsigned int init_ram)
 			     GSL_RB_MEMPTRS_SCRATCH_MASK);
 
 	/* load the CP ucode */
-
 	status = adreno_ringbuffer_load_pm4_ucode(device);
 	if (status != 0)
 		return status;
@@ -424,15 +441,8 @@ int adreno_ringbuffer_start(struct adreno_ringbuffer *rb, unsigned int init_ram)
 
 void adreno_ringbuffer_stop(struct adreno_ringbuffer *rb)
 {
-	struct kgsl_device *device = rb->device;
-	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
-
-	if (rb->flags & KGSL_FLAGS_STARTED) {
-		if (adreno_is_a200(adreno_dev))
-			adreno_regwrite(rb->device, REG_CP_ME_CNTL, 0x10000000);
-
+	if (rb->flags & KGSL_FLAGS_STARTED)
 		rb->flags &= ~KGSL_FLAGS_STARTED;
-	}
 }
 
 int adreno_ringbuffer_init(struct kgsl_device *device)
@@ -535,12 +545,13 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 		total_sizedwords += 4; /* global timestamp for recovery*/
 	}
 
-	ringcmds = adreno_ringbuffer_allocspace(rb, context, total_sizedwords);
-	if (!ringcmds) {
-		/*
-		 * We could not allocate space in ringbuffer, just return the
-		 * last timestamp
-		 */
+	ringcmds = adreno_ringbuffer_allocspace(rb, total_sizedwords);
+	/* GPU may hang during space allocation, if thats the case the current
+	 * context may have hung the GPU */
+	if (context->flags & CTXT_FLAGS_GPU_HANG) {
+		KGSL_CTXT_WARN(rb->device,
+		"Context %p caused a gpu hang. Will not accept commands for context %d\n",
+		context, context->id);
 		return rb->timestamp[context_id];
 	}
 
