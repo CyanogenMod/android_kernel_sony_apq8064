@@ -44,7 +44,6 @@ extern spinlock_t mdp_spin_lock;
 extern int mdp_rev;
 extern int mdp_iommu_split_domain;
 extern struct mdp_csc_cfg mdp_csc_convert[4];
-extern struct mdp_csc_cfg_data csc_cfg_matrix[];
 extern struct workqueue_struct *mdp_hist_wq;
 
 extern uint32 mdp_intr_mask;
@@ -94,16 +93,9 @@ extern unsigned char hdmi_prim_resolution;
 
 struct vsync {
 	ktime_t vsync_time;
-	struct completion vsync_comp;
 	struct device *dev;
 	struct work_struct vsync_work;
 	int vsync_irq_enabled;
-	int vsync_dma_enabled;
-	int disabled_clocks;
-	struct completion vsync_wait;
-	atomic_t suspend;
-	atomic_t vsync_resume;
-	int sysfs_created;
 };
 
 extern struct vsync vsync_cntrl;
@@ -262,7 +254,6 @@ struct mdp_hist_lut_info {
 struct mdp_hist_mgmt {
 	uint32_t block;
 	uint32_t irq_term;
-	uint32_t intr;
 	uint32_t base;
 	struct completion mdp_hist_comp;
 	struct mutex mdp_hist_mutex;
@@ -330,14 +321,6 @@ extern struct mdp_hist_mgmt *mdp_hist_mgmt_array[];
 #define TV_OUT_DMA3_START   BIT(13)
 #define MDP_HIST_DONE       BIT(20)
 
-/*MDP4 MDP histogram interrupts*/
-/*note: these are only applicable on MDP4+ targets*/
-#define INTR_VG1_HISTOGRAM		BIT(5)
-#define INTR_VG2_HISTOGRAM		BIT(6)
-#define INTR_DMA_P_HISTOGRAM		BIT(17)
-#define INTR_DMA_S_HISTOGRAM		BIT(26)
-/*end MDP4 MDP histogram interrupts*/
-
 /* histogram interrupts */
 #define INTR_HIST_DONE			BIT(1)
 #define INTR_HIST_RESET_SEQ_DONE	BIT(0)
@@ -352,6 +335,7 @@ extern struct mdp_hist_mgmt *mdp_hist_mgmt_array[];
 			MDP_DMA_S_DONE| \
 			MDP_DMA_E_DONE| \
 			LCDC_UNDERFLOW| \
+			MDP_HIST_DONE| \
 			TV_ENC_UNDERRUN)
 #endif
 
@@ -733,7 +717,7 @@ extern struct mdp_hist_mgmt *mdp_hist_mgmt_array[];
 #define MDP_DMA_P_LUT_C2_EN   BIT(2)
 #define MDP_DMA_P_LUT_POST    BIT(4)
 
-void mdp_hw_init(int splash);
+void mdp_hw_init(void);
 int mdp_ppp_pipe_wait(void);
 void mdp_pipe_kickoff(uint32 term, struct msm_fb_data_type *mfd);
 void mdp_clk_ctrl(int on);
@@ -778,7 +762,7 @@ void mdp_dma3_update(struct msm_fb_data_type *mfd);
 int mdp_lcdc_on(struct platform_device *pdev);
 int mdp_lcdc_off(struct platform_device *pdev);
 void mdp_lcdc_update(struct msm_fb_data_type *mfd);
-void mdp_free_splash_buffer(struct msm_fb_data_type *mfd);
+
 #ifdef CONFIG_FB_MSM_MDP303
 int mdp_dsi_video_on(struct platform_device *pdev);
 int mdp_dsi_video_off(struct platform_device *pdev);
@@ -845,12 +829,8 @@ static inline int mdp_bus_scale_update_request(uint32_t index)
 void mdp_dma_vsync_ctrl(int enable);
 void mdp_dma_video_vsync_ctrl(int enable);
 void mdp_dma_lcdc_vsync_ctrl(int enable);
-ssize_t mdp_dma_show_event(struct device *dev,
-		struct device_attribute *attr, char *buf);
-ssize_t mdp_dma_video_show_event(struct device *dev,
-		struct device_attribute *attr, char *buf);
-ssize_t mdp_dma_lcdc_show_event(struct device *dev,
-		struct device_attribute *attr, char *buf);
+void mdp3_vsync_irq_enable(int intr, int term);
+void mdp3_vsync_irq_disable(int intr, int term);
 
 #ifdef MDP_HW_VSYNC
 void vsync_clk_prepare_enable(void);
@@ -913,7 +893,6 @@ int mdp_ppp_v4l2_overlay_clear(void);
 int mdp_ppp_v4l2_overlay_play(struct fb_info *info,
 	unsigned long srcp0_addr, unsigned long srcp0_size,
 	unsigned long srcp1_addr, unsigned long srcp1_size);
-void mdp_update_pm(struct msm_fb_data_type *mfd, ktime_t pre_vsync);
 
 #ifdef CONFIG_FB_MSM_DTV
 void mdp_vid_quant_set(void);
@@ -922,5 +901,26 @@ static inline void mdp_vid_quant_set(void)
 {
 	/* empty */
 }
+#endif
+
+#ifdef CONFIG_UPDATE_LCDC_LUT
+#define R_MASK    0x00ff0000
+#define G_MASK    0x000000ff
+#define B_MASK    0x0000ff00
+#define R_SHIFT   16
+#define G_SHIFT   0
+#define B_SHIFT   8
+#define lut2r(lut) ((lut & R_MASK) >> R_SHIFT)
+#define lut2g(lut) ((lut & G_MASK) >> G_SHIFT)
+#define lut2b(lut) ((lut & B_MASK) >> B_SHIFT)
+
+#ifdef CONFIG_LCD_KCAL
+#define NUM_QLUT  256
+#define MAX_KCAL_V (NUM_QLUT-1)
+#define scaled_by_kcal(rgb, kcal) \
+		(((((unsigned int)(rgb) * (unsigned int)(kcal)) << 16) / \
+		(unsigned int)MAX_KCAL_V) >> 16)
+#endif
+int mdp_preset_lut_update_lcdc(struct fb_cmap *cmap, uint32_t *internal_lut);
 #endif
 #endif /* MDP_H */
