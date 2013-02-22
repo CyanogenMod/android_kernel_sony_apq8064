@@ -34,6 +34,7 @@
 #include "msm_fb.h"
 #include "mdp4.h"
 #include "mipi_dsi.h"
+#include "mipi_dsi_panel_driver.h"
 
 #include <mach/iommu_domains.h>
 
@@ -1144,6 +1145,8 @@ void mdp4_dsi_video_overlay(struct msm_fb_data_type *mfd)
 		mdp4_dsi_video_wait4ov(0);
 	else
 		mdp4_dsi_video_wait4dmap(0);
+
+	mipi_dsi_panel_fps_data_update(mfd);
 
 	mdp4_overlay_mdp_perf_upd(mfd, 0);
 	mutex_unlock(&mfd->dma->ov_mutex);

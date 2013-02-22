@@ -1,4 +1,5 @@
 /* Copyright (c) 2008-2012, Code Aurora Forum. All rights reserved.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -171,6 +172,10 @@ struct msm_panel_info {
 	__u32 frame_rate;
 
 
+	/* physical size in mm */
+	__u32 width;
+	__u32 height;
+
 	struct mddi_panel_info mddi;
 	struct lcd_panel_info lcd;
 	struct lcdc_panel_info lcdc;
@@ -194,10 +199,15 @@ struct msm_fb_panel_data {
 
 	/* function entry chain */
 	int (*on) (struct platform_device *pdev);
+	int (*controller_on_panel_on) (struct platform_device *pdev);
 	int (*off) (struct platform_device *pdev);
+	int power_on_panel_at_pan;
 	int (*power_ctrl) (boolean enable);
 	struct platform_device *next;
 	int (*clk_func) (int enable);
+	struct msm_panel_info *(*panel_detect) (struct msm_fb_data_type *mfd);
+	int (*update_panel) (struct platform_device *pdev);
+	int (*get_pcc_data) (struct msm_fb_data_type *mfd);
 };
 
 /*===========================================================================
