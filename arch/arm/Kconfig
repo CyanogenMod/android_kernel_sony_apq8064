@@ -1894,9 +1894,6 @@ config ARCH_MEMORY_REMOVE
 config ENABLE_DMM
 	def_bool n
 
-config FIX_MOVABLE_ZONE
-	def_bool n
-
 config DONT_MAP_HOLE_AFTER_MEMBANK0
 	def_bool n
 	depends on ENABLE_VMALLOC_SAVING=n
@@ -1904,12 +1901,6 @@ config DONT_MAP_HOLE_AFTER_MEMBANK0
 config ENABLE_VMALLOC_SAVING
 	def_bool n
 	depends on DONT_MAP_HOLE_AFTER_MEMBANK0=n
-
-config ARCH_ENABLE_MEMORY_HOTPLUG
-	def_bool n
-
-config ARCH_ENABLE_MEMORY_HOTREMOVE
-	def_bool n
 
 config HOLES_IN_ZONE
 	def_bool n
