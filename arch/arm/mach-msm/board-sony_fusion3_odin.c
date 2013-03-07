@@ -80,13 +80,13 @@ static struct lm3533_startup_brightenss lm3533_startup_brightnesses[] = {
 struct lm3533_platform_data lm3533_pdata = {
 	.b_cnf = {
 		[LM3533_CBNKA] = {
-			.pwm = LM3533_PWM_ALL,
+			.pwm = 0,
 			.ctl = LM3533_HVA_MAP_EXP | LM3533_HVA_BR_CTL,
 			.fsc =  I_UA_TO_FSC(20200),
 			.iname = "lm3533-lcd-bl-1",
 		},
 		[LM3533_CBNKB] = {
-			.pwm = LM3533_PWM_ALL,
+			.pwm = 0,
 			.ctl = LM3533_HVB_MAP_EXP | LM3533_HVB_BR_CTL,
 			.fsc =  I_UA_TO_FSC(20200),
 			.iname = "lm3533-lcd-bl-2",
