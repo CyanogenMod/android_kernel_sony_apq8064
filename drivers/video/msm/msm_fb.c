@@ -980,9 +980,6 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 	int ret = 0;
 	struct fb_event event;
 
-	if (!op_enable)
-		return -EPERM;
-
 	pdata = (struct msm_fb_panel_data *)mfd->pdev->dev.platform_data;
 	if ((!pdata) || (!pdata->on) || (!pdata->off)) {
 		printk(KERN_ERR "msm_fb_blank_sub: no panel operation detected!\n");
@@ -1174,10 +1171,11 @@ static int msm_fb_blank(int blank_mode, struct fb_info *info)
 		if (blank_mode == FB_BLANK_UNBLANK) {
 			mfd->suspend.panel_power_on = TRUE;
 			/* if unblank is called when system is in suspend,
-			do not unblank but send SUCCESS to hwc, so that hwc
-			keeps pushing frames and display comes up as soon
-			 as system is resumed */
-			return 0;
+			wait for the system to resume */
+			while (mfd->suspend.op_suspend) {
+				pr_debug("waiting for system to resume\n");
+				msleep(20);
+			}
 		}
 		else
 			mfd->suspend.panel_power_on = FALSE;
@@ -1881,6 +1879,11 @@ static int msm_fb_open(struct fb_info *info, int user)
 	return 0;
 }
 
+static void msm_fb_free_base_pipe(struct msm_fb_data_type *mfd)
+{
+	return 	mdp4_overlay_free_base_pipe(mfd);
+}
+
 static int msm_fb_release(struct fb_info *info, int user)
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
@@ -1896,12 +1899,16 @@ static int msm_fb_release(struct fb_info *info, int user)
 	msm_fb_client_counter(info, user, false);
 	mfd->ref_cnt--;
 
-	if ((!mfd->ref_cnt) && (mfd->op_enable)) {
-		if ((ret =
-		     msm_fb_blank_sub(FB_BLANK_POWERDOWN, info,
-				      mfd->op_enable)) != 0) {
-			printk(KERN_ERR "msm_fb_release: can't turn off display!\n");
-			return ret;
+	if (!mfd->ref_cnt) {
+		if (mfd->op_enable) {
+			ret = msm_fb_blank_sub(FB_BLANK_POWERDOWN, info,
+							mfd->op_enable);
+			if (ret != 0) {
+				printk(KERN_ERR "msm_fb_release: can't turn off display!\n");
+				return ret;
+			}
+		} else {
+			msm_fb_free_base_pipe(mfd);
 		}
 	}
 
