@@ -1370,6 +1370,24 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 		break;
 	}
+	case ION_IOC_ALLOC_COMPAT:
+	{
+		struct ion_allocation_data_compat data;
+
+		if (copy_from_user(&data, (void __user *)arg, sizeof(data)))
+			return -EFAULT;
+		data.handle = ion_alloc(client, data.len, data.align,
+					     data.flags);
+
+		if (IS_ERR(data.handle))
+			return PTR_ERR(data.handle);
+
+		if (copy_to_user((void __user *)arg, &data, sizeof(data))) {
+			ion_free(client, data.handle);
+			return -EFAULT;
+		}
+		break;
+	}
 	case ION_IOC_FREE:
 	{
 		struct ion_handle_data data;
@@ -1406,6 +1424,7 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	case ION_IOC_IMPORT:
+	case ION_IOC_IMPORT_COMPAT:
 	{
 		struct ion_fd_data data;
 		int ret = 0;
@@ -1435,13 +1454,27 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return dev->custom_ioctl(client, data.cmd, data.arg);
 	}
 	case ION_IOC_CLEAN_CACHES:
+	case ION_IOC_CLEAN_CACHES_COMPAT:
 	case ION_IOC_INV_CACHES:
+	case ION_IOC_INV_CACHES_COMPAT:
 	case ION_IOC_CLEAN_INV_CACHES:
+	case ION_IOC_CLEAN_INV_CACHES_COMPAT:
 	{
 		struct ion_flush_data data;
 		unsigned long start, end;
 		struct ion_handle *handle = NULL;
-		int ret;
+		int ret, client_cmd;
+
+		client_cmd = cmd;
+
+		if(client_cmd == ION_IOC_CLEAN_CACHES_COMPAT)
+		  client_cmd = ION_IOC_CLEAN_CACHES;
+
+		if(client_cmd == ION_IOC_INV_CACHES_COMPAT)
+		  client_cmd = ION_IOC_INV_CACHES;
+
+		if(client_cmd == ION_IOC_CLEAN_INV_CACHES_COMPAT)
+		  client_cmd = ION_IOC_CLEAN_INV_CACHES;
 
 		if (copy_from_user(&data, (void __user *)arg,
 				sizeof(struct ion_flush_data)))
@@ -1468,7 +1501,7 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = ion_do_cache_op(client,
 					data.handle ? data.handle : handle,
 					data.vaddr, data.offset, data.length,
-					cmd);
+					client_cmd);
 
 		if (!data.handle)
 			ion_free(client, handle);
@@ -1479,6 +1512,7 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	}
 	case ION_IOC_GET_FLAGS:
+	case ION_IOC_GET_FLAGS_COMPAT:
 	{
 		struct ion_flag_data data;
 		int ret;
