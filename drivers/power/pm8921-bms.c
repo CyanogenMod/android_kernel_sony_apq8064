@@ -189,6 +189,8 @@ struct pm8921_bms_chip {
 	int			vbatt_cutoff_count;
 	int			low_voltage_detect;
 	int			vbatt_cutoff_retries;
+	bool			first_report_after_suspend;
+	int			calc_soc_at_suspend;
 	int			total_ratio_for_readjust_fcc;
 	struct bms_monitor	bmsm;
 };
@@ -2555,6 +2557,33 @@ static int report_state_of_charge(struct pm8921_bms_chip *chip)
 	if (last_soc != -EINVAL && last_soc < soc)
 		soc = scale_soc_while_chg(chip, delta_time_us, soc, last_soc);
 
+	/* restrict soc to 1% change unless reporting 1st time after suspend */
+	if (chip->first_report_after_suspend == true) {
+		chip->first_report_after_suspend = false;
+		if (last_soc != -EINVAL) {
+			if (last_soc < soc)
+				/*
+				 * can't suspend while charging
+				 * don't report the increased the soc
+				 */
+				soc = last_soc;
+			else if (last_soc > soc) {
+				if (chip->calc_soc_at_suspend > soc)
+					soc = last_soc -
+					(chip->calc_soc_at_suspend - soc);
+				else
+					soc = last_soc;
+			}
+		}
+	} else {
+		if (last_soc != -EINVAL) {
+			if (soc < last_soc && soc != 0)
+				soc = last_soc - 1;
+			if (soc > last_soc && soc != 100)
+				soc = last_soc + 1;
+		}
+	}
+
 	last_soc = bound_soc(soc);
 	backup_soc_and_iavg(chip, batt_temp, last_soc);
 	pr_debug("Reported SOC = %d\n", last_soc);
@@ -3786,6 +3815,14 @@ static int __devexit pm8921_bms_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	the_chip = NULL;
 	kfree(chip);
+	return 0;
+}
+
+static int pm8921_bms_suspend(struct device *dev)
+{
+	the_chip->first_report_after_suspend = true;
+	the_chip->calc_soc_at_suspend = calculated_soc;
+
 	return 0;
 }
 
