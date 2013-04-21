@@ -11,6 +11,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/device.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -46,6 +47,48 @@ struct pm8xxx_vib {
 };
 
 static struct pm8xxx_vib *vib_dev;
+
+static ssize_t pm8xxx_level_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct timed_output_dev *tdev = dev_get_drvdata(dev);
+	struct pm8xxx_vib *vib = container_of(tdev, struct pm8xxx_vib,
+							 timed_dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", vib->level);
+}
+
+static ssize_t pm8xxx_level_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct timed_output_dev *tdev = dev_get_drvdata(dev);
+	struct pm8xxx_vib *vib = container_of(tdev, struct pm8xxx_vib,
+							 timed_dev);
+	int val;
+	int rc;
+
+	rc = kstrtoint(buf, 10, &val);
+	if (rc) {
+		pr_err("%s: error getting level\n", __func__);
+		return -EINVAL;
+	}
+
+	if (val < VIB_MIN_LEVEL_mV / 100) {
+		pr_err("%s: level %d not in range (%d - %d), using min.", __func__, val, VIB_MIN_LEVEL_mV / 100, VIB_MAX_LEVEL_mV / 100);
+		val = VIB_MIN_LEVEL_mV / 100;
+	} else if (val > VIB_MAX_LEVEL_mV / 100) {
+		pr_err("%s: level %d not in range (%d - %d), using max.", __func__, val, VIB_MIN_LEVEL_mV / 100, VIB_MAX_LEVEL_mV / 100);
+		val = VIB_MAX_LEVEL_mV / 100;
+	}
+
+	vib->level = val;
+
+	return strnlen(buf, count);
+}
+
+static DEVICE_ATTR(level, S_IRUGO | S_IWUSR, pm8xxx_level_show, pm8xxx_level_store);
 
 int pm8xxx_vibrator_config(struct pm8xxx_vib_config *vib_config)
 {
@@ -266,6 +309,10 @@ static int __devinit pm8xxx_vib_probe(struct platform_device *pdev)
 	vib->reg_vib_drv = val;
 
 	rc = timed_output_dev_register(&vib->timed_dev);
+	if (rc < 0)
+		goto err_read_vib;
+
+	rc = device_create_file(vib->timed_dev.dev, &dev_attr_level);
 	if (rc < 0)
 		goto err_read_vib;
 
