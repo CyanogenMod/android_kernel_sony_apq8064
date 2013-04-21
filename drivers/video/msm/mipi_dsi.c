@@ -88,8 +88,6 @@ static int mipi_dsi_off(struct platform_device *pdev)
 	/* make sure dsi_cmd_mdp is idle */
 	mipi_dsi_cmd_mdp_busy();
 
-	ret = panel_next_off(pdev);
-
 	/*
 	 * Desctiption: change to DSI_CMD_MODE since it needed to
 	 * tx DCS dsiplay off comamnd to panel
@@ -105,6 +103,8 @@ static int mipi_dsi_off(struct platform_device *pdev)
 			mipi_dsi_set_tear_off(mfd);
 		}
 	}
+
+	ret = panel_next_off(pdev);
 
 #ifdef CONFIG_MSM_BUS_SCALING
 	mdp_bus_scale_update_request(0);
@@ -259,7 +259,8 @@ static int mipi_dsi_on(struct platform_device *pdev)
 	else
 		down(&mfd->dma->mutex);
 
-	ret = panel_next_on(pdev);
+	if (mfd->op_enable)
+		ret = panel_next_on(pdev);
 
 	mipi_dsi_op_mode_config(mipi->mode);
 
