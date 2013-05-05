@@ -110,7 +110,7 @@
 		reg = <0xfc42b0c8 0xc8>;
 	};
 
-	sdcc1: qcom,sdcc@f9824000 {
+	qcom,sdcc@f9824000 {
 		cell-index = <1>; /* SDC1 eMMC slot */
 		compatible = "qcom,msm-sdcc";
 		reg = <0xf9824000 0x800>,
@@ -143,7 +143,7 @@
 		qcom,sdcc-bus-speed-mode = "HS200_1p8v", "DDR_1p8v";
 	};
 
-	sdcc2: qcom,sdcc@f98a4000 {
+	qcom,sdcc@f98a4000 {
 		cell-index = <2>; /* SDC2 SD card slot */
 		compatible = "qcom,msm-sdcc";
 		reg = <0xf98a4000 0x800>,
@@ -176,7 +176,7 @@
 		qcom,sdcc-current-limit = <800>;
 	};
 
-	sdcc3: qcom,sdcc@f9864000 {
+	qcom,sdcc@f9864000 {
 		cell-index = <3>; /* SDC3 SDIO slot */
 		compatible = "qcom,msm-sdcc";
 		reg = <0xf9864000 0x800>,
@@ -201,7 +201,7 @@
 		status = "disable";
 	};
 
-	sdcc4: qcom,sdcc@f98e4000 {
+	qcom,sdcc@f98e4000 {
 		cell-index = <4>; /* SDC4 SDIO slot */
 		compatible = "qcom,msm-sdcc";
 		reg = <0xf98e4000 0x800>,
