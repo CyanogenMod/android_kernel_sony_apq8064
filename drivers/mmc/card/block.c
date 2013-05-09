@@ -3,6 +3,7 @@
  *
  * Copyright 2002 Hewlett-Packard Company
  * Copyright 2005-2008 Pierre Ossman
+ * Copyright (C) 2013 Sony Mobile Communications AB.
  *
  * Use consistent with the GNU GPL is permitted,
  * provided that this copyright notice is
@@ -121,7 +122,7 @@ struct mmc_blk_data {
 	struct device_attribute force_ro;
 	struct device_attribute power_ro_lock;
 	struct device_attribute num_wr_reqs_to_start_packing;
-	struct device_attribute min_sectors_to_check_bkops_status;
+	struct device_attribute bkops_check_threshold;
 	int	area_type;
 };
 
@@ -308,43 +309,60 @@ num_wr_reqs_to_start_packing_store(struct device *dev,
 }
 
 static ssize_t
-min_sectors_to_check_bkops_status_show(struct device *dev,
+bkops_check_threshold_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
 	struct mmc_blk_data *md = mmc_blk_get(dev_to_disk(dev));
-	unsigned int min_sectors_to_check_bkops_status;
 	struct mmc_card *card = md->queue.card;
 	int ret;
 
 	if (!card)
-		return -EINVAL;
-
-	min_sectors_to_check_bkops_status =
-		card->bkops_info.min_sectors_to_queue_delayed_work;
-
-	ret = snprintf(buf, PAGE_SIZE, "%d\n",
-		       min_sectors_to_check_bkops_status);
+		ret = -EINVAL;
+	else
+	    ret = snprintf(buf, PAGE_SIZE, "%d\n",
+		card->bkops_info.size_percentage_to_queue_delayed_work);
 
 	mmc_blk_put(md);
 	return ret;
 }
 
 static ssize_t
-min_sectors_to_check_bkops_status_store(struct device *dev,
+bkops_check_threshold_store(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
 	int value;
 	struct mmc_blk_data *md = mmc_blk_get(dev_to_disk(dev));
 	struct mmc_card *card = md->queue.card;
+	unsigned int card_size;
+	int ret = count;
 
-	if (!card)
-		return -EINVAL;
+	if (!card) {
+		ret = -EINVAL;
+		goto exit;
+	}
 
 	sscanf(buf, "%d", &value);
-	if (value >= 0)
-		card->bkops_info.min_sectors_to_queue_delayed_work = value;
+	if ((value <= 0) || (value >= 100)) {
+		ret = -EINVAL;
+		goto exit;
+	}
 
+	card_size = (unsigned int)get_capacity(md->disk);
+	if (card_size <= 0) {
+		ret = -EINVAL;
+		goto exit;
+	}
+	card->bkops_info.size_percentage_to_queue_delayed_work = value;
+	card->bkops_info.min_sectors_to_queue_delayed_work =
+		(card_size * value) / 100;
+
+	pr_debug("%s: size_percentage = %d, min_sectors = %d",
+			mmc_hostname(card->host),
+			card->bkops_info.size_percentage_to_queue_delayed_work,
+			card->bkops_info.min_sectors_to_queue_delayed_work);
+
+exit:
 	mmc_blk_put(md);
 	return count;
 }
@@ -764,10 +782,9 @@ static int mmc_blk_cmd_error(struct request *req, const char *name, int error,
  * Initial r/w and stop cmd error recovery.
  * We don't know whether the card received the r/w cmd or not, so try to
  * restore things back to a sane state.  Essentially, we do this as follows:
- * - Obtain card status.  If the first attempt to obtain card status fails,
- *   the status word will reflect the failed status cmd, not the failed
- *   r/w cmd.  If we fail to obtain card status, it suggests we can no
- *   longer communicate with the card.
+ * - Check card status. If the status_valid argument is false, the first attempt
+ *   to obtain card status failed and the status argument will not reflect the
+ *   failed r/w cmd.
  * - Check the card state.  If the card received the cmd but there was a
  *   transient problem with the response, it might still be in a data transfer
  *   mode.  Try to send it a stop command.  If this fails, we can't recover.
@@ -779,37 +796,14 @@ static int mmc_blk_cmd_error(struct request *req, const char *name, int error,
  * Otherwise we don't understand what happened, so abort.
  */
 static int mmc_blk_cmd_recovery(struct mmc_card *card, struct request *req,
-	struct mmc_blk_request *brq, int *ecc_err)
+	struct mmc_blk_request *brq, int *ecc_err, u32 status,
+	bool status_valid)
 {
-	bool prev_cmd_status_valid = true;
-	u32 status, stop_status = 0;
-	int err, retry;
+	u32 stop_status = 0;
+	int err;
 
 	if (mmc_card_removed(card))
 		return ERR_NOMEDIUM;
-
-	/*
-	 * Try to get card status which indicates both the card state
-	 * and why there was no response.  If the first attempt fails,
-	 * we can't be sure the returned status is for the r/w command.
-	 */
-	for (retry = 2; retry >= 0; retry--) {
-		err = get_card_status(card, &status, 0);
-		if (!err)
-			break;
-
-		prev_cmd_status_valid = false;
-		pr_err("%s: error %d sending status command, %sing\n",
-		       req->rq_disk->disk_name, err, retry ? "retry" : "abort");
-	}
-
-	/* We couldn't get a response from the card.  Give up. */
-	if (err) {
-		/* Check if the card is removed */
-		if (mmc_detect_card_removed(card->host))
-			return ERR_NOMEDIUM;
-		return ERR_ABORT;
-	}
 
 	/* Flag ECC errors */
 	if ((status & R1_CARD_ECC_FAILED) ||
@@ -841,12 +835,12 @@ static int mmc_blk_cmd_recovery(struct mmc_card *card, struct request *req,
 	/* Check for set block count errors */
 	if (brq->sbc.error)
 		return mmc_blk_cmd_error(req, "SET_BLOCK_COUNT", brq->sbc.error,
-				prev_cmd_status_valid, status);
+				status_valid, status);
 
 	/* Check for r/w command errors */
 	if (brq->cmd.error)
 		return mmc_blk_cmd_error(req, "r/w cmd", brq->cmd.error,
-				prev_cmd_status_valid, status);
+				status_valid, status);
 
 	/* Data errors */
 	if (!brq->stop.error)
@@ -1002,9 +996,6 @@ retry:
 			goto out;
 	}
 
-	if (mmc_can_sanitize(card))
-		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-				 EXT_CSD_SANITIZE_START, 1, 0);
 out_retry:
 	if (err && !mmc_blk_reset(md, card->host, type))
 		goto retry;
@@ -1101,6 +1092,12 @@ static inline void mmc_apply_rel_rw(struct mmc_blk_request *brq,
 	 R1_CC_ERROR |		/* Card controller error */		\
 	 R1_ERROR)		/* General/unknown error */
 
+#define EXE_ERRORS							\
+	(R1_OUT_OF_RANGE |	/* Command argument out of range */	\
+	 R1_ADDRESS_ERROR |	/* Misaligned address */		\
+	 R1_WP_VIOLATION |	/* Tried to write to protected block */	\
+	 R1_ERROR)		/* General/unknown error */
+
 static int mmc_blk_err_check(struct mmc_card *card,
 			     struct mmc_async_req *areq)
 {
@@ -1108,7 +1105,33 @@ static int mmc_blk_err_check(struct mmc_card *card,
 						    mmc_active);
 	struct mmc_blk_request *brq = &mq_mrq->brq;
 	struct request *req = mq_mrq->req;
-	int ecc_err = 0;
+	int retries, err, ecc_err = 0;
+	u32 status = 0;
+	bool status_valid = true;
+
+	/*
+	 * Try to get card status which indicates the card state after
+	 * command execution. If the first attempt fails, we can't be
+	 * sure the returned status is for the r/w command.
+	 */
+	for (retries = 2; retries >= 0; retries--) {
+		err = get_card_status(card, &status, 0);
+		if (!err)
+			break;
+
+		status_valid = false;
+		pr_err("%s: error %d sending status command, %sing\n",
+		       req->rq_disk->disk_name, err,
+		       retries ? "retry" : "abort");
+	}
+
+	/* We couldn't get a response from the card.  Give up. */
+	if (err) {
+		/* Check if the card is removed */
+		if (mmc_detect_card_removed(card->host))
+			return MMC_BLK_NOMEDIUM;
+		return MMC_BLK_ABORT;
+	}
 
 	/*
 	 * sbc.error indicates a problem with the set block count
@@ -1122,7 +1145,8 @@ static int mmc_blk_err_check(struct mmc_card *card,
 	 */
 	if (brq->sbc.error || brq->cmd.error || brq->stop.error ||
 	    brq->data.error) {
-		switch (mmc_blk_cmd_recovery(card, req, brq, &ecc_err)) {
+		switch (mmc_blk_cmd_recovery(card, req, brq, &ecc_err, status,
+		    status_valid)) {
 		case ERR_RETRY:
 			return MMC_BLK_RETRY;
 		case ERR_ABORT:
@@ -1137,11 +1161,12 @@ static int mmc_blk_err_check(struct mmc_card *card,
 	/*
 	 * Check for errors relating to the execution of the
 	 * initial command - such as address errors.  No data
-	 * has been transferred.
+	 * has been transferred. Also check for errors during
+	 * command execution. In this case execution was aborted.
 	 */
-	if (brq->cmd.resp[0] & CMD_ERRORS) {
-		pr_err("%s: r/w command failed, status = %#x\n",
-		       req->rq_disk->disk_name, brq->cmd.resp[0]);
+	if (brq->cmd.resp[0] & CMD_ERRORS || status & EXE_ERRORS) {
+		pr_err("%s: r/w command failed, cmd status = %#x, status = %#x\n",
+		       req->rq_disk->disk_name, brq->cmd.resp[0], status);
 		return MMC_BLK_ABORT;
 	}
 
@@ -1151,21 +1176,20 @@ static int mmc_blk_err_check(struct mmc_card *card,
 	 * program mode, which we have to wait for it to complete.
 	 */
 	if (!mmc_host_is_spi(card->host) && rq_data_dir(req) != READ) {
-		u32 status;
-		do {
+		/*
+		 * Some cards mishandle the status bits,
+		 * so make sure to check both the busy
+		 * indication and the card state.
+		 */
+		 while (!(status & R1_READY_FOR_DATA) ||
+			 (R1_CURRENT_STATE(status) == R1_STATE_PRG)) {
 			int err = get_card_status(card, &status, 5);
 			if (err) {
 				pr_err("%s: error %d requesting status\n",
 				       req->rq_disk->disk_name, err);
 				return MMC_BLK_CMD_ERR;
 			}
-			/*
-			 * Some cards mishandle the status bits,
-			 * so make sure to check both the busy
-			 * indication and the card state.
-			 */
-		} while (!(status & R1_READY_FOR_DATA) ||
-			 (R1_CURRENT_STATE(status) == R1_STATE_PRG));
+		}
 	}
 
 	if (brq->data.error) {
@@ -2042,9 +2066,12 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	}
 #endif
 
-	if (req && !mq->mqrq_prev->req)
+	if (req && !mq->mqrq_prev->req) {
 		/* claim host only for the first request */
 		mmc_claim_host(card->host);
+		if (card->ext_csd.bkops_en)
+			mmc_stop_bkops(card);
+	}
 
 	ret = mmc_blk_part_switch(card, md);
 	if (ret) {
@@ -2080,9 +2107,12 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	}
 
 out:
-	if (!req)
+	if (!req) {
+		if (mmc_card_need_bkops(card))
+			mmc_start_bkops(card, false);
 		/* release host only when there are no more requests */
 		mmc_release_host(card->host);
+	}
 	return ret;
 }
 
@@ -2101,6 +2131,8 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 {
 	struct mmc_blk_data *md;
 	int devidx, ret;
+	unsigned int percentage =
+		BKOPS_SIZE_PERCENTAGE_TO_QUEUE_DELAYED_WORK;
 
 	devidx = find_first_zero_bit(dev_use, max_devices);
 	if (devidx >= max_devices)
@@ -2177,6 +2209,10 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 
 	blk_queue_logical_block_size(md->queue.queue, 512);
 	set_capacity(md->disk, size);
+
+	card->bkops_info.size_percentage_to_queue_delayed_work = percentage;
+	card->bkops_info.min_sectors_to_queue_delayed_work =
+		((unsigned int)size * percentage) / 100;
 
 	if (mmc_host_cmd23(card->host)) {
 		if (mmc_card_mmc(card) ||
@@ -2370,22 +2406,19 @@ static int mmc_add_disk(struct mmc_blk_data *md)
 	if (ret)
 		goto num_wr_reqs_to_start_packing_fail;
 
-	md->min_sectors_to_check_bkops_status.show =
-		min_sectors_to_check_bkops_status_show;
-	md->min_sectors_to_check_bkops_status.store =
-		min_sectors_to_check_bkops_status_store;
-	sysfs_attr_init(&md->min_sectors_to_check_bkops_status.attr);
-	md->min_sectors_to_check_bkops_status.attr.name =
-		"min_sectors_to_check_bkops_status";
-	md->min_sectors_to_check_bkops_status.attr.mode = S_IRUGO | S_IWUSR;
+	md->bkops_check_threshold.show = bkops_check_threshold_show;
+	md->bkops_check_threshold.store = bkops_check_threshold_store;
+	sysfs_attr_init(&md->bkops_check_threshold.attr);
+	md->bkops_check_threshold.attr.name = "bkops_check_threshold";
+	md->bkops_check_threshold.attr.mode = S_IRUGO | S_IWUSR;
 	ret = device_create_file(disk_to_dev(md->disk),
-				 &md->min_sectors_to_check_bkops_status);
+				 &md->bkops_check_threshold);
 	if (ret)
-		goto min_sectors_to_check_bkops_status_fails;
+		goto bkops_check_threshold_fails;
 
 	return ret;
 
-min_sectors_to_check_bkops_status_fails:
+bkops_check_threshold_fails:
 	device_remove_file(disk_to_dev(md->disk),
 			   &md->num_wr_reqs_to_start_packing);
 num_wr_reqs_to_start_packing_fail:

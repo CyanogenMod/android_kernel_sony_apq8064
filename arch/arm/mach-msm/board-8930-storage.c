@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -63,11 +63,9 @@ static struct msm_mmc_reg_data mmc_vdd_reg_data[MAX_SDCC_CONTROLLER] = {
 		 * hardware revisions - maybe once that is done, this can be
 		 * reverted.
 		 */
-		.always_on = 1,
 		.lpm_sup = 1,
 		.hpm_uA = 800000, /* 800mA */
 		.lpm_uA = 9000,
-		.reset_at_init = true,
 	},
 };
 
@@ -247,6 +245,7 @@ static struct mmc_platform_data msm8960_sdc1_data = {
 	.mpm_sdiowakeup_int = MSM_MPM_PIN_SDC1_DAT1,
 	.msm_bus_voting_data = &sps_to_ddr_bus_voting_data,
 	.uhs_caps2	= MMC_CAP2_HS200_1_8V_SDR,
+	.packed_write	= MMC_CAP2_PACKED_WR | MMC_CAP2_PACKED_WR_CONTROL,
 };
 #endif
 
@@ -311,13 +310,11 @@ void __init msm8930_init_mmc(void)
 	 * This change to the boards will be true for newer versions of the SoC
 	 * as well.
 	 */
-	if ((SOCINFO_VERSION_MAJOR(socinfo_get_version()) >= 1 &&
-			SOCINFO_VERSION_MINOR(socinfo_get_version()) >= 2) ||
-			machine_is_msm8930_cdp()) {
-		msm8960_sdc3_data.vreg_data->vdd_data->always_on = false;
-		msm8960_sdc3_data.vreg_data->vdd_data->reset_at_init = false;
+	if (SOCINFO_VERSION_MAJOR(socinfo_get_version()) == 1 &&
+			SOCINFO_VERSION_MINOR(socinfo_get_version()) < 2) {
+		msm8960_sdc3_data.vreg_data->vdd_data->always_on = true;
+		msm8960_sdc3_data.vreg_data->vdd_data->reset_at_init = true;
 	}
-
 	/* SDC3: External card slot */
 	if (!machine_is_msm8930_cdp()) {
 		msm8960_sdc3_data.wpswitch_gpio = 0;
