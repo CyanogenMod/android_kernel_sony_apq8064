@@ -1,7 +1,7 @@
 /* include/linux/clearpad.h
  *
  * Copyright (C) 2010 Sony Ericsson Mobile Communications AB.
- * Copyright (C) 2012 Sony Mobile Communications AB.
+ * Copyright (C) 2012 - 2013 Sony Mobile Communications AB.
  *
  * Author: Courtney Cavin <courtney.cavin@sonyericsson.com>
  *         Yusuke Yoshimura <Yusuke.Yoshimura@sonymobile.com>
@@ -65,6 +65,7 @@ struct synaptics_button_data {
 struct synaptics_easy_wakeup_config {
 	bool gesture_enable;
 	bool large_panel;
+	unsigned long timeout_delay;
 };
 
 struct clearpad_platform_data {

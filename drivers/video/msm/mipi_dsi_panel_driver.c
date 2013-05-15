@@ -1,6 +1,6 @@
 /* drivers/video/msm/mipi_dsi_panel_driver.c
  *
- * Copyright (C) 2012 Sony Mobile Communications AB.
+ * Copyright (C) 2012-2013 Sony Mobile Communications AB.
  *
  * Author: Johan Olson <johan.olson@sonymobile.com>
  * Author: Joakim Wesslen <joakim.wesslen@sonymobile.com>
@@ -34,6 +34,15 @@
 
 #define DEFAULT_FPS_LOG_INTERVAL 100
 #define DEFAULT_FPS_ARRAY_SIZE 120
+#define NVRW_RETRY		10
+#define NVRW_SEPARATOR_POS	2
+#define NVRW_ONE_PARAM_SIZE	3
+#define NVRW_DATA_SIZE		((NVRW_NUM_E6_PARAM + NVRW_NUM_E7_PARAM + \
+				  NVRW_NUM_DE_PARAM) * NVRW_ONE_PARAM_SIZE)
+#define NVRW_PANEL_OFF_MSLEEP	100
+#define NVRW_USEFUL_DE_PARAM	4
+#define NVRW_ERASE_RES_OK	0xB9
+#define NVRW_STATUS_RES_NG	0x00
 
 #define calc_coltype_num(val, numpart, maxval)\
 	((val >= maxval) ? numpart - 1 : val / (maxval / numpart))
@@ -52,6 +61,7 @@ static struct fps_data {
 	u32 frame_counter_last;
 	u32 frame_counter;
 	u32 fpks;
+	struct timespec fpks_ts_last;
 	u16 fa_last_array_pos;
 	struct fps_array fa[DEFAULT_FPS_ARRAY_SIZE];
 } fpsd;
@@ -87,6 +97,10 @@ static struct msm_panel_info default_pinfo = {
 	.mipi.tx_eot_append = TRUE,
 	.mipi.t_clk_post = 0x04,
 	.mipi.t_clk_pre = 0x1B,
+#if defined(CONFIG_FB_MSM_MIPI_R63306_JDC_MDZ50) || \
+		defined(CONFIG_FB_MSM_MIPI_R63306_SHARP_LS046K3SX01)
+	.mipi.esc_byte_ratio = 4,
+#endif
 	.mipi.stream = 0,
 	.mipi.mdp_trigger = DSI_CMD_TRIGGER_SW,
 	.mipi.dma_trigger = DSI_CMD_TRIGGER_SW,
@@ -97,36 +111,49 @@ static struct msm_panel_info default_pinfo = {
 
 static struct mdp_pcc_cfg_data *color_calib;
 
-static inline u32 timespec_ms_diff(struct timespec lhs, struct timespec rhs)
+static u32 ts_diff_ms(struct timespec lhs, struct timespec rhs)
 {
-	struct timespec tmp_ts = timespec_sub(lhs, rhs);
-	u64 tmp_ns = (u64)timespec_to_ns(&tmp_ts);
-	do_div(tmp_ns, NSEC_PER_MSEC);
-	return (u32)tmp_ns;
+	struct timespec tdiff;
+	s64 nsec;
+	u32 msec;
+
+	tdiff = timespec_sub(lhs, rhs);
+	nsec = timespec_to_ns(&tdiff);
+	msec = (u32)nsec;
+	do_div(msec, NSEC_PER_MSEC);
+
+	return msec;
 }
 
 static void update_fps_data(struct fps_data *fps)
 {
-	struct timespec now;
-	u32 fpks = 0, ms_since_last, num_frames;
-
 	if (mutex_trylock(&fps->fps_lock)) {
-		getrawmonotonic(&now);
-		ms_since_last = timespec_ms_diff(now, fps->timestamp_last);
-		fps->interval_ms = ms_since_last;
+		u32 fpks = 0;
+		u32 ms_since_last = 0;
+		u32 num_frames;
+		struct timespec tlast = fps->timestamp_last;
+		struct timespec tnow;
+		u32 msec;
+
+		getrawmonotonic(&tnow);
+		msec = ts_diff_ms(tnow, tlast);
+		fps->timestamp_last = tnow;
+
+		fps->interval_ms = msec;
 		fps->frame_counter++;
 		num_frames = fps->frame_counter - fps->frame_counter_last;
 
 		fps->fa[fps_array_cnt].frame_nbr = fps->frame_counter;
-		fps->fa[fps_array_cnt].time_delta = ms_since_last;
+		fps->fa[fps_array_cnt].time_delta = msec;
 		fps->fa_last_array_pos = fps_array_cnt;
 		fps_array_cnt++;
 		if (fps_array_cnt >= DEFAULT_FPS_ARRAY_SIZE)
 			fps_array_cnt = 0;
 
+		ms_since_last = ts_diff_ms(tnow, fps->fpks_ts_last);
 		if (num_frames > 1 && ms_since_last >= fps->log_interval) {
 			fpks = (num_frames * 1000000) / ms_since_last;
-			fps->timestamp_last = now;
+			fps->fpks_ts_last = tnow;
 			fps->frame_counter_last = fps->frame_counter;
 			fps->fpks = fpks;
 		}
@@ -254,7 +281,7 @@ static int panel_id_reg_check(struct msm_fb_data_type *mfd,
 	for (i = 0; i < panel->id_num; i++) {
 		if ((i >= dsi_data->rx_buf.len) ||
 			((dsi_data->rx_buf.data[i] != panel->id[i]) &&
-				(panel->id[i] != 0xff))) {
+				(panel->id[i] != PANEL_SKIP_ID))) {
 			ret = -ENODEV;
 			goto exit;
 		}
@@ -474,6 +501,8 @@ static int panel_on(struct platform_device *pdev)
 		dev_dbg(dev, "%s: debugfs state, don't exit sleep\n", __func__);
 		goto unlock_and_exit;
 	}
+	if (!dsi_data->nvrw_panel_detective)
+		goto unlock_and_exit;
 
 	if (dsi_data->panel_state == PANEL_OFF) {
 		ret = panel_sleep_out_display_off(mfd, dsi_data);
@@ -588,16 +617,17 @@ static struct msm_panel_info *detect_panel(struct msm_fb_data_type *mfd)
 	mipi_dsi_op_mode_config(DSI_CMD_MODE);
 	for (i = 0; dsi_data->panels[i]; i++) {
 		ret = panel_id_reg_check(mfd, dsi_data, dsi_data->panels[i]);
-		if (dsi_data->panels[i]->id[0] == 0xff
+		if (dsi_data->panels[i]->id[0] == PANEL_SKIP_ID
 			&& dsi_data->panels[i]->id_num == 1)
 			default_panel = dsi_data->panels[i];
-		if (!ret && !(dsi_data->panels[i]->id[0] == 0xff
+		if (!ret && !(dsi_data->panels[i]->id[0] == PANEL_SKIP_ID
 			&& dsi_data->panels[i]->id_num == 1))
 			break;
 	}
 
 	if (dsi_data->panels[i]) {
 		dsi_data->panel = dsi_data->panels[i];
+		dsi_data->nvrw_panel_detective = true;
 		dev_info(dev, "%s: Found panel: %s\n", __func__,
 							dsi_data->panel->name);
 	} else {
@@ -681,8 +711,9 @@ static int get_pcc_data(struct msm_fb_data_type *mfd)
 
 	mipi_dsi_op_mode_config(DSI_CMD_MODE);
 	mutex_lock(&mfd->dma->ov_mutex);
-	if (dsi_data->panel->id_num >= 2 && (dsi_data->panel->id[0] == 0xff
-		&& dsi_data->panel->id[1] == 0xff))
+	if (dsi_data->panel->id_num >= 2 &&
+			(dsi_data->panel->id[0] == PANEL_SKIP_ID &&
+			dsi_data->panel->id[1] == PANEL_SKIP_ID))
 		ret = panel_execute_cmd(mfd, dsi_data,
 			dsi_data->panel->pctrl->read_id,
 			dsi_data->panel->id_num);
@@ -728,6 +759,7 @@ static int get_pcc_data(struct msm_fb_data_type *mfd)
 		color_calib->g.g	= cfg_rgb->g;
 		color_calib->b.b	= cfg_rgb->b;
 		dsi_data->pcc_config	= color_calib;
+		pcc_cfg_ptr		= color_calib;
 
 		dev_dbg(dev, "%s (%d): r=%x g=%x b=%x area=%d ct=%d ud=%d vd=%d",
 			__func__, __LINE__, cfg_rgb->r, cfg_rgb->g, cfg_rgb->b,
@@ -736,6 +768,409 @@ static int get_pcc_data(struct msm_fb_data_type *mfd)
 
 exit:
 	return 0;
+}
+
+#ifdef CONFIG_FB_MSM_RECOVER_PANEL
+static struct msm_panel_info *nvm_detect_panel(
+		struct msm_fb_data_type *mfd, char *id, int id_num)
+{
+	struct mipi_dsi_data *dsi_data = platform_get_drvdata(mfd->panel_pdev);
+	struct msm_fb_panel_data *pdata;
+	struct device *dev;
+	int i, n;
+	int min;
+
+	dev = &mfd->panel_pdev->dev;
+	dev_dbg(dev, "%s\n", __func__);
+	for (i = 0; dsi_data->panels[i]; i++) {
+		if (dsi_data->panels[i]->id[0] == PANEL_SKIP_ID
+			&& dsi_data->panels[i]->id_num == 1)
+			continue;	/* skip default panel */
+
+		min = MIN(dsi_data->panels[i]->id_num, id_num);
+		for (n = 0; n < min; n++)
+			if (dsi_data->panels[i]->id[n] != id[n] &&
+				dsi_data->panels[i]->id[n] != PANEL_SKIP_ID)
+				break;
+		if (n >= min)
+			break;
+	}
+	if (!dsi_data->panels[i])
+		return NULL;
+
+	dsi_data->panel = dsi_data->panels[i];
+	if (dsi_data->panel->send_video_data_before_display_on) {
+		dsi_data->panel_data.controller_on_panel_on = panel_on;
+		dsi_data->panel_data.power_on_panel_at_pan = 0;
+
+		pdata = mfd->pdev->dev.platform_data;
+		pdata->controller_on_panel_on = panel_on;
+		pdata->power_on_panel_at_pan = 0;
+	}
+	dev_info(dev, "%s: Found panel: %s\n", __func__, dsi_data->panel->name);
+
+	dsi_data->panel_data.panel_info =
+				*dsi_data->panel->pctrl->get_panel_info();
+	dsi_data->panel_data.panel_info.width = dsi_data->panel->width;
+	dsi_data->panel_data.panel_info.height = dsi_data->panel->height;
+	dsi_data->panel_data.panel_info.mipi.dsi_pclk_rate =
+				mfd->panel_info.mipi.dsi_pclk_rate;
+
+	return &dsi_data->panel_data.panel_info;
+}
+
+static int nvm_update_panel(struct msm_fb_data_type *mfd,
+		const char *buf, size_t count)
+{
+	struct msm_panel_info *pinfo;
+	const int num_ssv_id = NVRW_NUM_E6_PARAM * NVRW_ONE_PARAM_SIZE;
+	char	ssv_id[num_ssv_id];
+	char	*pos = ssv_id;
+	char	id[NVRW_NUM_E6_PARAM];
+	int	n, rc = -EINVAL;
+	ulong	dat;
+
+	if (count < NVRW_DATA_SIZE - 1)
+		goto err_exit;
+
+	buf += (NVRW_NUM_E7_PARAM + NVRW_NUM_DE_PARAM) * NVRW_ONE_PARAM_SIZE;
+	memcpy(ssv_id, buf, num_ssv_id - 1);
+	ssv_id[num_ssv_id - 1] = 0;
+
+	for (n = 0; n < NVRW_NUM_E6_PARAM; n++, pos += NVRW_ONE_PARAM_SIZE) {
+		pos[NVRW_SEPARATOR_POS] = 0;
+		rc = kstrtoul(pos, 16, &dat);
+		if (rc < 0)
+			goto err_exit;
+		id[n] = dat & 0xff;
+	}
+	pinfo = nvm_detect_panel(mfd, id, NVRW_NUM_E6_PARAM);
+	if (!pinfo)
+		goto err_exit;
+
+	mutex_lock(&mfd->power_lock);
+	rc = panel_next_off(mfd->pdev);
+	if (rc)
+		goto err_exit;
+	mfd->panel_info = *pinfo;
+	panel_update_config(mfd->pdev);
+	rc = panel_next_on(mfd->pdev);
+	mutex_unlock(&mfd->power_lock);
+
+err_exit:
+	return rc;
+}
+#endif
+
+static int nvm_override_param(struct dsi_cmd_payload *pcmdp, char reg,
+				int num_param, char *buf)
+{
+	ulong	dat;
+	int	i, n;
+	int	cnt = 0;
+	int	rc;
+
+	for (i = 0; i < pcmdp->cnt; i++) {
+		if (pcmdp->dsi[i].payload[0] == reg)
+			break;
+	}
+	if (i >= pcmdp->cnt)
+		goto err_exit;
+	for (n = 0; n < num_param; n++, buf += NVRW_ONE_PARAM_SIZE, cnt++) {
+		buf[NVRW_SEPARATOR_POS] = 0;
+		rc = kstrtoul(buf, 16, &dat);
+		if (rc < 0)
+			goto err_exit;
+		pcmdp->dsi[i].payload[n + 1] = dat & 0xff;
+	}
+	return cnt;
+err_exit:
+	return 0;
+}
+
+static int nvm_override_data(struct msm_fb_data_type *mfd,
+		const char *buf, int count)
+{
+	struct mipi_dsi_data	*dsi_data;
+	struct dsi_cmd_payload	*pcmdp;
+	char	work[NVRW_DATA_SIZE];
+	char	*pos = work;
+	int	cnt;
+
+	dsi_data = platform_get_drvdata(mfd->panel_pdev);
+	if (!dsi_data->panel->pnvrw_ctl)
+		goto err_exit;
+	if (count < NVRW_DATA_SIZE - 1)
+		goto err_exit;
+	memcpy(work, buf, NVRW_DATA_SIZE - 1);
+	work[NVRW_DATA_SIZE - 1] = 0;
+	/* override E7 register data */
+	pcmdp = &dsi_data->panel->pnvrw_ctl->nvm_write_rsp->payload.dsi_payload;
+	cnt = nvm_override_param(pcmdp, 0xE7, NVRW_NUM_E7_PARAM, pos);
+	if (cnt == 0) {
+		pr_err("%s:Override failure of the E7 parameters.\n", __func__);
+		goto err_exit;
+	}
+	pos += cnt * NVRW_ONE_PARAM_SIZE;
+	/* override DE register data */
+	pcmdp = &dsi_data->panel->pnvrw_ctl->
+			nvm_write_user->payload.dsi_payload;
+	cnt = nvm_override_param(pcmdp, 0xDE, NVRW_NUM_DE_PARAM, pos);
+	if (cnt == 0) {
+		pr_err("%s:Override failure of the DE parameters.\n", __func__);
+		goto err_exit;
+	}
+	pos += cnt * NVRW_ONE_PARAM_SIZE;
+	/* override E6 register data */
+	cnt = nvm_override_param(pcmdp, 0xE6, NVRW_NUM_E6_PARAM, pos);
+	if (cnt == 0) {
+		pr_err("%s:Override failure of the E6 parameters.\n", __func__);
+		goto err_exit;
+	}
+
+	return 0;
+err_exit:
+	return -EINVAL;
+}
+
+static int nvm_read(struct msm_fb_data_type *mfd, char *buf)
+{
+	struct mipi_dsi_data		*dsi_data;
+	struct dsi_nvm_rewrite_ctl	*pnvrw_ctl;
+	int	n;
+	int	len = 0;
+	char	*pos = buf;
+	int	ret;
+
+	dsi_data = platform_get_drvdata(mfd->panel_pdev);
+	pnvrw_ctl = dsi_data->panel->pnvrw_ctl;
+	ret = panel_execute_cmd(mfd, dsi_data, pnvrw_ctl->nvm_mcap, 0);
+	if (ret) {
+		pr_err("%s: nvm_mcap failed\n", __func__);
+		goto err_exit;
+	}
+
+	/* E7 register data */
+	ret = panel_execute_cmd(mfd, dsi_data,
+		pnvrw_ctl->nvm_read_rsp, NVRW_NUM_E7_PARAM);
+	if (ret) {
+		pr_err("%s: nvm_read_rsp failed\n", __func__);
+		goto err_exit;
+	}
+	for (n = 0; n < NVRW_NUM_E7_PARAM; n++)
+		len += snprintf(pos + len, PAGE_SIZE - len, "%02x ",
+				dsi_data->rx_buf.data[n]);
+
+	/* DE register data */
+	ret = panel_execute_cmd(mfd, dsi_data,
+		pnvrw_ctl->nvm_read_vcomdc, NVRW_NUM_DE_PARAM);
+	if (ret) {
+		pr_err("%s: nvm_read_vcomdc failed\n", __func__);
+		goto err_exit;
+	}
+	for (n = 0; n < NVRW_NUM_DE_PARAM; n++) {
+		if (n < NVRW_USEFUL_DE_PARAM)
+			len += snprintf(pos + len, PAGE_SIZE - len, "%02x ",
+					dsi_data->rx_buf.data[n]);
+		else
+			len += snprintf(pos + len, PAGE_SIZE - len, "00 ");
+	}
+
+	/* E6 register data */
+	ret = panel_execute_cmd(mfd, dsi_data,
+		pnvrw_ctl->nvm_read_ddb_write, NVRW_NUM_E6_PARAM);
+	if (ret) {
+		pr_err("%s: nvm_read_vcomdc failed\n", __func__);
+		goto err_exit;
+	}
+	for (n = 0; n < NVRW_NUM_E6_PARAM; n++)
+		len += snprintf(pos + len, PAGE_SIZE - len, "%02x ",
+				dsi_data->rx_buf.data[n]);
+	*(pos + len) = 0;
+
+	panel_execute_cmd(mfd, dsi_data, pnvrw_ctl->nvm_mcap_lock, 0);
+
+	return len;
+err_exit:
+	return 0;
+}
+
+static int nvm_erase(struct msm_fb_data_type *mfd)
+{
+	struct mipi_dsi_data		*dsi_data;
+	struct dsi_nvm_rewrite_ctl	*pnvrw_ctl;
+	int	i;
+	int	ret;
+
+	dsi_data = platform_get_drvdata(mfd->panel_pdev);
+	pnvrw_ctl = dsi_data->panel->pnvrw_ctl;
+	ret = panel_execute_cmd(mfd, dsi_data, pnvrw_ctl->nvm_disp_off, 0);
+	if (ret) {
+		pr_err("%s: nvm_disp_off failed\n", __func__);
+		goto err_exit;
+	}
+	ret = panel_execute_cmd(mfd, dsi_data, pnvrw_ctl->nvm_mcap, 0);
+	if (ret) {
+		pr_err("%s: nvm_mcap failed\n", __func__);
+		goto err_exit;
+	}
+
+	for (i = 0; i < NVRW_RETRY; i++) {
+		ret = panel_execute_cmd(mfd, dsi_data, pnvrw_ctl->nvm_open, 0);
+		if (ret)
+			pr_err("%s: nvm_open failed\n", __func__);
+		ret = panel_execute_cmd(mfd, dsi_data,
+				pnvrw_ctl->nvm_write_rsp, 0);
+		if (ret)
+			pr_err("%s: nvm_write_rsp failed\n", __func__);
+		ret = panel_execute_cmd(mfd, dsi_data,
+				pnvrw_ctl->nvm_write_user, 0);
+		if (ret)
+			pr_err("%s: nvm_write_user failed\n", __func__);
+
+		ret = panel_execute_cmd(mfd, dsi_data, pnvrw_ctl->nvm_erase, 0);
+		if (ret)
+			pr_err("%s: nvm_erase failed\n", __func__);
+
+		ret = panel_execute_cmd(mfd, dsi_data,
+				pnvrw_ctl->nvm_erase_res, 1);
+		if (ret)
+			pr_err("%s: nvm_erase_res failed\n", __func__);
+		if (dsi_data->rx_buf.data[0] != NVRW_ERASE_RES_OK) {
+			ret = panel_execute_cmd(mfd, dsi_data,
+					pnvrw_ctl->nvm_disp_off, 0);
+			if (ret)
+				pr_err("%s: nvm_disp_off failed\n", __func__);
+			pr_err("%s (%d): RETRY %d", __func__, __LINE__, i+1);
+			dsi_data->nvrw_retry_cnt++;
+			continue;
+		}
+		ret = panel_execute_cmd(mfd, dsi_data, pnvrw_ctl->nvm_close, 0);
+		if (ret)
+			pr_err("%s: nvm_close failed\n", __func__);
+		ret = panel_execute_cmd(mfd, dsi_data,
+				pnvrw_ctl->nvm_status, 1);
+		if (ret)
+			pr_err("%s: nvm_status failed\n", __func__);
+		if (dsi_data->rx_buf.data[0] == NVRW_STATUS_RES_NG) {
+			ret = panel_execute_cmd(mfd, dsi_data,
+					pnvrw_ctl->nvm_disp_off, 1);
+			if (ret)
+				pr_err("%s: nvm_disp_off failed\n", __func__);
+			pr_err("%s (%d): RETRY %d", __func__, __LINE__, i+1);
+			dsi_data->nvrw_retry_cnt++;
+			continue;
+		}
+		break;
+	}
+	if (i >= NVRW_RETRY)
+		goto err_exit;
+	ret = panel_execute_cmd(mfd, dsi_data, pnvrw_ctl->nvm_mcap_lock, 0);
+	if (ret)
+		pr_err("%s: nvm_mcap_lock failed\n", __func__);
+	if (pnvrw_ctl->nvm_term_seq) {
+		ret = panel_execute_cmd(mfd, dsi_data,
+				pnvrw_ctl->nvm_term_seq, 0);
+		if (ret)
+			pr_err("%s: nvm_term_seq failed\n", __func__);
+	}
+	dsi_data->dsi_power_save(0);
+	msleep(NVRW_PANEL_OFF_MSLEEP);
+
+	return 0;
+err_exit:
+	return ret;
+}
+static int nvm_rsp_write(struct msm_fb_data_type *mfd)
+{
+	struct mipi_dsi_data		*dsi_data;
+	struct dsi_nvm_rewrite_ctl	*pnvrw_ctl;
+	int	i;
+	int	ret;
+
+	dsi_data = platform_get_drvdata(mfd->panel_pdev);
+	pnvrw_ctl = dsi_data->panel->pnvrw_ctl;
+	dsi_data->dsi_power_save(1);
+	ret = panel_execute_cmd(mfd, dsi_data, pnvrw_ctl->nvm_mcap, 0);
+	if (ret) {
+		pr_err("%s: nvm_mcap failed\n", __func__);
+		goto err_exit;
+	}
+	for (i = 0; i < NVRW_RETRY; i++) {
+		ret = panel_execute_cmd(mfd, dsi_data, pnvrw_ctl->nvm_open, 0);
+		if (ret)
+			pr_err("%s: nvm_open failed\n", __func__);
+		ret = panel_execute_cmd(mfd, dsi_data,
+				pnvrw_ctl->nvm_write_rsp, 0);
+		if (ret)
+			pr_err("%s: nvm_write_rsp failed\n", __func__);
+		ret = panel_execute_cmd(mfd, dsi_data,
+				pnvrw_ctl->nvm_flash_rsp, 0);
+		if (ret)
+			pr_err("%s: nvm_flash_rsp failed\n", __func__);
+		ret = panel_execute_cmd(mfd, dsi_data,
+				pnvrw_ctl->nvm_status, 1);
+		if (ret)
+			pr_err("%s: nvm_status failed\n", __func__);
+		if (dsi_data->rx_buf.data[0] == NVRW_STATUS_RES_NG) {
+			pr_err("%s (%d): RETRY %d", __func__, __LINE__, i+1);
+			dsi_data->nvrw_retry_cnt++;
+			continue;
+		}
+		break;
+	}
+	if (i >= NVRW_RETRY) {
+		ret = -EAGAIN;
+		goto err_exit;
+	}
+	ret = panel_execute_cmd(mfd, dsi_data, pnvrw_ctl->nvm_mcap_lock, 0);
+	if (ret)
+		pr_err("%s: nvm_mcap_lock failed\n", __func__);
+	dsi_data->dsi_power_save(0);
+	msleep(NVRW_PANEL_OFF_MSLEEP);
+
+	return 0;
+err_exit:
+	return ret;
+}
+
+static int nvm_user_write(struct msm_fb_data_type *mfd)
+{
+	struct mipi_dsi_data		*dsi_data;
+	struct dsi_nvm_rewrite_ctl	*pnvrw_ctl;
+	int ret;
+
+	dsi_data = platform_get_drvdata(mfd->panel_pdev);
+	pnvrw_ctl = dsi_data->panel->pnvrw_ctl;
+	dsi_data->dsi_power_save(1);
+	ret = panel_execute_cmd(mfd, dsi_data, pnvrw_ctl->nvm_mcap, 0);
+	if (ret) {
+		pr_err("%s: nvm_mcap failed\n", __func__);
+		goto err_exit;
+	}
+	ret = panel_execute_cmd(mfd, dsi_data,
+			pnvrw_ctl->nvm_write_user, 0);
+	if (ret) {
+		pr_err("%s: nvm_write_user_cmds failed\n", __func__);
+		goto err_exit;
+	}
+	ret = panel_execute_cmd(mfd, dsi_data,
+			pnvrw_ctl->nvm_flash_user, 0);
+	if (ret) {
+		pr_err("%s: nvm_flash_user_cmds failed\n", __func__);
+		goto err_exit;
+	}
+
+	ret = panel_execute_cmd(mfd, dsi_data, pnvrw_ctl->nvm_mcap_lock, 0);
+	if (ret)
+		pr_err("%s: nvm_mcap_lock failed\n", __func__);
+	dsi_data->dsi_power_save(0);
+	msleep(NVRW_PANEL_OFF_MSLEEP);
+	dsi_data->dsi_power_save(1);
+
+	return 0;
+err_exit:
+	return ret;
 }
 
 static ssize_t mipi_dsi_panel_id_show(struct device *dev,
@@ -825,6 +1260,150 @@ static ssize_t mipi_dsi_panel_interval_array_ms(struct device *dev,
 	return rc;
 }
 
+#ifdef CONFIG_FB_MSM_RECOVER_PANEL
+static ssize_t mipi_dsi_panel_nvm_is_read_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mipi_dsi_data *dsi_data = dev_get_drvdata(dev);
+
+	if (!dsi_data->panel)
+		return snprintf(buf, PAGE_SIZE, "NG");
+	if (dsi_data->panel->pnvrw_ctl == NULL)
+		return snprintf(buf, PAGE_SIZE, "skip");
+
+	if (dsi_data->nvrw_panel_detective)
+		return snprintf(buf, PAGE_SIZE, "OK");
+	else
+		return snprintf(buf, PAGE_SIZE, "NG");
+}
+
+static ssize_t mipi_dsi_panel_nvm_result_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mipi_dsi_data *dsi_data = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d", dsi_data->nvrw_result);
+}
+
+static ssize_t mipi_dsi_panel_nvm_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mipi_dsi_data *dsi_data = dev_get_drvdata(dev);
+	struct msm_fb_data_type *mfd = dsi_data->nvrw_private;
+	enum power_state old_state = PANEL_OFF;
+	int rc = 0;
+
+	if (!dsi_data->nvrw_panel_detective)
+		goto exit;
+	if (dsi_data->panel->pnvrw_ctl == NULL)
+		goto exit;
+
+	if (prepare_for_reg_access(mfd, &old_state))
+		goto exit;
+	mipi_set_tx_power_mode(1);
+	if (dsi_data->seq_nvm_read)
+		rc = dsi_data->seq_nvm_read(mfd, buf);
+	post_reg_access(mfd, old_state);
+exit:
+	return rc;
+}
+
+static ssize_t mipi_dsi_panel_nvm_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct mipi_dsi_data *dsi_data = dev_get_drvdata(dev);
+	struct msm_fb_data_type *mfd = dsi_data->nvrw_private;
+	struct msm_fb_panel_data *pdata;
+	int rc;
+	enum power_state old_state = PANEL_OFF;
+
+	dev_dbg(dev, "%s\n", __func__);
+	dsi_data->nvrw_result = -1;
+	dsi_data->nvrw_retry_cnt = 0;
+	if (dsi_data->nvrw_panel_detective)
+		goto exit;
+
+	/* update panel information from miscTA */
+	rc = nvm_update_panel(mfd, buf, count);
+	if (rc)
+		goto exit;
+	if (!dsi_data->panel->pnvrw_ctl || !dsi_data->dsi_power_save)
+		goto exit;
+
+	mfd->nvrw_prohibit_draw = true;
+	rc = prepare_for_reg_access(mfd, &old_state);
+	if (rc)
+		goto exit;
+	mipi_set_tx_power_mode(1);
+
+	if (dsi_data->seq_nvm_read) {
+		char	nvm[NVRW_DATA_SIZE + 1];
+		/* Does not NVM disappear? */
+		dev_dbg(dev, "%s:seq_nvm_read\n", __func__);
+		dsi_data->seq_nvm_read(mfd, nvm);
+		if (0 == strncasecmp(buf, nvm, NVRW_DATA_SIZE - 1)) {
+			dev_dbg(dev, "%s:skip_recover\n", __func__);
+			dsi_data->nvrw_result = 0;
+			goto skip_recover;
+		}
+	}
+	if (dsi_data->override_nvm_data) {
+		dev_dbg(dev, "%s:override_nvm_data\n", __func__);
+		rc = dsi_data->override_nvm_data(mfd, buf, count);
+		if (rc) {
+			dev_err(dev, "%s : nvm data format error.<%s>\n",
+				__func__, buf);
+			goto release_exit;
+		}
+	}
+
+	if (dsi_data->seq_nvm_erase) {
+		dev_dbg(dev, "%s:seq_nvm_erase\n", __func__);
+		rc = dsi_data->seq_nvm_erase(mfd);
+		if (rc) {
+			dev_err(dev,
+				"%s : nvm data erase fail.\n", __func__);
+			goto release_exit;
+		}
+	}
+	if (dsi_data->seq_nvm_rsp_write) {
+		dev_dbg(dev, "%s:seq_nvm_rsp_write\n", __func__);
+		rc = dsi_data->seq_nvm_rsp_write(mfd);
+		if (rc) {
+			dev_err(dev,
+				"%s : rsp write fail.\n", __func__);
+			goto release_exit;
+		}
+	}
+
+	if (dsi_data->seq_nvm_user_write) {
+		dev_dbg(dev, "%s:seq_nvm_user_write\n", __func__);
+		rc = dsi_data->seq_nvm_user_write(mfd);
+		if (rc) {
+			dev_err(dev,
+				"%s : user write fail.\n", __func__);
+			goto release_exit;
+		}
+	}
+	dsi_data->nvrw_result = dsi_data->nvrw_retry_cnt + 1;
+
+skip_recover:
+	dsi_data->nvrw_panel_detective = true;
+release_exit:
+	post_reg_access(mfd, old_state);
+	mfd->nvrw_prohibit_draw = false;
+
+	if (dsi_data->nvrw_panel_detective) {
+		pdata = (struct msm_fb_panel_data *)mfd->pdev->
+						dev.platform_data;
+		pdata->off(mfd->pdev);
+		pdata->on(mfd->pdev);
+	}
+exit:
+	return count;
+}
+#endif
+
 static struct device_attribute panel_attributes[] = {
 	__ATTR(panel_id, S_IRUGO, mipi_dsi_panel_id_show, NULL),
 	__ATTR(panel_rev, S_IRUGO, mipi_dsi_panel_rev_show, NULL),
@@ -837,6 +1416,12 @@ static struct device_attribute panel_attributes[] = {
 					mipi_dsi_panel_log_interval_store),
 	__ATTR(interval_array, S_IRUGO,
 					mipi_dsi_panel_interval_array_ms, NULL),
+#ifdef CONFIG_FB_MSM_RECOVER_PANEL
+	__ATTR(nvm_is_read, S_IRUGO, mipi_dsi_panel_nvm_is_read_show, NULL),
+	__ATTR(nvm_result, S_IRUGO, mipi_dsi_panel_nvm_result_show, NULL),
+	__ATTR(nvm, S_IRUSR | S_IWUSR,
+			mipi_dsi_panel_nvm_show, mipi_dsi_panel_nvm_store),
+#endif
 };
 
 static int register_attributes(struct device *dev)
@@ -875,6 +1460,7 @@ static int __devexit mipi_dsi_panel_remove(struct platform_device *pdev)
 	mipi_dsi_buf_release(&dsi_data->tx_buf);
 	mipi_dsi_buf_release(&dsi_data->rx_buf);
 	kfree(dsi_data);
+	pcc_cfg_ptr = NULL;
 	kfree(color_calib);
 	return 0;
 }
@@ -924,6 +1510,12 @@ static int __devinit mipi_dsi_panel_probe(struct platform_device *pdev)
 	dsi_data->panel_data.panel_info = default_pinfo;
 	dsi_data->panel_data.on = panel_on;
 	dsi_data->panel_data.off = panel_off;
+	dsi_data->override_nvm_data = nvm_override_data;
+	dsi_data->seq_nvm_read = nvm_read;
+	dsi_data->seq_nvm_erase = nvm_erase;
+	dsi_data->seq_nvm_rsp_write = nvm_rsp_write;
+	dsi_data->seq_nvm_user_write = nvm_user_write;
+	dsi_data->nvrw_panel_detective = false;
 
 	mipi_dsi_panel_fps_data_init(&fpsd);
 
@@ -940,6 +1532,8 @@ static int __devinit mipi_dsi_panel_probe(struct platform_device *pdev)
 #ifdef CONFIG_DEBUG_FS
 	mipi_dsi_panel_create_debugfs(mipi_dsi_pdev);
 #endif
+	dsi_data->nvrw_private = platform_get_drvdata(mipi_dsi_pdev);
+
 	dev_info(&pdev->dev, "%s: Probe success\n", __func__);
 	return 0;
 out_tx_release:

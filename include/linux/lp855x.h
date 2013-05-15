@@ -2,7 +2,7 @@
  * lp855x.h - TI LP8556 Backlight Driver
  *
  * Copyright (C) 2011 Texas Instruments
- * Copyright (C) 2012 Sony Mobile Communications AB.
+ * Copyright (C) 2012-2013 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -42,6 +42,7 @@ struct lp855x_rom_data {
 	1 : update values of eeprom or eprom registers on loading driver
  * @size_program : total size of lp855x_rom_data
  * @rom_data : list of new eeprom/eprom registers
+ * @cfg3 : value of cfg3 register
  */
 struct lp855x_platform_data {
 	const char *name;
@@ -56,6 +57,7 @@ struct lp855x_platform_data {
 	u8 load_new_rom_data;
 	int size_program;
 	struct lp855x_rom_data *rom_data;
+	u8 cfg3;
 };
 
 #endif

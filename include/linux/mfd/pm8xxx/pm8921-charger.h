@@ -1,5 +1,5 @@
 /* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
- * Copyright (C) 2012 Sony Mobile Communications AB.
+ * Copyright (C) 2012-2013, Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -59,7 +59,6 @@ enum pm8921_chg_led_src_config {
 
 /**
  * struct pm8921_charger_platform_data -
- * @safety_time:	max charging time in minutes incl. fast and trkl
  *			valid range 4 to 512 min. PON default 120 min
  * @ttrkl_time:		max trckl charging time in minutes
  *			valid range 1 to 64 mins. PON default 15 min
@@ -103,6 +102,7 @@ enum pm8921_chg_led_src_config {
  *			a board specific function to return battery
  *			capacity. If null - a default one will be used
  * @has_dc_supply:	report DC online if this bit is set in board file
+ * @ibat_calib_enable:	enables the ibatmax calibration algorithm
  * @trkl_voltage:	the trkl voltage in (mV) below which hw controlled
  *			 trkl charging happens with linear charger
  * @weak_voltage:	the weak voltage (mV) below which hw controlled
@@ -143,6 +143,11 @@ enum pm8921_chg_led_src_config {
  *				driver couldn't stop charging when battery
  *				temperature is out of bounds. Used only if
  *				btc_override = 1
+ * stop_chg_upon_expiry:	flag to indicate that the charger driver should
+ *				stop charging the battery when the safety timer
+ *				expires. If not set the charger driver will
+ *				restart charging upon expiry.
+ * @soc_scaling:		indicates whether capacity scaling is to be used
  */
 struct pm8921_charger_platform_data {
 	struct pm8xxx_charger_core_data	charger_cdata;
@@ -172,7 +177,7 @@ struct pm8921_charger_platform_data {
 	int64_t				batt_id_min;
 	int64_t				batt_id_max;
 	bool				keep_btm_on_suspend;
-	bool				dc_unplug_check;
+	bool				ibat_calib_enable;
 	bool				has_dc_supply;
 	int				trkl_voltage;
 	int				weak_voltage;
@@ -186,11 +191,14 @@ struct pm8921_charger_platform_data {
 	int				rconn_mohm;
 	enum pm8921_chg_led_src_config	led_src_config;
 	int				repeat_safety_time;
+	int				battery_less_hardware;
 	int				btc_override;
 	int				btc_override_cold_degc;
 	int				btc_override_hot_degc;
 	int				btc_delay_ms;
 	int				btc_panic_if_cant_stop_chg;
+	int				stop_chg_upon_expiry;
+	int				soc_scaling;
 };
 
 enum pm8921_charger_source {
@@ -203,15 +211,6 @@ enum pm8921_charger_source {
 void pm8921_charger_vbus_draw(unsigned int mA);
 int pm8921_charger_register_vbus_sn(void (*callback)(int));
 void pm8921_charger_unregister_vbus_sn(void (*callback)(int));
-/**
- * pm8921_charger_enable -
- *
- * @enable: 1 means enable charging, 0 means disable
- *
- * Enable/Disable battery charging current, the device will still draw current
- * from the charging source
- */
-int pm8921_charger_enable(bool enable);
 
 /**
  * pm8921_is_usb_chg_plugged_in - is usb plugged in
@@ -336,10 +335,6 @@ static inline int pm8921_charger_register_vbus_sn(void (*callback)(int))
 }
 static inline void pm8921_charger_unregister_vbus_sn(void (*callback)(int))
 {
-}
-static inline int pm8921_charger_enable(bool enable)
-{
-	return -ENXIO;
 }
 static inline int pm8921_is_usb_chg_plugged_in(void)
 {

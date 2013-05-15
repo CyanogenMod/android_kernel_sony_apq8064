@@ -12,7 +12,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/mfd/pm8xxx/pm8921-bms.h>
+#include <linux/mfd/pm8xxx/batterydata-lib.h>
 
 static struct single_row_lut fcc_temp = {
 	.x	= {-20, 0, 25, 40, 65},
@@ -119,7 +119,7 @@ static struct pc_temp_ocv_lut  pc_temp_ocv = {
 	},
 };
 
-struct pm8921_bms_battery_data  pm8921_battery_data __devinitdata = {
+struct bms_battery_data pm8921_battery_data __devinitdata = {
 	.fcc			= 6200,
 	.fcc_temp_lut		= &fcc_temp,
 	.fcc_sf_lut		= &fcc_sf,

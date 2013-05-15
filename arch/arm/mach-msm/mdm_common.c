@@ -428,7 +428,7 @@ static struct notifier_block mdm_panic_blk = {
 static irqreturn_t mdm_status_change(int irq, void *dev_id)
 {
 	int value = gpio_get_value(mdm_drv->mdm2ap_status_gpio);
-#if defined(CONFIG_HARD_RESET_TIMER) || defined(CONFIG_DISABLE_SMPL)
+#if defined(CONFIG_HARD_RESET_SETTING) || defined(CONFIG_DISABLE_SMPL)
 	int rc;
 #endif /* CONFIG_HARD_RESET_TIMER || CONFIG_DISABLE_SMPL */
 
@@ -465,6 +465,11 @@ static irqreturn_t mdm_status_change(int irq, void *dev_id)
 		rc = pm8xxx_smpl_control(0);
 		if (rc)
 			pr_err("%s: cannot disable smpl (%d)\n",
+							__func__, rc);
+#else
+		rc = pm8xxx_smpl_set_delay(CONFIG_SMPL_DELAY);
+		if (rc)
+			pr_err("%s: cannot set smpl delay (%d)\n",
 							__func__, rc);
 #endif /* CONFIG_DISABLE_SMPL */
 

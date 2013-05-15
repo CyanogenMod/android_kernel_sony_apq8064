@@ -1,4 +1,4 @@
-/* arch/arm/mach-msm/board-sony_yuga-irda.c
+/* arch/arm/mach-msm/board-sony_fusion3-irda.c
  *
  * Copyright (C) 2012 Sony Mobile Communications AB.
  *

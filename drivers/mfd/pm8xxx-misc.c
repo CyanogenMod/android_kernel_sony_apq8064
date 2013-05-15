@@ -141,6 +141,11 @@
 #define USB_ID_PU_EN_MASK			0x10	/* PM8921 family only */
 #define USB_ID_PU_EN_SHIFT			4
 
+/* SMBC charger registers */
+#define REG_PM8921_CHG_CNTRL			0x204
+#define CHG_CNTRL_DCIN_CHG_PWR_ON_TRIG_DIS	0x20
+#define CHG_CNTRL_USBIN_CHG_PWR_ON_TRIG_DIS	0x40
+
 /* Shutdown/restart delays to allow for LDO 7/dVdd regulator load settling. */
 #define PM8901_DELAY_AFTER_REG_DISABLE_MS	4
 #define PM8901_DELAY_BEFORE_SHUTDOWN_MS		8
@@ -186,6 +191,41 @@ static int pm8xxx_misc_masked_write(struct pm8xxx_misc_chip *chip, u16 addr,
 			reg, rc);
 	return rc;
 }
+
+/**
+ * pm8xxx_read_register - Read a PMIC register
+ * @addr: PMIC register address
+ * @value: Output parameter which gets the value of the register read.
+ * RETURNS: an appropriate -ERRNO error value on error, or zero for success.
+ */
+int pm8xxx_read_register(u16 addr, u8 *value)
+{
+	struct pm8xxx_misc_chip *chip;
+	unsigned long flags;
+	int rc = 0;
+
+	spin_lock_irqsave(&pm8xxx_misc_chips_lock, flags);
+
+	/* Loop over all attached PMICs and call specific functions for them. */
+	list_for_each_entry(chip, &pm8xxx_misc_chips, link) {
+		switch (chip->version) {
+		case PM8XXX_VERSION_8921:
+			rc = pm8xxx_readb(chip->dev->parent, addr, value);
+			if (rc) {
+				pr_err("pm8xxx_readb(0x%03X) failed, rc=%d\n",
+								addr, rc);
+				break;
+			}
+		default:
+			break;
+		}
+	}
+
+	spin_unlock_irqrestore(&pm8xxx_misc_chips_lock, flags);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(pm8xxx_read_register);
 
 /*
  * Set an SMPS regulator to be disabled in its CTRL register, but enabled
@@ -462,6 +502,18 @@ static int __pm8921_reset_pwr_off(struct pm8xxx_misc_chip *chip, int reset)
 	rc = pm8xxx_misc_masked_write(chip, REG_PM8921_SLEEP_CTRL,
 	       SLEEP_CTRL_SMPL_EN_MASK,
 	       (reset ? SLEEP_CTRL_SMPL_EN_RESET : SLEEP_CTRL_SMPL_EN_PWR_OFF));
+	if (rc) {
+		pr_err("pm8xxx_misc_masked_write failed, rc=%d\n", rc);
+		goto read_write_err;
+	}
+
+	/* Clear startup disable bits to be sure that we
+	 * startup when charger is connected
+	 */
+	rc = pm8xxx_misc_masked_write(chip, REG_PM8921_CHG_CNTRL,
+		CHG_CNTRL_DCIN_CHG_PWR_ON_TRIG_DIS |
+		CHG_CNTRL_USBIN_CHG_PWR_ON_TRIG_DIS,
+		0);
 	if (rc) {
 		pr_err("pm8xxx_misc_masked_write failed, rc=%d\n", rc);
 		goto read_write_err;

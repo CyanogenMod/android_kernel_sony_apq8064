@@ -1,5 +1,5 @@
 /* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
- * Copyright (C) 2012 Sony Mobile Communications AB.
+ * Copyright (C) 2012-2013 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1314,6 +1314,9 @@ static int msm_cam_dev_init(struct msm_cam_v4l2_device *pcam)
 	/* now setup video device */
 	pvdev = video_device_alloc();
 	if (pvdev == NULL) {
+#if defined(CONFIG_SONY_CAM_V4L2)
+		rc = -ENOMEM;
+#endif
 		pr_err("%s: video_device_alloc failed\n", __func__);
 		return rc;
 	}

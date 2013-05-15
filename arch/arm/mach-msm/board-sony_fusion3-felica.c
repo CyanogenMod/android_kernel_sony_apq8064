@@ -1,4 +1,4 @@
-/* arch/arm/mach-msm/board-sony_yuga-felica.c
+/* arch/arm/mach-msm/board-sony_fusion3-felica.c
  *
  * Copyright (C) 2010-2011 Sony Ericsson Mobile Communications AB.
  * Copyright (C) 2012 Sony Mobile Communications AB.
@@ -478,7 +478,7 @@ static void snfc_ldo_write(int val, struct felica_dev *dev)
 		pm8xxx_gpio_config(PM8921_GPIO_PM_TO_SYS(PM_GPIO_FELICA_PON),
 			&pm_gpio_disable);
 		regulator_disable(hvdd_reg);
-		msleep_interruptible(1);
+		msleep_interruptible(100);
 	}
 #endif
 

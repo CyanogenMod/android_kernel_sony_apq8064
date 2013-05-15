@@ -1,5 +1,5 @@
 /* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
- * Copyright (C) 2012 Sony Mobile Communications AB.
+ * Copyright (C) 2012-2013 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -105,6 +105,9 @@
 #ifdef CONFIG_SONY_ONESEG_TUNER_PM
 #include "board-sony_yuga-oneseg.h"
 #endif
+#ifdef CONFIG_SOMC_ISDBT_TUNER
+#include "board-sony_fusion3-isdbt.h"
+#endif
 #include <mach/restart.h>
 #include <mach/msm_iomap.h>
 #ifdef CONFIG_MSM_GSBI7_UART
@@ -167,7 +170,7 @@
 #define HOLE_SIZE		0x20000
 #define MSM_CONTIG_MEM_SIZE	0x65000
 #ifdef CONFIG_MSM_IOMMU
-#define MSM_ION_MM_SIZE		0x3800000
+#define MSM_ION_MM_SIZE		0x5000000
 #define MSM_ION_CAMERA_SIZE	0x3200000
 #define MSM_ION_SF_SIZE		0
 #define MSM_ION_QSECOM_SIZE	0x780000 /* (7.5MB) */
@@ -208,6 +211,16 @@
 #include "board-sony_fusion3_yuga.h"
 #elif defined(CONFIG_MACH_SONY_YUGA_DCM)
 #include "board-sony_fusion3_yuga.h"
+#elif defined(CONFIG_MACH_SONY_POLLUX)
+#include "board-sony_fusion3_pollux.h"
+#elif defined(CONFIG_MACH_SONY_POLLUX_CDB)
+#include "board-sony_fusion3_pollux.h"
+#elif defined(CONFIG_MACH_SONY_POLLUX_WINDY_CDB)
+#include "board-sony_fusion3_pollux.h"
+#elif defined(CONFIG_MACH_SONY_POLLUX_WINDY)
+#include "board-sony_fusion3_pollux.h"
+#elif defined(CONFIG_MACH_SONY_POLLUX_DCM)
+#include "board-sony_fusion3_pollux.h"
 #elif defined(CONFIG_MACH_SONY_ODIN)
 #include "board-sony_fusion3_odin.h"
 #else
@@ -2075,11 +2088,11 @@ static struct lp855x_rom_data lp8556_eprom_arr[] = {
 	{0xa0, 0xff},
 	{0xa1, 0x3f},		/* CURRENT_MAX = 011 = 20mA */
 	{0xa2, 0x20},
-	{0xa3, 0x02},
 	{0xa4, 0x72},
 	{0xa5, 0x04},
 	{0xa6, 0x80},
 	{0xa7, 0xff},
+	{0xa8, 0x00},
 	{0xa9, 0x80},
 	{0xaa, 0x0f},
 	{0xae, 0x0f},
@@ -2097,6 +2110,7 @@ static struct lp855x_platform_data lp8556_pdata = {
 	.load_new_rom_data = 1,
 	.size_program = ARRAY_SIZE(lp8556_eprom_arr),
 	.rom_data = lp8556_eprom_arr,
+	.cfg3 = 0x5e,
 };
 #endif
 
@@ -2185,57 +2199,28 @@ struct as3676_platform_data as3676_platform_data = {
 
 #ifdef CONFIG_LM3560
 #define LM3560_HW_RESET_GPIO 3
-#define NTC_VREG_ID "lm3560_ntc"
-static struct regulator *lm3560_ntc_vreg;
 
 static int lm356x_pwr(struct device *dev, bool request)
 {
-	int rc;
-
 	dev_dbg(dev, "%s: request %d\n", __func__, request);
 
-	if (IS_ERR_OR_NULL(lm3560_ntc_vreg))
-		return -ENODEV;
-
 	if (request) {
-		rc = regulator_enable(lm3560_ntc_vreg);
-		if (rc)
-			dev_err(dev, "failed to enable vreg '%s'\n",
-					NTC_VREG_ID);
-		else {
-			gpio_set_value(LM3560_HW_RESET_GPIO, 1);
-			udelay(20);
-		}
+		gpio_set_value(LM3560_HW_RESET_GPIO, 1);
+		udelay(20);
 	} else {
 		gpio_set_value(LM3560_HW_RESET_GPIO, 0);
-		rc = regulator_disable(lm3560_ntc_vreg);
 	}
-	return rc;
+	return 0;
 }
 
 static int lm356x_platform_init(struct device *dev, bool request)
 {
-	int rc;
+	int rc = 0;
 
-	if (request) {
+	if (request)
 		rc = gpio_request(LM3560_HW_RESET_GPIO, "LM356x hw reset");
-		if (rc)
-			goto err;
-		lm3560_ntc_vreg = regulator_get(dev, NTC_VREG_ID);
-		if (IS_ERR_OR_NULL(lm3560_ntc_vreg)) {
-			dev_err(dev, "failed to get vreg '%s'\n", NTC_VREG_ID);
-			rc = -ENODEV;
-			goto free_gpio;
-		}
-	} else {
-		rc = 0;
-		if (!IS_ERR_OR_NULL(lm3560_ntc_vreg))
-			regulator_put(lm3560_ntc_vreg);
-		lm3560_ntc_vreg = NULL;
-free_gpio:
+	else
 		gpio_free(LM3560_HW_RESET_GPIO);
-	}
-err:
 	if (rc)
 		dev_err(dev, "%s: failed rc %d\n", __func__, rc);
 	return rc;
@@ -2767,7 +2752,7 @@ static int clearpad_vreg_reset(struct device *dev)
 	rc = clearpad_vreg_configure(dev, 0);
 	if (rc)
 		return rc;
-	usleep(2000);
+	usleep_range(10000, 11000);
 	rc = clearpad_vreg_configure(dev, 1);
 	return rc;
 }
@@ -3644,12 +3629,6 @@ static struct platform_device bu52031nvx_device = {
 	.dev = { .platform_data = &bu52031nvx_pdata },
 };
 #endif
-#ifdef CONFIG_SONY_SSM
-static struct platform_device sony_ssm_device = {
-	.name = "sony_ssm",
-	.id = -1,
-};
-#endif
 
 static struct platform_device *common_devices[] __initdata = {
 #ifdef CONFIG_USB_NCP373
@@ -3798,14 +3777,14 @@ static struct platform_device *common_devices[] __initdata = {
 #ifdef CONFIG_SONY_ONESEG_TUNER_PM
 	&oneseg_tunerpm_device,
 #endif
+#ifdef CONFIG_SOMC_ISDBT_TUNER
+	&isdbt_tunerpm_device,
+#endif
 #ifdef CONFIG_SONY_FELICA_SUPPORT
 	&sony_felica_device,
 #endif
 #ifdef CONFIG_INPUT_BU52031NVX
 	&bu52031nvx_device,
-#endif
-#ifdef CONFIG_SONY_SSM
-	&sony_ssm_device,
 #endif
 };
 
@@ -4277,7 +4256,9 @@ static void __init register_i2c_devices(void)
 	/* Build the matching 'supported_machs' bitmask */
 	if (machine_is_apq8064_cdp())
 		mach_mask = I2C_SURF;
-	else if (machine_is_apq8064_mtp() || machine_is_sony_fusion3())
+	else if (machine_is_apq8064_mtp() || machine_is_sony_fusion3() ||
+		machine_is_sony_pollux_windy_cdb() ||
+		machine_is_sony_pollux_windy())
 		mach_mask = I2C_FFA;
 	else if (machine_is_apq8064_liquid())
 		mach_mask = I2C_LIQUID;
@@ -4371,7 +4352,9 @@ static void __init apq8064_common_init(void)
 	platform_add_devices(common_devices, ARRAY_SIZE(common_devices));
 		msm_hsic_pdata.swfi_latency =
 			msm_rpmrs_levels[0].latency_us;
-	if (machine_is_apq8064_mtp() || machine_is_sony_fusion3()) {
+	if ((machine_is_apq8064_mtp() || machine_is_sony_fusion3()) &&
+		!machine_is_sony_pollux_windy_cdb() &&
+		!machine_is_sony_pollux_windy()) {
 		msm_hsic_pdata.log2_irq_thresh = 5;
 		apq8064_device_hsic_host.dev.platform_data = &msm_hsic_pdata;
 		device_initialize(&apq8064_device_hsic_host.dev);
@@ -4379,7 +4362,9 @@ static void __init apq8064_common_init(void)
 	apq8064_pm8xxx_gpio_mpp_init();
 	apq8064_init_mmc();
 
-	if (machine_is_apq8064_mtp() || machine_is_sony_fusion3()) {
+	if ((machine_is_apq8064_mtp() || machine_is_sony_fusion3()) &&
+		!machine_is_sony_pollux_windy_cdb() &&
+		!machine_is_sony_pollux_windy()) {
 		mdm_8064_device.dev.platform_data = &mdm_platform_data;
 		platform_device_register(&mdm_8064_device);
 	}
@@ -4394,13 +4379,14 @@ static void __init apq8064_common_init(void)
 	msm_pm_set_tz_retention_flag(1);
 
 	switch (sony_hw()) {
-	case HW_YUGA_MAKI:
+	case HW_GAGA:
 		isdb_tmm_vreg_low_power_mode();
 	}
 
 	switch (sony_hw()) {
 	case HW_ODIN:
 	case HW_YUGA:
+	case HW_POLLUX:
 		nfc_vreg_low_power_mode();
 	}
 }
@@ -4434,8 +4420,13 @@ static void __init sony_fusion3_very_early_init(void)
 	apq8064_early_reserve();
 }
 
+#if defined(CONFIG_MACH_SONY_POLLUX_WINDY_CDB)
+MACHINE_START(SONY_POLLUX_WINDY_CDB, "Sony Mobile fusion3")
+#elif defined(CONFIG_MACH_SONY_POLLUX_WINDY)
+MACHINE_START(SONY_POLLUX_WINDY, "Sony Mobile fusion3")
+#else
 MACHINE_START(SONY_FUSION3, "Sony Mobile fusion3")
-
+#endif
 	.map_io = apq8064_map_io,
 	.reserve = apq8064_reserve,
 	.init_irq = apq8064_init_irq,

@@ -708,7 +708,7 @@ const struct sony_camera_info camera_info[] = {
 		.subdev_code = V4L2_MBUS_FMT_SBGGR10_1X10,
 		.modules = sony_camera_0_modules,
 		.modules_num = ARRAY_SIZE(sony_camera_0_modules),
-		.default_module_name = "SEM13BS0",
+		.default_module_name = "SEM13BS1",
 	},
 	{
 		.i2c_addr = 0x36,

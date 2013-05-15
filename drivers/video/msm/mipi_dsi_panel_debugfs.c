@@ -1,6 +1,6 @@
 /* drivers/video/msm/mipi_dsi_panel_debugfs.c
  *
- * Copyright (C) 2012 Sony Mobile Communications AB.
+ * Copyright (C) 2012-2013 Sony Mobile Communications AB.
  *
  * Sony Mobile DSI display driver debug fs
  *
@@ -376,7 +376,7 @@ exit:
 	return ret;
 }
 
-static int prepare_for_reg_access(struct msm_fb_data_type *mfd,
+int prepare_for_reg_access(struct msm_fb_data_type *mfd,
 				  enum power_state *old_state)
 {
 	struct device *dev = &mfd->panel_pdev->dev;
@@ -422,7 +422,7 @@ exit:
 	return ret;
 }
 
-static void post_reg_access(struct msm_fb_data_type *mfd,
+void post_reg_access(struct msm_fb_data_type *mfd,
 			    enum power_state old_state)
 {
 	struct mipi_dsi_data *dsi_data;

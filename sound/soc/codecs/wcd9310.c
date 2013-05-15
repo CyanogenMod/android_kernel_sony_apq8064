@@ -102,7 +102,7 @@ struct tabla_codec_dai_data {
 
 #define TABLA_MBHC_BUTTON_MIN 0x8000
 
-#define TABLA_MBHC_FAKE_INSERT_LOW 31
+#define TABLA_MBHC_FAKE_INSERT_LOW 47
 #define TABLA_MBHC_FAKE_INSERT_HIGH 80
 #define TABLA_MBHC_FAKE_INS_HIGH_NO_GPIO 150
 
@@ -120,7 +120,9 @@ struct tabla_codec_dai_data {
 
 #define TABLA_MBHC_GND_MIC_SWAP_THRESHOLD 2
 
-#define TABLA_ACQUIRE_LOCK(x) do { mutex_lock(&x); } while (0)
+#define TABLA_ACQUIRE_LOCK(x) do { \
+	mutex_lock_nested(&x, SINGLE_DEPTH_NESTING); \
+} while (0)
 #define TABLA_RELEASE_LOCK(x) do { mutex_unlock(&x); } while (0)
 
 static const DECLARE_TLV_DB_SCALE(digital_gain, 0, 1, 0);
@@ -6695,6 +6697,7 @@ tabla_codec_get_plug_type(struct snd_soc_codec *codec, bool highhph)
 	bool highdelta;
 	bool ahighv = false, highv;
 	bool gndmicswapped = false;
+	int num_no_mic = 0;
 
 	pr_debug("%s: enter\n", __func__);
 
@@ -6716,8 +6719,9 @@ tabla_codec_get_plug_type(struct snd_soc_codec *codec, bool highhph)
 	 * N-1st: check voltage range, delta with HPHR GND switch
 	 * Nth: check voltage range with VDDIO switch */
 	for (i = 0; i < num_det; i++) {
-		gndswitch = (i == (num_det - 2));
-		vddioswitch = (i == (num_det - 1)) || (i == (num_det - 2));
+		gndswitch = (i == (num_det - 2)) && (num_no_mic < num_det - 2);
+		vddioswitch = ((i == (num_det - 1)) || (i == (num_det - 2)))
+				&& (num_no_mic < num_det - 2);
 		if (i == 0) {
 			mb_v[i] = tabla_codec_setup_hs_polling(codec);
 			mic_mv[i] = tabla_codec_sta_dce_v(codec, 1 , mb_v[i]);
@@ -6725,6 +6729,8 @@ tabla_codec_get_plug_type(struct snd_soc_codec *codec, bool highhph)
 							 highhph, &highv);
 			ahighv |= highv;
 			scaled = mic_mv[i];
+			if (mic_mv[i] < plug_type_ptr->v_no_mic)
+				num_no_mic++;
 		} else {
 			if (vddioswitch)
 				__tabla_codec_switch_micbias(tabla->codec, 1,
@@ -6758,10 +6764,12 @@ tabla_codec_get_plug_type(struct snd_soc_codec *codec, bool highhph)
 			if (vddioswitch)
 				__tabla_codec_switch_micbias(tabla->codec, 0,
 							     false, false);
+			else if (mic_mv[i] < plug_type_ptr->v_no_mic)
+				num_no_mic++;
 			/* claim UNSUPPORTED plug insertion when
 			 * good headset is detected but HPHR GND switch makes
 			 * delta difference */
-			if (i == (num_det - 2) && highdelta && !ahighv)
+			if (gndswitch && highdelta && !ahighv)
 				gndmicswapped = true;
 			else if (i == (num_det - 1) && inval) {
 				if (gndmicswapped)
@@ -7435,6 +7443,7 @@ static void tabla_hs_gpio_handler(struct snd_soc_codec *codec)
 {
 	bool insert;
 	struct tabla_priv *tabla = snd_soc_codec_get_drvdata(codec);
+	struct wcd9xxx *core = dev_get_drvdata(codec->dev->parent);
 	bool is_removed = false;
 
 	pr_debug("%s: enter\n", __func__);
@@ -7444,6 +7453,7 @@ static void tabla_hs_gpio_handler(struct snd_soc_codec *codec)
 	usleep_range(TABLA_GPIO_IRQ_DEBOUNCE_TIME_US,
 		     TABLA_GPIO_IRQ_DEBOUNCE_TIME_US);
 
+	wcd9xxx_nested_irq_lock(core);
 	TABLA_ACQUIRE_LOCK(tabla->codec_resource_lock);
 
 	/* cancel pending button press */
@@ -7515,6 +7525,7 @@ static void tabla_hs_gpio_handler(struct snd_soc_codec *codec)
 
 	tabla->in_gpio_handler = false;
 	TABLA_RELEASE_LOCK(tabla->codec_resource_lock);
+	wcd9xxx_nested_irq_unlock(core);
 	pr_debug("%s: leave\n", __func__);
 }
 

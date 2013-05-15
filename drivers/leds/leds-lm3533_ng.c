@@ -1,7 +1,7 @@
 /* drivers/leds/leds-lm3533_ng.c
  *
  * Copyright (C) 2011 Sony Ericsson Mobile Communications AB.
- * Copyright (C) 2012 Sony Mobile Communications AB.
+ * Copyright (C) 2012-2013 Sony Mobile Communications AB.
  *
  * Author: Aleksej Makarov <aleksej.makarov@sonymobile.com>
  *
@@ -1643,6 +1643,8 @@ static int __devinit lm3533_probe(struct i2c_client *client,
 		}
 		usleep_range(LM3533_PWR_DELAY_US, LM3533_PWR_DELAY_US + 1000);
 	}
+	if (lm->pdata->als_on)
+		(void)lm->pdata->als_on(dev);
 
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
@@ -1688,6 +1690,8 @@ err_interfaces:
 	lm3533_cleanup(lm);
 err_configure:
 	pm_runtime_disable(&client->dev);
+	if (lm->pdata->als_off)
+		(void)lm->pdata->als_off(dev);
 err_power_on:
 	mutex_destroy(&lm->lock);
 	kfree(lm);
@@ -1705,6 +1709,8 @@ static int __devexit lm3533_remove(struct i2c_client *client)
 	sysfs_remove_files(&client->dev.kobj, lm3533_attrs);
 	if (!pm_runtime_suspended(&client->dev))
 		lm->pdata->power_off(&client->dev);
+	if (lm->pdata->als_off)
+		(void)lm->pdata->als_off(&client->dev);
 	pm_runtime_disable(&client->dev);
 	lm3533_cleanup(lm);
 	if (lm->pdata->teardown)
@@ -1763,7 +1769,7 @@ static int lm3533_suspend(struct device *dev)
 
 	if (pm_runtime_suspended(dev)) {
 		dev_dbg(dev, "%s: runtime-suspended.\n", __func__);
-		return 0;
+		goto exit_suspend;
 	}
 	if (mutex_is_locked(&lm->lock))
 		return -EBUSY;
@@ -1798,6 +1804,8 @@ static int lm3533_suspend(struct device *dev)
 	if (!(rc || lm->lit_on_suspend))
 		rc = lm3533_power_off(lm);
 exit_suspend:
+	if (!rc && lm->pdata->als_off)
+		(void)lm->pdata->als_off(dev);
 	return rc ? -EAGAIN : 0;
 }
 
@@ -1809,6 +1817,9 @@ static int lm3533_resume(struct device *dev)
 	size_t i;
 
 	dev_dbg(dev, "%s\n", __func__);
+	if (lm->pdata->als_on)
+		(void)lm->pdata->als_on(dev);
+
 	if (pm_runtime_suspended(dev)) {
 		dev_dbg(dev, "%s: was runtime-suspended.\n", __func__);
 		return 0;

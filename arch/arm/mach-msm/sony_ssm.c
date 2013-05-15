@@ -27,9 +27,9 @@ enum ssm_state {
 };
 
 struct ssm_data {
+	struct device *dev;
 	struct early_suspend early_suspend;
 	struct notifier_block pm_notifier;
-	struct kobject *kobj;
 	struct mutex lock;
 	bool enabled;
 	bool notify_next_suspend_prepare;
@@ -43,16 +43,16 @@ static void ssm_notify(struct ssm_data *sd, enum ssm_state state)
 
 	snprintf(event, sizeof(event), "EVENT=%d", state);
 
-	pr_debug("%s: Sending uevent EVENT=%d\n", __func__, state);
+	dev_dbg(sd->dev, "%s: Sending uevent EVENT=%d\n", __func__, state);
 
-	kobject_uevent_env(sd->kobj, KOBJ_CHANGE, envp);
+	kobject_uevent_env(&sd->dev->kobj, KOBJ_CHANGE, envp);
 }
 
 static void ssm_late_resume(struct early_suspend *h)
 {
 	struct ssm_data *sd = container_of(h, struct ssm_data, early_suspend);
 
-	pr_debug("%s\n", __func__);
+	dev_dbg(sd->dev, "%s\n", __func__);
 
 	mutex_lock(&sd->lock);
 	if (sd->notify_late_resume)
@@ -65,7 +65,7 @@ static int ssm_pm_notifier(struct notifier_block *nb, unsigned long event,
 {
 	struct ssm_data *sd = container_of(nb, struct ssm_data, pm_notifier);
 
-	pr_debug("%s: event=%lu\n", __func__, event);
+	dev_dbg(sd->dev, "%s: event=%lu\n", __func__, event);
 
 	if (event == PM_SUSPEND_PREPARE) {
 		mutex_lock(&sd->lock);
@@ -85,19 +85,20 @@ static int ssm_enable(struct ssm_data *sd)
 {
 	int rc;
 
-	pr_debug("%s\n", __func__);
+	dev_dbg(sd->dev, "%s\n", __func__);
 
 	mutex_lock(&sd->lock);
 
 	if (sd->enabled) {
-		pr_err("%s: Already enabled!\n", __func__);
+		dev_err(sd->dev, "%s: Already enabled!\n", __func__);
 		rc = -EINVAL;
 		goto exit;
 	}
 
 	rc = register_pm_notifier(&sd->pm_notifier);
 	if (rc) {
-		pr_err("%s: register_pm_notifier failed: %d\n", __func__, rc);
+		dev_err(sd->dev, "%s: Failed to register pm_notifier (%d)\n",
+			__func__, rc);
 		goto exit;
 	}
 
@@ -114,7 +115,7 @@ exit:
 
 static void ssm_disable(struct ssm_data *sd)
 {
-	pr_debug("%s\n", __func__);
+	dev_dbg(sd->dev, "%s\n", __func__);
 
 	mutex_lock(&sd->lock);
 	if (sd->enabled) {
@@ -122,7 +123,7 @@ static void ssm_disable(struct ssm_data *sd)
 		unregister_pm_notifier(&sd->pm_notifier);
 		sd->enabled = false;
 	} else {
-		pr_warn("%s: Not enabled", __func__);
+		dev_warn(sd->dev, "%s: Not enabled\n", __func__);
 	}
 	mutex_unlock(&sd->lock);
 }
@@ -130,17 +131,19 @@ static void ssm_disable(struct ssm_data *sd)
 static ssize_t ssm_store_enable(struct device *pdev,
 		struct device_attribute *attr, const char *pbuf, size_t count)
 {
-	int rc = 0, val;
+	int rc;
+	u8 val;
 	struct ssm_data *sd = dev_get_drvdata(pdev);
 
-	pr_debug("%s: %s\n", __func__, pbuf);
+	dev_dbg(sd->dev, "%s: %s\n", __func__, pbuf);
 
-	sscanf(pbuf, "%d", &val);
-
-	if (!!val)
-		rc = ssm_enable(sd);
-	else
-		ssm_disable(sd);
+	rc = kstrtou8(pbuf, 2, &val);
+	if (!rc) {
+		if (!!val)
+			rc = ssm_enable(sd);
+		else
+			ssm_disable(sd);
+	}
 
 	return rc == 0 ? count : rc;
 }
@@ -149,21 +152,24 @@ static ssize_t ssm_store_request_next_suspend_prepare_notification(
 		struct device *pdev, struct device_attribute *attr,
 		const char *pbuf, size_t count)
 {
-	int rc = 0, val;
+	int rc;
+	u8 val;
 	struct ssm_data *sd = dev_get_drvdata(pdev);
 
-	pr_debug("%s: %s\n", __func__, pbuf);
+	dev_dbg(sd->dev, "%s: %s\n", __func__, pbuf);
 
-	sscanf(pbuf, "%d", &val);
-
-	mutex_lock(&sd->lock);
-	if (sd->enabled) {
-		sd->notify_next_suspend_prepare = !!val;
-	} else {
-		rc = -EINVAL;
-		pr_err("%s: Notifications are not enabled!", __func__);
+	rc = kstrtou8(pbuf, 2, &val);
+	if (!rc) {
+		mutex_lock(&sd->lock);
+		if (sd->enabled) {
+			sd->notify_next_suspend_prepare = !!val;
+		} else {
+			rc = -EINVAL;
+			dev_err(sd->dev, "%s: Notifications are not enabled\n",
+				__func__);
+		}
+		mutex_unlock(&sd->lock);
 	}
-	mutex_unlock(&sd->lock);
 
 	return rc == 0 ? count : rc;
 }
@@ -171,21 +177,24 @@ static ssize_t ssm_store_request_next_suspend_prepare_notification(
 static ssize_t ssm_store_set_late_resume_notifications(struct device *pdev,
 		struct device_attribute *attr, const char *pbuf, size_t count)
 {
-	int rc = 0, val;
+	int rc;
+	u8 val;
 	struct ssm_data *sd = dev_get_drvdata(pdev);
 
-	pr_debug("%s: %s\n", __func__, pbuf);
+	dev_dbg(sd->dev, "%s: %s\n", __func__, pbuf);
 
-	sscanf(pbuf, "%d", &val);
-
-	mutex_lock(&sd->lock);
-	if (sd->enabled) {
-		sd->notify_late_resume = !!val;
-	} else {
-		rc = -EINVAL;
-		pr_err("%s: Notifications are not enabled!", __func__);
+	rc = kstrtou8(pbuf, 2, &val);
+	if (!rc) {
+		mutex_lock(&sd->lock);
+		if (sd->enabled) {
+			sd->notify_late_resume = !!val;
+		} else {
+			rc = -EINVAL;
+			dev_err(sd->dev, "%s: Notifications are not enabled\n",
+				__func__);
+		}
+		mutex_unlock(&sd->lock);
 	}
-	mutex_unlock(&sd->lock);
 
 	return rc == 0 ? count : rc;
 }
@@ -224,18 +233,18 @@ static int ssm_probe(struct platform_device *pdev)
 	int rc;
 	struct ssm_data *sd;
 
-	pr_debug("%s\n", __func__);
+	dev_dbg(&pdev->dev, "%s\n", __func__);
 
 	sd = kzalloc(sizeof(struct ssm_data), GFP_KERNEL);
 	if (!sd) {
-		pr_err("%s: OOM for ssm_data\n", __func__);
+		dev_err(&pdev->dev, "%s: OOM for ssm_data\n", __func__);
 		return -ENOMEM;
 	}
 
 	sd->early_suspend.level = EARLY_SUSPEND_LEVEL_STOP_DRAWING;
 	sd->early_suspend.resume = ssm_late_resume;
 
-	sd->kobj = kobject_get(&pdev->dev.kobj);
+	sd->dev = &pdev->dev;
 
 	mutex_init(&sd->lock);
 
@@ -248,7 +257,8 @@ static int ssm_probe(struct platform_device *pdev)
 
 	rc = ssm_create_attrs(&pdev->dev);
 	if (rc) {
-		pr_err("%s: ssm_create_attrs failed: %d\n", __func__, rc);
+		dev_err(sd->dev, "%s: Failed to create attrs (%d)\n",
+			__func__, rc);
 		goto err_create_attrs;
 	}
 
@@ -257,7 +267,6 @@ static int ssm_probe(struct platform_device *pdev)
 	return 0;
 
 err_create_attrs:
-	kobject_put(sd->kobj);
 	kfree(sd);
 	return rc;
 }
@@ -266,14 +275,22 @@ static int ssm_remove(struct platform_device *pdev)
 {
 	struct ssm_data *sd = platform_get_drvdata(pdev);
 
-	pr_debug("%s\n", __func__);
+	dev_dbg(sd->dev, "%s\n", __func__);
 
-	ssm_remove_attrs(&pdev->dev);
-	kobject_put(sd->kobj);
+	if (sd->enabled) {
+		unregister_early_suspend(&sd->early_suspend);
+		unregister_pm_notifier(&sd->pm_notifier);
+	}
+	ssm_remove_attrs(sd->dev);
 	kfree(sd);
 
 	return 0;
 }
+
+static struct platform_device ssm_device = {
+	.name = MODULE_NAME,
+	.id = -1,
+};
 
 static struct platform_driver ssm_driver = {
 	.probe = ssm_probe,
@@ -286,13 +303,30 @@ static struct platform_driver ssm_driver = {
 
 static int __init ssm_init(void)
 {
+	int rc;
+
 	pr_debug("%s\n", __func__);
-	return platform_driver_register(&ssm_driver);
+
+	rc = platform_driver_register(&ssm_driver);
+	if (rc) {
+		pr_err("%s: Failed to register driver (%d)\n", __func__, rc);
+		return rc;
+	}
+
+	rc = platform_device_register(&ssm_device);
+	if (rc) {
+		platform_driver_unregister(&ssm_driver);
+		pr_err("%s: Failed to register device (%d)\n", __func__, rc);
+		return rc;
+	}
+
+	return 0;
 }
 
 static void __exit ssm_exit(void)
 {
 	pr_debug("%s\n", __func__);
+	platform_device_unregister(&ssm_device);
 	platform_driver_unregister(&ssm_driver);
 }
 
@@ -300,4 +334,4 @@ late_initcall(ssm_init);
 module_exit(ssm_exit);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Power management noticiations for Super Stamina Mode");
+MODULE_DESCRIPTION("Power management notifications for Super Stamina Mode");

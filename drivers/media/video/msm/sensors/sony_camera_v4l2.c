@@ -377,95 +377,92 @@ static int sony_eeprom_load(struct msm_sensor_ctrl_t *s_ctrl)
 		len = i;
 	} else {
 		len = 16;
-		rc = sony_cam_i2c_read(&camera_data[id].s_ctrl,
-					camera_info[id].eeprom_addr,
-					0x0000, SENSOR_I2C_ADDR_2BYTE, 2, d);
-		if (rc < 0) {
-			LOGE("i2c read faile\n");
+		d[0] = 0x03;
+		d[1] = 0x25;
+		rc = sony_cam_i2c_write(
+			&camera_data[id].s_ctrl,
+			camera_info[id].eeprom_addr,
+			0x0010, SENSOR_I2C_ADDR_2BYTE, 2, d);
+		if (rc < 0)
+			goto exit;
+		d[0] = 0x08;
+		d[1] = 0x00;
+		rc = sony_cam_i2c_write(
+			&camera_data[id].s_ctrl,
+			camera_info[id].eeprom_addr,
+			0x0012, SENSOR_I2C_ADDR_2BYTE, 2, d);
+		if (rc < 0)
+			goto exit;
+
+		i = 0;
+		do {
+			msleep(20);
+			i++;
+			rc = sony_cam_i2c_read(
+				&camera_data[id].s_ctrl,
+				camera_info[id].eeprom_addr,
+				0x0014, SENSOR_I2C_ADDR_2BYTE, 2, d);
+			if (rc < 0)
+				goto exit;
+		} while ((d[0] & 0x80) && i < 100);
+
+		if (i >= 100) {
+			rc = -ENODEV;
 			goto exit;
 		}
 
-		if (((uint16_t)d[0] << 8 | d[1]) == SENSOR_ID_MT9M114) {
-			d[0] = 0x00;
-			d[1] = 0x55;
-			rc = sony_cam_i2c_write(
-				&camera_data[id].s_ctrl,
-				camera_info[id].eeprom_addr,
-				0x3052, SENSOR_I2C_ADDR_2BYTE, 2, d);
-			if (rc < 0)
-				goto exit;
+		d[0] = 0x45;
+		d[1] = 0x04;
+		rc = sony_cam_i2c_write(
+			&camera_data[id].s_ctrl,
+			camera_info[id].eeprom_addr,
+			0x0018, SENSOR_I2C_ADDR_2BYTE, 2, d);
+		if (rc < 0)
+			goto exit;
 
-			d[0] = 0x00;
-			d[1] = 0x10;
-			rc = sony_cam_i2c_write(
-				&camera_data[id].s_ctrl,
-				camera_info[id].eeprom_addr,
-				0x3050, SENSOR_I2C_ADDR_2BYTE, 2, d);
-			if (rc < 0)
-				goto exit;
-
-			i = 0;
-			do {
-				msleep(20);
-				i++;
-				rc = sony_cam_i2c_read(
-					&camera_data[id].s_ctrl,
-					camera_info[id].eeprom_addr,
-					0x3050, SENSOR_I2C_ADDR_2BYTE, 2, d);
-				if (rc < 0)
-					goto exit;
-			} while (!(d[1] & 0x20) && i < 100);
-
-			if (i >= 100) {
-				rc = -ENODEV;
-				goto exit;
-			}
-
+		i = 0;
+		do {
+			msleep(20);
+			i++;
 			rc = sony_cam_i2c_read(
-				&camera_data[id].s_ctrl,
-				camera_info[id].eeprom_addr,
-				0x313A, SENSOR_I2C_ADDR_2BYTE, 2, d + 8);
-			if (rc < 0)
-				goto exit;
-
-			rc = sony_cam_i2c_read(
-				&camera_data[id].s_ctrl,
-				camera_info[id].eeprom_addr,
-				0x313C, SENSOR_I2C_ADDR_2BYTE, 2, d + 10);
-			if (rc < 0)
-				goto exit;
-
-			if ((d[8] & 0xC0) == 0x00)
-				memcpy(d, MODULE_STW01BM0, SENSOR_NAME_LEN);
-			else
-				memcpy(d, MODULE_APT01BM0, SENSOR_NAME_LEN);
-		} else if (((uint16_t)d[0] << 8 | d[1]) == SENSOR_ID_MT9V115) {
-			d[0] = 0x00;
-			d[1] = 0x00;
-			rc = sony_cam_i2c_write(
 				&camera_data[id].s_ctrl,
 				camera_info[id].eeprom_addr,
 				0x0018, SENSOR_I2C_ADDR_2BYTE, 2, d);
 			if (rc < 0)
 				goto exit;
+		} while ((d[1] & 0x40) && i < 100);
 
-			i = 0;
-			do {
-				msleep(20);
-				i++;
-				rc = sony_cam_i2c_read(
-					&camera_data[id].s_ctrl,
+		if (i >= 100) {
+			rc = -ENODEV;
+			goto exit;
+		}
+
+		d[0] = 0x05;
+		d[1] = 0x20;
+		rc = sony_cam_i2c_write(
+			&camera_data[id].s_ctrl,
+			camera_info[id].eeprom_addr,
+			0x001A, SENSOR_I2C_ADDR_2BYTE, 2, d);
+		if (rc < 0)
+			goto exit;
+
+		d[0] = 0x05;
+		d[1] = 0x64;
+		rc = sony_cam_i2c_write(
+			&camera_data[id].s_ctrl,
+			camera_info[id].eeprom_addr,
+			0x001A, SENSOR_I2C_ADDR_2BYTE, 2, d);
+		if (rc < 0)
+			goto exit;
+
+		rc = sony_cam_i2c_read(&camera_data[id].s_ctrl,
 					camera_info[id].eeprom_addr,
-					0x0018, SENSOR_I2C_ADDR_2BYTE, 2, d);
-				if (rc < 0)
-					goto exit;
-			} while ((d[1] & 0x40) && i < 100);
+					0x0000, SENSOR_I2C_ADDR_2BYTE, 2, d);
+		if (rc < 0) {
+			goto exit;
+		}
 
-			if (i >= 100) {
-				rc = -ENODEV;
-				goto exit;
-			}
-
+		if (((uint16_t)d[0] << 8 | d[1]) == SENSOR_ID_MT9V115) {
 			rc = sony_cam_i2c_read(
 					&camera_data[id].s_ctrl,
 					camera_info[id].eeprom_addr,
@@ -505,10 +502,18 @@ static int sony_eeprom_load(struct msm_sensor_ctrl_t *s_ctrl)
 	} else {
 		LOGE("Module name not recognized. Force name.\n");
 
-		if (id == 0)
-			camera_data[id].module = &camera_info[id].modules[4];
-		else
-			camera_data[id].module = &camera_info[id].modules[2];
+		camera_data[id].module = &camera_info[id].modules[0];
+
+		for (i = 1; i < camera_info[id].modules_num; i++) {
+			if (!strncmp(camera_info[id].modules[i].name,
+				camera_info[id].default_module_name,
+				SENSOR_NAME_LEN)) {
+				camera_data[id].module
+					= &camera_info[id].modules[i];
+				LOGD("detected sensor Force name\n");
+				break;
+			}
+		}
 
 		memcpy(d, camera_info[id].default_module_name, SENSOR_NAME_LEN);
 		camera_data[id].s_ctrl.sensor_i2c_addr =

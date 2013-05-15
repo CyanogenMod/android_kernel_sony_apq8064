@@ -286,7 +286,7 @@ obj-$(CONFIG_MACH_MSM8960_FLUID) += board-8960-all.o board-8960-regulator.o
 obj-$(CONFIG_MACH_MSM8930_CDP) += board-8930-all.o board-8930-regulator-pm8038.o board-8930-regulator-pm8917.o
 obj-$(CONFIG_MACH_MSM8930_MTP) += board-8930-all.o board-8930-regulator-pm8038.o board-8930-regulator-pm8917.o
 obj-$(CONFIG_MACH_MSM8930_FLUID) += board-8930-all.o board-8930-regulator-pm8038.o board-8930-regulator-pm8917.o
-obj-$(CONFIG_PM8921_BMS) += bms-batterydata.o bms-batterydata-desay.o
+obj-$(CONFIG_PM8921_BMS) += bms-batterydata.o bms-batterydata-desay.o batterydata-lib.o
 obj-$(CONFIG_MACH_APQ8064_CDP) += board-8064-all.o board-8064-regulator.o
 obj-$(CONFIG_MACH_APQ8064_MTP) += board-8064-all.o board-8064-regulator.o
 obj-$(CONFIG_MACH_APQ8064_LIQUID) += board-8064-all.o board-8064-regulator.o
@@ -305,9 +305,69 @@ obj-$(CONFIG_ARCH_MPQ8092) += board-8092.o board-8092-gpiomux.o
 
 board-sony_fusion3-all-objs += board-sony_fusion3.o board-sony_fusion3-storage.o board-sony_fusion3-display.o board-8064-gpu.o board-sony_fusion3-hwrev.o
 
+obj-$(CONFIG_MACH_SONY_DOGO) += board-sony_fusion3.o board-sony_fusion3-storage.o board-8064-gpu.o board-sony_fusion3-hwrev.o
+obj-$(CONFIG_MACH_SONY_DOGO) += board-sony_fusion3_dogo.o
+obj-$(CONFIG_MACH_SONY_DOGO) += board-sony_dogo-camera.o board-sony_dogo-pmic.o board-sony_dogo-gpiomux.o board-sony_dogo-regulator.o board-sony_dogo-touch.o
+obj-$(CONFIG_MACH_SONY_DOGO) += board-sony_dogo-mpu.o gyro-semc_common.o bms-batterydata-loka.o
+obj-$(CONFIG_MACH_SONY_DOGO) += board-sony_dogo-display.o
+
+obj-$(CONFIG_MACH_SONY_DOGO_DCM) += board-sony_fusion3.o board-sony_fusion3-storage.o board-8064-gpu.o board-sony_fusion3-hwrev.o
+obj-$(CONFIG_MACH_SONY_DOGO_DCM) += board-sony_fusion3_dogo.o
+obj-$(CONFIG_MACH_SONY_DOGO_DCM) += board-sony_dogo-camera.o board-sony_dogo_dcm-pmic.o board-sony_dogo_dcm-gpiomux.o board-sony_dogo_dcm-regulator.o board-sony_dogo-touch.o
+obj-$(CONFIG_MACH_SONY_DOGO_DCM) += board-sony_dogo-mpu.o gyro-semc_common.o bms-batterydata-loka.o
+obj-$(CONFIG_MACH_SONY_DOGO_DCM) += board-sony_dogo-display.o
+obj-$(CONFIG_MACH_SONY_DOGO_DCM) += board-sony_fusion3-irda.o
+obj-$(CONFIG_MACH_SONY_DOGO_DCM) += board-sony_fusion3-felica.o
+obj-$(CONFIG_MACH_SONY_DOGO_DCM) += board-sony_fusion3-isdbt.o
+obj-$(CONFIG_MACH_SONY_GAGA_KDDI) += board-sony_fusion3-all.o board-sony_fusion3_gaga.o
+obj-$(CONFIG_MACH_SONY_GAGA_KDDI) += board-sony_gaga-camera.o board-sony_gaga_kddi-pmic.o board-sony_gaga_kddi-gpiomux.o board-sony_gaga_kddi-regulator.o board-sony_gaga-touch.o
+obj-$(CONFIG_MACH_SONY_GAGA_KDDI) += board-sony_gaga-mpu.o gyro-semc_common.o bms-batterydata-lucius.o
+obj-$(CONFIG_MACH_SONY_GAGA_KDDI) += board-sony_gaga-kddi-oneseg.o
+obj-$(CONFIG_MACH_SONY_GAGA_KDDI) += board-sony_fusion3-irda.o
+obj-$(CONFIG_MACH_SONY_GAGA_KDDI) += board-sony_fusion3-felica.o
+
+
 obj-$(CONFIG_MACH_SONY_YUGA) += board-sony_fusion3-all.o board-sony_fusion3_yuga.o
 obj-$(CONFIG_MACH_SONY_YUGA) += board-sony_yuga-camera.o board-sony_yuga-pmic.o board-sony_yuga-gpiomux.o board-sony_yuga-regulator.o board-sony_yuga-touch.o
 obj-$(CONFIG_MACH_SONY_YUGA) += board-sony_yuga-mpu.o gyro-semc_common.o bms-batterydata-lucius.o
+
+obj-$(CONFIG_MACH_SONY_YUGA_DCM) += board-sony_fusion3-all.o board-sony_fusion3_yuga.o
+obj-$(CONFIG_MACH_SONY_YUGA_DCM) += board-sony_yuga-camera.o board-sony_yuga_dcm-pmic.o board-sony_yuga_dcm-gpiomux.o board-sony_yuga_dcm-regulator.o board-sony_yuga-touch.o
+obj-$(CONFIG_MACH_SONY_YUGA_DCM) += board-sony_yuga-mpu.o gyro-semc_common.o bms-batterydata-lucius.o
+obj-$(CONFIG_MACH_SONY_YUGA_DCM) += board-sony_fusion3-irda.o
+obj-$(CONFIG_MACH_SONY_YUGA_DCM) += board-sony_fusion3-felica.o
+obj-$(CONFIG_MACH_SONY_YUGA_DCM) += board-sony_yuga-oneseg.o
+
+board-sony_fusion3-pollux-all-objs += board-sony_fusion3.o board-sony_fusion3-storage.o board-8064-gpu.o board-sony_fusion3-hwrev.o
+board-sony_fusion3-pollux-all-objs += board-sony_pollux-display.o
+board-sony_fusion3-pollux-all-objs += board-sony_fusion3_pollux.o
+board-sony_fusion3-pollux-all-objs += board-sony_pollux-camera.o board-sony_pollux-touch.o board-sony_pollux-mpu.o gyro-semc_common.o
+
+obj-$(CONFIG_MACH_SONY_POLLUX) += board-sony_fusion3-pollux-all.o
+obj-$(CONFIG_MACH_SONY_POLLUX) += board-sony_pollux-pmic.o board-sony_pollux-gpiomux.o board-sony_pollux-regulator.o
+obj-$(CONFIG_MACH_SONY_POLLUX) += bms-batterydata-gemini.o
+obj-$(CONFIG_MACH_SONY_POLLUX) += board-sony_ir_remote.o
+
+obj-$(CONFIG_MACH_SONY_POLLUX_CDB) += board-sony_fusion3-pollux-all.o
+obj-$(CONFIG_MACH_SONY_POLLUX_CDB) += board-sony_pollux_cdb-pmic.o board-sony_pollux_cdb-gpiomux.o board-sony_pollux_cdb-regulator.o
+obj-$(CONFIG_MACH_SONY_POLLUX_CDB) += bms-batterydata-gemini.o
+obj-$(CONFIG_MACH_SONY_POLLUX_CDB) += board-sony_ir_remote.o
+
+obj-$(CONFIG_MACH_SONY_POLLUX_WINDY_CDB) += board-sony_fusion3-pollux-all.o
+obj-$(CONFIG_MACH_SONY_POLLUX_WINDY_CDB) += board-sony_pollux_windy_cdb-pmic.o board-sony_pollux_windy_cdb-gpiomux.o board-sony_pollux_windy_cdb-regulator.o
+obj-$(CONFIG_MACH_SONY_POLLUX_WINDY_CDB) += bms-batterydata-gemini.o
+obj-$(CONFIG_MACH_SONY_POLLUX_WINDY_CDB) += board-sony_ir_remote.o
+
+obj-$(CONFIG_MACH_SONY_POLLUX_WINDY) += board-sony_fusion3-pollux-all.o
+obj-$(CONFIG_MACH_SONY_POLLUX_WINDY) += board-sony_pollux_windy-pmic.o board-sony_pollux_windy-gpiomux.o board-sony_pollux_windy-regulator.o
+obj-$(CONFIG_MACH_SONY_POLLUX_WINDY) += bms-batterydata-gemini.o
+obj-$(CONFIG_MACH_SONY_POLLUX_WINDY) += board-sony_ir_remote.o
+
+obj-$(CONFIG_MACH_SONY_POLLUX_DCM) += board-sony_fusion3-pollux-all.o
+obj-$(CONFIG_MACH_SONY_POLLUX_DCM) += board-sony_pollux_dcm-pmic.o board-sony_pollux_dcm-gpiomux.o board-sony_pollux_dcm-regulator.o
+obj-$(CONFIG_MACH_SONY_POLLUX_DCM) += bms-batterydata-gemini.o
+obj-$(CONFIG_MACH_SONY_POLLUX_DCM) += board-sony_ir_remote.o
+obj-$(CONFIG_MACH_SONY_POLLUX_DCM) += board-sony_fusion3-isdbt.o
 
 obj-$(CONFIG_MACH_SONY_ODIN) += board-sony_fusion3-all.o board-sony_fusion3_odin.o
 obj-$(CONFIG_MACH_SONY_ODIN) += board-sony_odin-camera.o board-sony_odin-pmic.o board-sony_odin-gpiomux.o board-sony_odin-regulator.o board-sony_odin-mpu.o board-sony_odin-touch.o
@@ -402,11 +462,11 @@ obj-$(CONFIG_MSM_CPR) += msm_cpr.o
 obj-$(CONFIG_MSM_VP_REGULATOR) += msm_vp.o
 
 obj-$(CONFIG_MSM_USE_USER_ACCESSIBLE_TIMERS) += timer_page.o
-obj-$(CONFIG_MSM_CPU_PWRCTL) +=  msm_cpu_pwrctl.o
 
 ifdef CONFIG_MSM_CPR
 obj-$(CONFIG_DEBUG_FS) += msm_cpr-debug.o
 endif
+obj-$(CONFIG_MSM_CPU_PWRCTL) +=  msm_cpu_pwrctl.o
 obj-y += power_debug.o
 
 obj-$(CONFIG_RAMDUMP_TAGS) += board-rdtags.o
@@ -415,3 +475,5 @@ CFLAGS_board-rdtags.o	:= \
 	-D"INFO_PRODUCT=\"$(if $(TARGET_PRODUCT),$(TARGET_PRODUCT),unknown)\"" \
 	-D"INFO_VARIANT=\"$(if $(TARGET_BUILD_VARIANT),$(TARGET_BUILD_VARIANT),unknown)\"" \
 	-D"INFO_BUILDID=\"$(if $(BUILD_ID),$(BUILD_ID),unknown)\""
+
+obj-$(CONFIG_MSM_MODEM_SUBSYSTEM_RESTART_MONITOR) += modem_restart_monitor.o

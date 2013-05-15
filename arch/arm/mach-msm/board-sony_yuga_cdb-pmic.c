@@ -460,6 +460,7 @@ apq8064_pm8921_chg_pdata __devinitdata = {
 	.btc_override_hot_degc	= 55,
 	.btc_delay_ms		= 10000,
 	.btc_panic_if_cant_stop_chg = 1,
+	.soc_scaling		= 1,
 };
 
 static struct pm8xxx_ccadc_platform_data

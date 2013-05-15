@@ -1,4 +1,5 @@
 /* Copyright (c) 2009-2012, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -34,6 +35,7 @@
 #include "mdp4.h"
 
 struct mdp4_statistic mdp4_stat;
+struct mdp_pcc_cfg_data *pcc_cfg_ptr;
 
 unsigned is_mdp4_hw_reset(void)
 {
@@ -394,6 +396,9 @@ irqreturn_t mdp4_isr(int irq, void *ptr)
 			mgmt->mdp_is_hist_valid = FALSE;
 			__mdp_histogram_reset(mgmt);
 		}
+
+		if (pcc_cfg_ptr != NULL)
+			mdp4_pcc_cfg(pcc_cfg_ptr);
 	}
 
 	if (isr & INTR_EXTERNAL_INTF_UDERRUN) {

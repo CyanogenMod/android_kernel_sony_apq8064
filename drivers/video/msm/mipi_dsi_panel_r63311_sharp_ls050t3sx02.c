@@ -37,16 +37,8 @@ static char read_ddb_start[] = {
 	0xA1, 0x00
 };
 
-static char display_brightness[] = {
-	0x51, 0x0f, 0xff
-};
-
-static char display_control[] = {
-	0x53, 0x24
-};
-
 static char adaptive_brightness[] = {
-	0x55, 0x03
+	0x55, 0x00
 };
 
 static struct dsi_cmd_desc display_init_cmd_seq[] = {
@@ -54,10 +46,6 @@ static struct dsi_cmd_desc display_init_cmd_seq[] = {
 };
 
 static struct dsi_cmd_desc display_on_cmd_seq[] = {
-	{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
-				sizeof(display_brightness), display_brightness},
-	{DTYPE_DCS_WRITE1, 1, 0, 0, 0,
-				sizeof(display_control), display_control},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0,
 			sizeof(adaptive_brightness), adaptive_brightness},
 	{DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(display_on), display_on},

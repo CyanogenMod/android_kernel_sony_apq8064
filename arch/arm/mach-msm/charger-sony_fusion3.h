@@ -14,6 +14,6 @@
 #ifndef _CHARGER_SONY_FUSION3_H
 #define _CHARGER_SONY_FUSION3_H
 
-extern struct pm8921_bms_battery_data pm8921_battery_data __devinitdata;
+extern struct bms_battery_data pm8921_battery_data __devinitdata;
 
 #endif

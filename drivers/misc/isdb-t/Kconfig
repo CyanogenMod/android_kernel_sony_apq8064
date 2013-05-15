@@ -1,6 +1,0 @@
-config SOMC_ISDBT_TUNER
-	tristate "SOMC ISDBT/Tmm tuner driver for SMT-EJ103"
-	default n
-	depends on I2C
-	help
-	  Select this module to enable SOMC ISDB-T Tuner Driver.

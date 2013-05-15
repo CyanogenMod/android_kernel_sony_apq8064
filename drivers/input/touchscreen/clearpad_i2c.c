@@ -18,9 +18,6 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/clearpad.h>
-#include <linux/atomic.h>
-#include <linux/sched.h>
-#include <linux/wait.h>
 
 #define CLEARPAD_PAGE_SELECT_REGISTER 0xff
 #define CLEARPAD_PAGE(addr) (((addr) >> 8) & 0xff)
@@ -29,21 +26,13 @@ struct clearpad_i2c {
 	struct platform_device *pdev;
 	unsigned int page;
 	struct mutex page_mutex;
-
-	wait_queue_head_t wq;
-	atomic_t suspended;
 };
 
 static int clearpad_i2c_read(struct device *dev, u8 reg, u8 *buf, u8 len)
 {
-	struct clearpad_i2c *this = dev_get_drvdata(dev);
 	s32 rc = 0;
 	int rsize = I2C_SMBUS_BLOCK_MAX;
 	int off;
-
-	/* If i2c is still suspended, wait until we are resumed */
-	wait_event(this->wq, (0 == atomic_cmpxchg(&this->suspended, 0, 1)));
-	dev_dbg(dev, "%s: i2c no longer suspended\n", __func__);
 
 	for (off = 0; off < len; off += rsize) {
 		if (len < off + I2C_SMBUS_BLOCK_MAX)
@@ -52,33 +41,22 @@ static int clearpad_i2c_read(struct device *dev, u8 reg, u8 *buf, u8 len)
 				reg + off, rsize, &buf[off]);
 		if (rc != rsize) {
 			dev_err(dev, "%s: rc = %d\n", __func__, rc);
-			goto err_return;
+			return rc;
 		}
 	}
-	rc = 0;
-err_return:
-	atomic_set(&this->suspended, 0);
-	wake_up(&this->wq);
-	return rc;
+	return 0;
 }
 
 static int clearpad_i2c_write(struct device *dev, u8 reg, const u8 *buf, u8 len)
 {
-	struct clearpad_i2c *this = dev_get_drvdata(dev);
 	int rc = 0;
 	u8 i;
-
-	/* If i2c is still suspended, wait until we are resumed */
-	wait_event(this->wq, (0 == atomic_cmpxchg(&this->suspended, 0, 1)));
-	dev_dbg(dev, "%s: i2c no longer suspended\n", __func__);
 	for (i = 0; i < len; i++) {
 		rc = i2c_smbus_write_byte_data(to_i2c_client(dev),
 				reg + i, buf[i]);
 		if (rc)
 			break;
 	}
-	atomic_set(&this->suspended, 0);
-	wake_up(&this->wq);
 	return rc;
 }
 
@@ -180,8 +158,6 @@ static int __devinit clearpad_i2c_probe(struct i2c_client *client,
 		goto exit;
 	}
 
-	init_waitqueue_head(&this->wq);
-
 	dev_set_drvdata(&client->dev, this);
 
 	mutex_init(&this->page_mutex);
@@ -206,7 +182,6 @@ static int __devinit clearpad_i2c_probe(struct i2c_client *client,
 		rc = -ENODEV;
 		goto err_device_del;
 	}
-	atomic_set(&this->suspended, 0);
 	dev_info(&client->dev, "%s: sucess\n", __func__);
 	goto exit;
 
@@ -230,30 +205,6 @@ static int __devexit clearpad_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int clearpad_i2c_suspend(struct device *dev)
-{
-	struct clearpad_i2c *this = dev_get_drvdata(dev);
-	dev_dbg(dev, "%s: suspend\n", __func__);
-	wait_event(this->wq, atomic_cmpxchg(&this->suspended, 0, 1));
-	dev_vdbg(dev, "%s: i2c suspended\n", __func__);
-	return 0;
-}
-
-static int clearpad_i2c_resume(struct device *dev)
-{
-	struct clearpad_i2c *this = dev_get_drvdata(dev);
-	dev_dbg(dev, "%s: resume\n", __func__);
-	atomic_set(&this->suspended, 0);
-	wake_up(&this->wq);
-	dev_vdbg(dev, "%s: i2c resumed\n", __func__);
-	return 0;
-}
-
-static const struct dev_pm_ops clearpad_i2c_pm_ops = {
-	.suspend		= clearpad_i2c_suspend,
-	.resume			= clearpad_i2c_resume,
-};
-
 static const struct i2c_device_id clearpad_id[] = {
 	{ CLEARPADI2C_NAME, 0 },
 	{ }
@@ -264,7 +215,6 @@ static struct i2c_driver clearpad_i2c_driver = {
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= CLEARPADI2C_NAME,
-		.pm	= &clearpad_i2c_pm_ops,
 	},
 	.id_table	= clearpad_id,
 	.probe		= clearpad_i2c_probe,

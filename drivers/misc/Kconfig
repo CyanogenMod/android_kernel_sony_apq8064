@@ -725,6 +725,13 @@ config SONY_FELICA_NFC_SUPPORT
 	help
 	  This option enables support for FeliCa/NFC combination device.
 
+config SOMC_ISDBT_TUNER
+	tristate "SOMC ISDBT/Tmm tuner driver for SMT-EJ103"
+	default n
+	depends on I2C
+	help
+	  Select this module to enable SOMC ISDB-T Tuner Driver.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
@@ -735,5 +742,4 @@ source "drivers/misc/carma/Kconfig"
 source "drivers/misc/altera-stapl/Kconfig"
 source "drivers/misc/mpu6050/Kconfig"
 source "drivers/misc/mpu3050/Kconfig"
-source "drivers/misc/isdb-t/Kconfig"
 endmenu

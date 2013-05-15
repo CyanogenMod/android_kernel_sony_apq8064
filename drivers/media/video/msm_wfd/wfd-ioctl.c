@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -42,7 +42,7 @@
 #define WFD_DEVICE_SECURE (WFD_DEVICE_NUMBER_BASE + 1)
 #define DEFAULT_WFD_WIDTH 640
 #define DEFAULT_WFD_HEIGHT 480
-#define VENC_INPUT_BUFFERS 4
+#define VENC_INPUT_BUFFERS 6
 
 struct wfd_device {
 	struct mutex dev_lock;
@@ -92,6 +92,7 @@ struct wfd_inst {
 	u32 out_buf_size;
 	struct list_head input_mem_list;
 	struct wfd_stats stats;
+	struct completion stop_mdp_thread;
 };
 
 struct wfd_vid_buffer {
@@ -363,7 +364,7 @@ int wfd_allocate_input_buffers(struct wfd_device *wfd_dev,
 			ALLOC_RECON_BUFFERS, NULL);
 	if (rc) {
 		WFD_MSG_ERR("Failed to allocate recon buffers\n");
-		goto alloc_fail;
+		goto recon_alloc_fail;
 	}
 	return rc;
 
@@ -371,6 +372,7 @@ alloc_fail:
 	kfree(mpair);
 	kfree(enc_mregion);
 	kfree(mdp_mregion);
+recon_alloc_fail:
 	return rc;
 }
 void wfd_free_input_buffers(struct wfd_device *wfd_dev,
@@ -555,7 +557,7 @@ void wfd_vidbuf_buf_cleanup(struct vb2_buffer *vb)
 
 static int mdp_output_thread(void *data)
 {
-	int rc = 0;
+	int rc = 0, no_sig_wait = 0;
 	struct file *filp = (struct file *)data;
 	struct wfd_inst *inst = filp->private_data;
 	struct wfd_device *wfd_dev =
@@ -564,6 +566,14 @@ static int mdp_output_thread(void *data)
 	struct mem_region *mregion;
 	struct vsg_buf_info ibuf_vsg;
 	while (!kthread_should_stop()) {
+		if (rc) {
+			WFD_MSG_DBG("%s() error in output thread\n", __func__);
+			if (!no_sig_wait) {
+				wait_for_completion(&inst->stop_mdp_thread);
+				no_sig_wait = 1;
+			}
+			continue;
+		}
 		WFD_MSG_DBG("waiting for mdp output\n");
 		rc = v4l2_subdev_call(&wfd_dev->mdp_sdev,
 			core, ioctl, MDP_DQ_BUFFER, (void *)&obuf_mdp);
@@ -573,7 +583,7 @@ static int mdp_output_thread(void *data)
 				WFD_MSG_ERR("MDP reported err %d\n", rc);
 
 			WFD_MSG_ERR("Streamoff called\n");
-			break;
+			continue;
 		} else {
 			wfd_stats_update(&inst->stats,
 				WFD_STAT_EVENT_MDP_DEQUEUE);
@@ -583,7 +593,7 @@ static int mdp_output_thread(void *data)
 		if (!mregion) {
 			WFD_MSG_ERR("mdp cookie is null\n");
 			rc = -EINVAL;
-			break;
+			continue;
 		}
 
 		ibuf_vsg.mdp_buf_info = obuf_mdp;
@@ -598,7 +608,7 @@ static int mdp_output_thread(void *data)
 
 		if (rc) {
 			WFD_MSG_ERR("Failed to queue frame to vsg\n");
-			break;
+			continue;
 		} else {
 			wfd_stats_update(&inst->stats,
 				WFD_STAT_EVENT_VSG_QUEUE);
@@ -632,7 +642,7 @@ int wfd_vidbuf_start_streaming(struct vb2_queue *q, unsigned int count)
 		WFD_MSG_ERR("Failed to start vsg\n");
 		goto subdev_start_fail;
 	}
-
+	init_completion(&inst->stop_mdp_thread);
 	inst->mdp_task = kthread_run(mdp_output_thread, priv_data,
 				"mdp_output_thread");
 	if (IS_ERR(inst->mdp_task)) {
@@ -667,6 +677,7 @@ int wfd_vidbuf_stop_streaming(struct vb2_queue *q)
 	if (rc)
 		WFD_MSG_ERR("Failed to stop VSG\n");
 
+	complete(&inst->stop_mdp_thread);
 	kthread_stop(inst->mdp_task);
 	rc = v4l2_subdev_call(&wfd_dev->enc_sdev, core, ioctl,
 			ENCODE_FLUSH, (void *)inst->venc_inst);
@@ -1067,7 +1078,8 @@ static int wfdioc_s_parm(struct file *filp, void *fh,
 	struct v4l2_qcom_frameskip frameskip;
 	int64_t frame_interval, max_frame_interval;
 	void *extendedmode = NULL;
-	enum vsg_modes mode = VSG_MODE_VFR;
+	enum vsg_modes vsg_mode = VSG_MODE_VFR;
+	enum venc_framerate_modes venc_mode = VENC_MODE_VFR;
 
 
 	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
@@ -1089,6 +1101,7 @@ static int wfdioc_s_parm(struct file *filp, void *fh,
 			rc = -EINVAL;
 			goto set_parm_fail;
 		}
+		venc_mode = VENC_MODE_CFR;
 		frame_interval =
 			a->parm.capture.timeperframe.numerator * NSEC_PER_SEC /
 			a->parm.capture.timeperframe.denominator;
@@ -1117,7 +1130,7 @@ static int wfdioc_s_parm(struct file *filp, void *fh,
 			goto set_parm_fail;
 
 		max_frame_interval = (int64_t)frameskip.maxframeinterval;
-		mode = VSG_MODE_VFR;
+		vsg_mode = VSG_MODE_VFR;
 
 		rc = v4l2_subdev_call(&wfd_dev->vsg_sdev, core,
 				ioctl, VSG_SET_MAX_FRAME_INTERVAL,
@@ -1127,18 +1140,22 @@ static int wfdioc_s_parm(struct file *filp, void *fh,
 			goto set_parm_fail;
 
 		rc = v4l2_subdev_call(&wfd_dev->vsg_sdev, core,
-				ioctl, VSG_SET_MODE, &mode);
+				ioctl, VSG_SET_MODE, &vsg_mode);
 
 		if (rc)
 			goto set_parm_fail;
 	} else {
-		mode = VSG_MODE_CFR;
+		vsg_mode = VSG_MODE_CFR;
 		rc = v4l2_subdev_call(&wfd_dev->vsg_sdev, core,
-				ioctl, VSG_SET_MODE, &mode);
+				ioctl, VSG_SET_MODE, &vsg_mode);
 
 		if (rc)
 			goto set_parm_fail;
 	}
+
+	rc = v4l2_subdev_call(&wfd_dev->enc_sdev, core,
+			ioctl, SET_FRAMERATE_MODE,
+			&venc_mode);
 
 set_parm_fail:
 	return rc;

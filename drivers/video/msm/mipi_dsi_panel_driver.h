@@ -1,6 +1,6 @@
 /* drivers/video/msm/mipi_dsi_panel_driver.h
  *
- * Copyright (C) 2012 Sony Mobile Communications AB.
+ * Copyright (C) 2012-2013 Sony Mobile Communications AB.
  *
  * Author: Yosuke Hatanaka <yosuke.hatanaka@sonyericsson.com>
  * Author: Johan Olson <johan.olson@sonymobile.com>
@@ -24,6 +24,10 @@
 #define CLR_REG_DATA_NUM    2
 #define CLR_RESOLUTION     60
 #define CLR_NUM_PART        6
+#define NVRW_NUM_E6_PARAM	8
+#define NVRW_NUM_E7_PARAM	4
+#define NVRW_NUM_DE_PARAM	12
+#define PANEL_SKIP_ID		0xff
 
 enum power_state {
 	PANEL_OFF,
@@ -112,12 +116,28 @@ struct mipi_dsi_data {
 	enum power_state panel_state;
 	struct mutex lock;
 	struct mdp_pcc_cfg_data *pcc_config;
+
+	bool	nvrw_panel_detective;
+	int	nvrw_result;
+	int	nvrw_retry_cnt;
+	void	*nvrw_private;
+
+	int	(*override_nvm_data)(struct msm_fb_data_type *mfd,
+					const char *buf, int count);
+	int	(*seq_nvm_read)(struct msm_fb_data_type *mfd, char *buf);
+	int	(*seq_nvm_erase)(struct msm_fb_data_type *mfd);
+	int	(*seq_nvm_rsp_write)(struct msm_fb_data_type *mfd);
+	int	(*seq_nvm_user_write)(struct msm_fb_data_type *mfd);
+	int	(*dsi_power_save) (int on);
 };
+extern struct mdp_pcc_cfg_data *pcc_cfg_ptr;
 
 void mipi_dsi_panel_fps_data_update(struct msm_fb_data_type *mfd);
 #ifdef CONFIG_DEBUG_FS
 extern void mipi_dsi_panel_create_debugfs(struct platform_device *pdev);
 extern void mipi_dsi_panel_remove_debugfs(struct platform_device *pdev);
 #endif
-
+int prepare_for_reg_access(struct msm_fb_data_type *mfd,
+				enum power_state *old_state);
+void post_reg_access(struct msm_fb_data_type *mfd, enum power_state old_state);
 #endif /* MIPI_DSI_PANEL_DRIVER_H */

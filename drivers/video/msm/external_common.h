@@ -1,5 +1,4 @@
 /* Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
- * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -211,6 +210,7 @@ struct external_common_state_type {
 	boolean hpd_state;
 	struct kobject *uevent_kobj;
 	uint32 video_resolution;
+	boolean default_res_supported;
 	struct device *dev;
 	struct switch_dev sdev;
 	struct switch_dev audio_sdev;

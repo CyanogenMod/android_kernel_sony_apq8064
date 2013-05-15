@@ -511,6 +511,10 @@ static const struct panel *panels[] = {
 	&jdc_mdy70_panel_id_1a_02,
 	&jdc_mdy70_panel_id,
 #endif /* CONFIG_FB_MSM_MIPI_R63311_JDC_MDY70 */
+#ifdef CONFIG_FB_MSM_MIPI_R63311_JDC_MDY71
+	&jdc_mdy71_panel_id_1a,
+	&jdc_mdy71_panel_id,
+#endif /* CONFIG_FB_MSM_MIPI_R63311_JDC_MDY71 */
 #ifdef CONFIG_FB_MSM_MIPI_R63311_JDC_MDY80
 	&jdc_mdy80_black_panel_id,
 	&jdc_mdy80_white_panel_id,

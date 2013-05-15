@@ -453,8 +453,14 @@ static int MLDLPowerMgmtMPU(struct mldl_cfg *pdata,
 		ERROR_CHECK(result);
 		MLOSSleep(5);
 		pdata->gyro_needs_reset = FALSE;
-		/* Some chips are awake after reset and some are asleep,
-		 * check the status */
+		b |= BIT_SLEEP;
+		result = MLSLSerialWriteSingle(mlsl_handle, pdata->addr,
+					  MPUREG_PWR_MGM, b);
+		MLOSSleep(2);
+		b &= ~BIT_SLEEP;
+		result = MLSLSerialWriteSingle(mlsl_handle, pdata->addr,
+					  MPUREG_PWR_MGM, b);
+		MLOSSleep(5);
 		result = MLSLSerialRead(mlsl_handle, pdata->addr,
 					MPUREG_PWR_MGM, 1, &b);
 		ERROR_CHECK(result);

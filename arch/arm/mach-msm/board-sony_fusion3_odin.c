@@ -48,27 +48,37 @@ static void lm3533_teardown(struct device *dev)
 	gpio_free(LM3533_HWEN_GPIO);
 	return;
 }
+
 static int lm3533_power_on(struct device *dev)
 {
-	int rc = regulator_enable(lm3533_als_vreg);
-	if (rc && regulator_is_enabled(lm3533_als_vreg) <= 0)
-		dev_err(dev, "failed to enable vreg '%s\n", ALS_VREG_ID);
-	else {
-		rc = 0;
-		gpio_set_value_cansleep(LM3533_HWEN_GPIO, 1);
-	}
-	return rc;
+	gpio_set_value_cansleep(LM3533_HWEN_GPIO, 1);
+	return 0;
 }
+
 static int lm3533_power_off(struct device *dev)
 {
-	int rc = regulator_disable(lm3533_als_vreg);
-	if (rc && regulator_is_enabled(lm3533_als_vreg) != 0)
-		dev_err(dev, "failed to disable vreg '%s\n", ALS_VREG_ID);
-	else {
-		rc = 0;
-		gpio_set_value_cansleep(LM3533_HWEN_GPIO, 0);
+	gpio_set_value_cansleep(LM3533_HWEN_GPIO, 0);
+	return 0;
+}
+
+static int lm3533_als_power_on(struct device *dev)
+{
+	int rc = regulator_enable(lm3533_als_vreg);
+	if (rc && regulator_is_enabled(lm3533_als_vreg) <= 0) {
+		dev_err(dev, "failed to enable vreg '%s\n", ALS_VREG_ID);
+		return rc;
 	}
-	return rc;
+	return 0;
+}
+
+static int lm3533_als_power_off(struct device *dev)
+{
+	int rc = regulator_disable(lm3533_als_vreg);
+	if (rc && regulator_is_enabled(lm3533_als_vreg) != 0) {
+		dev_err(dev, "failed to disable vreg '%s\n", ALS_VREG_ID);
+		return rc;
+	}
+	return 0;
 }
 
 static struct lm3533_startup_brightenss lm3533_startup_brightnesses[] = {
@@ -162,6 +172,8 @@ struct lm3533_platform_data lm3533_pdata = {
 	.teardown = lm3533_teardown,
 	.power_on = lm3533_power_on,
 	.power_off = lm3533_power_off,
+	.als_on = lm3533_als_power_on,
+	.als_off = lm3533_als_power_off,
 	.als_control = LM3533_ALS_17920,
 	.als_input_current = ALS_CUR_UA_TO_REG(150),
 	.startup_brightness = lm3533_startup_brightnesses,

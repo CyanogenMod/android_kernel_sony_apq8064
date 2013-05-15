@@ -415,6 +415,10 @@ static int hw_ep_flush(int num, int dir)
 {
 	ktime_t start, diff;
 	int n = hw_ep_bit(num, dir);
+	struct ci13xxx_ep *mEp = &_udc->ci13xxx_ep[n];
+
+	if (_udc->skip_flush || list_empty(&mEp->qh.queue))
+		return 0;
 
 	start = ktime_get();
 	do {
@@ -429,6 +433,7 @@ static int hw_ep_flush(int num, int dir)
 					__func__, num,
 					dir ? "IN" : "OUT");
 				debug_ept_flush_info(num, dir);
+				_udc->skip_flush = true;
 				return 0;
 			}
 		}
@@ -446,7 +451,6 @@ static int hw_ep_flush(int num, int dir)
  */
 static int hw_ep_disable(int num, int dir)
 {
-	hw_ep_flush(num, dir);
 	hw_cwrite(CAP_ENDPTCTRL + num * sizeof(u32),
 		  dir ? ENDPTCTRL_TXE : ENDPTCTRL_RXE, 0);
 	return 0;
@@ -2116,7 +2120,6 @@ __acquires(mEp->lock)
  */
 static int _gadget_stop_activity(struct usb_gadget *gadget)
 {
-	struct usb_ep *ep;
 	struct ci13xxx    *udc = container_of(gadget, struct ci13xxx, gadget);
 	unsigned long flags;
 
@@ -2137,19 +2140,9 @@ static int _gadget_stop_activity(struct usb_gadget *gadget)
 	gadget->host_request = 0;
 	gadget->otg_srp_reqd = 0;
 
-	/* flush all endpoints */
-	gadget_for_each_ep(ep, gadget) {
-		usb_ep_fifo_flush(ep);
-	}
+	udc->driver->disconnect(gadget);
 	usb_ep_fifo_flush(&udc->ep0out.ep);
 	usb_ep_fifo_flush(&udc->ep0in.ep);
-
-	udc->driver->disconnect(gadget);
-
-	/* make sure to disable all endpoints */
-	gadget_for_each_ep(ep, gadget) {
-		usb_ep_disable(ep);
-	}
 
 	if (udc->status != NULL) {
 		usb_ep_free_request(&udc->ep0in.ep, udc->status);
@@ -2203,6 +2196,7 @@ __acquires(udc->lock)
 	if (retval)
 		goto done;
 
+	_udc->skip_flush = false;
 	retval = hw_usb_reset();
 	if (retval)
 		goto done;

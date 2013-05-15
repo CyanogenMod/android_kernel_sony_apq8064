@@ -771,6 +771,11 @@ config FB_MSM_MIPI_R63306_SHARP_LS043K3SX04
 	select FB_MSM_MIPI_DSI
 	default n
 
+config FB_MSM_MIPI_R63306_SHARP_LS046K3SX01
+	bool "SHARP LS046K3SX01 Panel"
+	select FB_MSM_MIPI_DSI
+	default n
+
 config FB_MSM_MIPI_R63311_SHARP_LS050T3SX02
 	bool "SHARP LS050T3SX02 Panel"
 	select FB_MSM_MIPI_DSI
@@ -786,6 +791,11 @@ config FB_MSM_MIPI_R63311_JDC_MDY70
 	select FB_MSM_MIPI_DSI
 	default n
 
+config FB_MSM_MIPI_R63311_JDC_MDY71
+	bool "JDC MDY71 Panel"
+	select FB_MSM_MIPI_DSI
+	default n
+
 config FB_MSM_MIPI_R63311_JDC_MDY80
 	bool "JDC MDY80 Panel"
 	select FB_MSM_MIPI_DSI
@@ -798,6 +808,11 @@ config FB_MSM_MIPI_R63311_SHARP_LS050T3SX01
 
 config FB_MSM_MIPI_NT71391_PANASONIC_VVX10F008B00
 	bool "PANASONIC VVX10F008B00 Panel"
+	select FB_MSM_MIPI_DSI
+	default n
+
+config FB_MSM_MIPI_R63306_JDC_MDZ50
+	bool "JDC MDZ50 Panel"
 	select FB_MSM_MIPI_DSI
 	default n
 
@@ -925,6 +940,10 @@ config FB_MSM_MHL_SII8334
 	default y
 	---help---
 	  Support for SiI8334 MHL Transmitter
+
+config FB_MSM_RECOVER_PANEL
+	bool "Enable Recovery"
+	default n
 
 choice
 	depends on  (FB_MSM_MDP22 || FB_MSM_MDP31 || FB_MSM_MDP40)

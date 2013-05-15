@@ -259,17 +259,6 @@ void __init apq8064_pm8xxx_gpio_mpp_init(void)
 			}
 		}
 
-	if (sony_hw_rev() <= HW_REV_YUGA_MAKI_SP1) {
-		for (i = 0; i < ARRAY_SIZE(pm8921_sp1_gpios); i++) {
-			rc = pm8xxx_gpio_config(pm8921_sp1_gpios[i].gpio,
-						&pm8921_sp1_gpios[i].config);
-			if (rc) {
-				pr_err("%s: pm8xxx_gpio_config: rc=%d\n",
-					__func__, rc);
-				break;
-			}
-		}
-	} else {
 		for (i = 0; i < ARRAY_SIZE(pm8921_sp11_gpios); i++) {
 			rc = pm8xxx_gpio_config(pm8921_sp11_gpios[i].gpio,
 						&pm8921_sp11_gpios[i].config);
@@ -279,7 +268,6 @@ void __init apq8064_pm8xxx_gpio_mpp_init(void)
 				break;
 			}
 		}
-	}
 
 	for (i = 0; i < ARRAY_SIZE(pm8xxx_mpps); i++) {
 		rc = pm8xxx_mpp_config(pm8xxx_mpps[i].mpp,
@@ -480,18 +468,20 @@ apq8064_pm8921_chg_pdata __devinitdata = {
 	.btc_override_hot_degc	= 55,
 	.btc_delay_ms		= 10000,
 	.btc_panic_if_cant_stop_chg = 1,
+	.stop_chg_upon_expiry   = 1,
+	.soc_scaling		= 1,
 };
 
 static struct pm8xxx_ccadc_platform_data
 apq8064_pm8xxx_ccadc_pdata = {
-	.r_sense		= 10,
+	.r_sense_uohm		= 10000,
 	.calib_delay_ms		= 600000,
 };
 
 static struct pm8921_bms_platform_data
 apq8064_pm8921_bms_pdata __devinitdata = {
 	.battery_data			= &pm8921_battery_data,
-	.r_sense			= 10,
+	.r_sense_uohm			= 10000,
 	.v_cutoff			= 3200,
 	.i_test				= 1000,
 	.max_voltage_uv			= MAX_VOLTAGE_MV * 1000,
@@ -499,13 +489,14 @@ apq8064_pm8921_bms_pdata __devinitdata = {
 	.shutdown_soc_valid_limit	= 20,
 	.adjust_soc_low_threshold	= 25,
 	.chg_term_ua			= CHG_TERM_MA * 1000,
+	.normal_voltage_calc_ms         = 20000,
+	.low_voltage_calc_ms            = 1000,
 	.enable_fcc_learning		= 1,
 };
 
 static struct pm8xxx_vibrator_platform_data
 apq8064_pm8xxx_vibrator_pdata __devinitdata = {
 	.initial_vibrate_ms = 0,
-	.max_timeout_ms = 15000,
 	.level_mV = 2900,
 };
 

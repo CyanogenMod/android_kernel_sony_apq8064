@@ -923,17 +923,59 @@ config MACH_SONY_FUSION3
 	help
 	  Support for the Sony Mobile Fusion3 devices.
 
+config MACH_SONY_GAGA_KDDI
+	depends on MACH_SONY_FUSION3
+	bool "Sony Mobile Gaga Kddi"
+	help
+	  Support for the Sony Mobile Gaga kddi device.
+
 config MACH_SONY_YUGA
 	depends on MACH_SONY_FUSION3
 	bool "Sony Mobile Yuga"
 	help
 	  Support for the Sony Mobile Yuga device.
 
+config MACH_SONY_YUGA_DCM
+	depends on MACH_SONY_FUSION3
+	bool "Sony Mobile Yuga DCM"
+	help
+	  Support for the Sony Mobile Yuga Docomo device.
+
 config MACH_SONY_ODIN
 	depends on MACH_SONY_FUSION3
 	bool "Sony Mobile Odin"
 	help
 	  Support for the Sony Mobile Odin device.
+
+config MACH_SONY_POLLUX
+	depends on ARCH_APQ8064
+	bool "Sony Mobile POLLUX"
+	help
+	  Support for the Sony Mobile Pollux device.
+
+config MACH_SONY_POLLUX_CDB
+	depends on ARCH_APQ8064
+	bool "Sony Mobile POLLUX CDB"
+	help
+	  Support for the Sony Mobile Pollux CDB device.
+
+config MACH_SONY_POLLUX_WINDY_CDB
+	depends on ARCH_APQ8064
+	bool "Sony Mobile Pollux Windy CDB"
+	help
+	  Support for the Sony Mobile Pollux Windy CDB device.
+
+config MACH_SONY_POLLUX_WINDY
+	depends on ARCH_APQ8064
+	bool "Sony Mobile Pollux Windy"
+	help
+	  Support for the Sony Mobile Pollux Windy device.
+
+config MACH_SONY_POLLUX_DCM
+	depends on ARCH_APQ8064
+	bool "Sony Mobile POLLUX DCM"
+	help
+	  Support for the Sony Mobile Pollux Docomo device.
 
 config MACH_FSM9XXX_SURF
 	depends on ARCH_FSM9XXX
@@ -2802,6 +2844,35 @@ config HARD_RESET_DEBOUNCE_MS
 config DISABLE_SMPL
 	bool "disable SMPL detection"
 	default n
+
+choice
+	prompt "smpl delay time [s]"
+	default SMPL_DELAY_1P0
+	depends on !DISABLE_SMPL
+
+	config SMPL_DELAY_0P5
+	  bool
+	    prompt "0.5 sec"
+
+	config SMPL_DELAY_1P0
+	  bool
+	    prompt "1.0 sec"
+
+	config SMPL_DELAY_1P5
+	  bool
+	    prompt "1.5 sec"
+
+	config SMPL_DELAY_2P0
+	  bool
+	    prompt "2.0 sec"
+endchoice
+
+config SMPL_DELAY
+	int
+	default 0 if SMPL_DELAY_0P5
+	default 1 if SMPL_DELAY_1P0
+	default 2 if SMPL_DELAY_1P5
+	default 3 if SMPL_DELAY_2P0
 endmenu
 config SONY_SSM
 	bool "Support Super Stamina Mode"
@@ -2823,5 +2894,13 @@ config MSM_CPU_PWRCTL
 	  Droop detector mechanism can adversely affect krait plls during
 	  stand alone power collapse operation. Selecting this option
 	  ensures that they are always off.
+
+config MSM_MODEM_SUBSYSTEM_RESTART_MONITOR
+	bool "MSM Modem Subsystem Restart Monitor"
+	default n
+	depends on MSM_SUBSYSTEM_RESTART
+	help
+	  This option enables a module which can notify user-space
+	  applications of modem subsystem power up/down event via uevent.
 
 endif

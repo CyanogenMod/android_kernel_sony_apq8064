@@ -2,7 +2,7 @@
  * /include/linux/leds-lm3533_ng.h
  *
  * Copyright (C) 2011 Sony Ericsson Mobile Communications AB.
- * Copyright (C) 2012 Sony Mobile Communications AB.
+ * Copyright (C) 2012-2013 Sony Mobile Communications AB.
  *
  * Author: Aleksej Makarov <aleksej.makarov@sonyericsson.com>
  *
@@ -185,6 +185,8 @@ struct lm3533_platform_data {
 	void (*teardown)(struct device *dev);
 	int (*power_on)(struct device *dev);
 	int (*power_off)(struct device *dev);
+	int (*als_on)(struct device *dev);
+	int (*als_off)(struct device *dev);
 	/* pointer to NULL-terminated array */
 	struct lm3533_startup_brightenss *startup_brightness;
 };

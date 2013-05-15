@@ -1,6 +1,6 @@
 /* include/video/mipi_dsi_panel.h
  *
- * Copyright (c) 2012 Sony Mobile Communications AB.
+ * Copyright (c) 2012-2013 Sony Mobile Communications AB.
  *
  * Author: Johan Olson <johan.olson@sonymobile.com>
  * Author: Joakim Wesslen <joakim.wesslen@sonymobile.com>
@@ -51,6 +51,25 @@ struct dsi_controller {
 	const struct panel_cmd *read_color;
 };
 
+struct dsi_nvm_rewrite_ctl {
+	const struct panel_cmd *nvm_disp_off;
+	const struct panel_cmd *nvm_mcap;
+	const struct panel_cmd *nvm_mcap_lock;
+	const struct panel_cmd *nvm_open;
+	const struct panel_cmd *nvm_close;
+	const struct panel_cmd *nvm_status;
+	const struct panel_cmd *nvm_erase;
+	const struct panel_cmd *nvm_erase_res;
+	const struct panel_cmd *nvm_read_rsp;
+	const struct panel_cmd *nvm_read_vcomdc;
+	const struct panel_cmd *nvm_read_ddb_write;
+	struct panel_cmd *nvm_write_rsp;
+	const struct panel_cmd *nvm_flash_rsp;
+	struct panel_cmd *nvm_write_user;
+	const struct panel_cmd *nvm_flash_user;
+	const struct panel_cmd *nvm_term_seq;
+};
+
 struct mipi_dsi_lane_cfg {
 	uint32_t	ln_cfg[MIPI_DSI_NUM_PHY_LN][3];
 	uint32_t	ln_dpath[MIPI_DSI_NUM_PHY_LN];
@@ -71,6 +90,7 @@ struct panel {
 	const char			*panel_id;
 	const char			*panel_rev;
 	struct dsi_controller		*pctrl;
+	struct dsi_nvm_rewrite_ctl	*pnvrw_ctl;
 	const u32			width;	/* in mm */
 	const u32			height;	/* in mm */
 	const char			*id;
@@ -92,6 +112,9 @@ struct panel_platform_data {
 /* TODO: Use get functions instead */
 extern const struct panel sharp_ls043k3sx04_panel_id_1a;
 extern const struct panel sharp_ls043k3sx04_panel_id;
+extern const struct panel sharp_ls046k3sx01_panel_tovis_id;
+extern const struct panel sharp_ls046k3sx01_panel_id_1a;
+extern const struct panel sharp_ls046k3sx01_panel_id;
 extern const struct panel sharp_ls050t3sx02_r63311_black_panel_id;
 extern const struct panel sharp_ls050t3sx02_r63311_white_panel_id;
 extern const struct panel sharp_ls050t3sx02_r63311_12624797;
@@ -106,6 +129,8 @@ extern const struct panel jdc_mdy70_panel_id_dlogo;
 extern const struct panel jdc_mdy70_panel_id_1a;
 extern const struct panel jdc_mdy70_panel_id_1a_02;
 extern const struct panel jdc_mdy70_panel_id;
+extern const struct panel jdc_mdy71_panel_id_1a;
+extern const struct panel jdc_mdy71_panel_id;
 extern const struct panel jdc_mdy80_black_panel_id;
 extern const struct panel jdc_mdy80_white_panel_id;
 extern const struct panel sharp_ls050t3sx01_panel_id_dlogo_01;
@@ -114,5 +139,9 @@ extern const struct panel sharp_ls050t3sx01_panel_id_1a;
 extern const struct panel sharp_ls050t3sx01_panel_id_1a_02;
 extern const struct panel sharp_ls050t3sx01_panel_id;
 extern const struct panel panasonic_vvx10f008b00_panel_id;
+extern const struct panel jdc_mdz50_panel_id_1a;
+extern const struct panel jdc_mdz50_panel_id_1b;
+extern const struct panel jdc_mdz50_panel_id;
+extern const struct panel jdc_mdz50_panel_id_nvm;
 
 #endif /* MIPI_DSI_PANEL_H */

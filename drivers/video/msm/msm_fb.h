@@ -1,4 +1,5 @@
 /* Copyright (c) 2008-2012, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2012-2013 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -54,6 +55,7 @@ struct disp_info_type_suspend {
 	boolean op_enable;
 	boolean sw_refreshing_enable;
 	boolean panel_power_on;
+	boolean op_suspend;
 };
 
 struct msmfb_writeback_data_list {
@@ -126,6 +128,7 @@ struct msm_fb_data_type {
 	__u32 channel_irq;
 
 	struct mdp_dma_data *dma;
+	struct device_attribute dev_attr;
 	void (*dma_fnc) (struct msm_fb_data_type *mfd);
 	int (*cursor_update) (struct fb_info *info,
 			      struct fb_cursor *cursor);
@@ -136,7 +139,8 @@ struct msm_fb_data_type {
 	int (*start_histogram) (struct mdp_histogram_start_req *req);
 	int (*stop_histogram) (struct fb_info *info, uint32_t block);
 	void (*vsync_ctrl) (int enable);
-	void (*vsync_init) (int cndx, struct msm_fb_data_type *mfd);
+	void (*vsync_init) (int cndx);
+	void *vsync_show;
 	void *cursor_buf;
 	void *cursor_buf_phys;
 
@@ -189,7 +193,7 @@ struct msm_fb_data_type {
 	u32 writeback_state;
 	bool writeback_active_cnt;
 	int cont_splash_done;
-#ifdef CONFIG_DEBUG_FS
+#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_FB_MSM_RECOVER_PANEL)
 	struct mutex power_lock;
 #endif
 	u32 acq_fen_cnt;
@@ -208,6 +212,8 @@ struct msm_fb_data_type {
 	struct work_struct commit_work;
 	void *msm_fb_backup;
 	boolean panel_driver_on;
+	int vsync_sysfs_created;
+	bool nvrw_prohibit_draw;
 };
 struct msm_fb_backup_type {
 	struct fb_info info;

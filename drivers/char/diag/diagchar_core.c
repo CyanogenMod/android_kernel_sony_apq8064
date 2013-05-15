@@ -343,7 +343,7 @@ void diag_clear_reg(int proc_num)
 }
 
 void diag_add_reg(int j, struct bindpkt_params *params,
-				  int *success, unsigned int *count_entries)
+			int *success, unsigned int *count_entries)
 {
 	*success = 1;
 	driver->table[j].cmd_code = params->cmd_code;
@@ -372,7 +372,7 @@ long diagchar_ioctl(struct file *filp,
 	unsigned int count_entries = 0, interim_count = 0;
 	void *temp_buf;
 	uint16_t support_list = 0;
-	struct dci_notification_tbl notify_params;
+	struct dci_notification_tbl *dci_params;
 
 	if (iocmd == DIAG_IOCTL_COMMAND_REG) {
 		struct bindpkt_params_per_process pkt_params;
@@ -384,13 +384,13 @@ long diagchar_ioctl(struct file *filp,
 		}
 		if ((UINT32_MAX/sizeof(struct bindpkt_params)) <
 							 pkt_params.count) {
-			pr_alert("diag: integer overflow while multiply\n");
+			pr_warning("diag: integer overflow while multiply\n");
 			return -EFAULT;
 		}
 		params = kzalloc(pkt_params.count*sizeof(
 			struct bindpkt_params), GFP_KERNEL);
 		if (!params) {
-			pr_alert("diag: unable to alloc memory\n");
+			pr_err("diag: unable to alloc memory\n");
 			return -ENOMEM;
 		} else
 			head_params = params;
@@ -403,8 +403,8 @@ long diagchar_ioctl(struct file *filp,
 		mutex_lock(&driver->diagchar_mutex);
 		for (i = 0; i < diag_max_reg; i++) {
 			if (driver->table[i].process_id == 0) {
-				diag_add_reg(i, params, &success,
-							 &count_entries);
+				diag_add_reg(i, params,
+					     &success, &count_entries);
 				if (pkt_params.count > count_entries) {
 					params++;
 				} else {
@@ -420,7 +420,7 @@ long diagchar_ioctl(struct file *filp,
 				interim_count = pkt_params.count -
 							 count_entries;
 			} else {
-				pr_alert("diag: error in params count\n");
+				pr_warning("diag: error in params count\n");
 				kfree(head_params);
 				mutex_unlock(&driver->diagchar_mutex);
 				return -EFAULT;
@@ -429,7 +429,7 @@ long diagchar_ioctl(struct file *filp,
 							interim_count) {
 				diag_max_reg += interim_count;
 			} else {
-				pr_alert("diag: Integer overflow\n");
+				pr_warning("diag: Integer overflow\n");
 				kfree(head_params);
 				mutex_unlock(&driver->diagchar_mutex);
 				return -EFAULT;
@@ -441,7 +441,7 @@ long diagchar_ioctl(struct file *filp,
 			}
 			if (UINT32_MAX/sizeof(struct diag_master_table) <
 								 diag_max_reg) {
-				pr_alert("diag: integer overflow\n");
+				pr_warning("diag: integer overflow\n");
 				kfree(head_params);
 				mutex_unlock(&driver->diagchar_mutex);
 				return -EFAULT;
@@ -457,7 +457,7 @@ long diagchar_ioctl(struct file *filp,
 					interim_count = pkt_params.count -
 								 count_entries;
 				} else {
-					pr_alert("diag: params count error\n");
+					pr_warning("diag: params count error\n");
 					mutex_unlock(&driver->diagchar_mutex);
 					kfree(head_params);
 					return -EFAULT;
@@ -465,7 +465,7 @@ long diagchar_ioctl(struct file *filp,
 				if (diag_max_reg >= interim_count) {
 					diag_max_reg -= interim_count;
 				} else {
-					pr_alert("diag: Integer underflow\n");
+					pr_warning("diag: Integer underflow\n");
 					mutex_unlock(&driver->diagchar_mutex);
 					kfree(head_params);
 					return -EFAULT;
@@ -476,8 +476,8 @@ long diagchar_ioctl(struct file *filp,
 				driver->table = temp_buf;
 			}
 			for (j = i; j < diag_max_reg; j++) {
-				diag_add_reg(j, params, &success,
-							 &count_entries);
+				diag_add_reg(j, params,
+						&success, &count_entries);
 				if (pkt_params.count > count_entries) {
 					params++;
 				} else {
@@ -521,8 +521,14 @@ long diagchar_ioctl(struct file *filp,
 			return DIAG_DCI_NO_REG;
 		if (driver->num_dci_client >= MAX_DCI_CLIENT)
 			return DIAG_DCI_NO_REG;
-		if (copy_from_user(&notify_params, (void *)ioarg,
-				    sizeof(struct dci_notification_tbl)))
+		dci_params = kzalloc(sizeof(struct dci_notification_tbl),
+								 GFP_KERNEL);
+		if (dci_params == NULL) {
+			pr_err("diag: unable to alloc memory\n");
+			return -ENOMEM;
+		}
+		if (copy_from_user(dci_params, (void *)ioarg,
+				 sizeof(struct dci_notification_tbl)))
 			return -EFAULT;
 		mutex_lock(&driver->dci_mutex);
 		driver->num_dci_client++;
@@ -532,13 +538,14 @@ long diagchar_ioctl(struct file *filp,
 			if (driver->dci_notify_tbl[i].client == NULL) {
 				driver->dci_notify_tbl[i].client = current;
 				driver->dci_notify_tbl[i].list =
-							 notify_params.list;
+							 dci_params->list;
 				driver->dci_notify_tbl[i].signal_type =
-					 notify_params.signal_type;
+					 dci_params->signal_type;
 				break;
 			}
 		}
 		mutex_unlock(&driver->dci_mutex);
+		kfree(dci_params);
 		return driver->dci_client_id;
 	} else if (iocmd == DIAG_IOCTL_DCI_DEINIT) {
 		success = -1;
@@ -572,9 +579,7 @@ long diagchar_ioctl(struct file *filp,
 	} else if (iocmd == DIAG_IOCTL_DCI_SUPPORT) {
 		if (driver->ch_dci)
 			support_list = support_list | DIAG_CON_MPSS;
-		if (copy_to_user((void *)ioarg, &support_list,
-							 sizeof(uint16_t)))
-			return -EFAULT;
+		*(uint16_t *)ioarg = support_list;
 		return DIAG_DCI_NO_ERROR;
 	} else if (iocmd == DIAG_IOCTL_LSM_DEINIT) {
 		for (i = 0; i < driver->num_clients; i++)
@@ -1035,7 +1040,7 @@ static int diagchar_write(struct file *file, const char __user *buf,
 	struct diag_send_desc_type send = { NULL, NULL, DIAG_STATE_START, 0 };
 	struct diag_hdlc_dest_type enc = { NULL, NULL, 0 };
 	void *buf_copy = NULL;
-	int payload_size;
+	unsigned int payload_size;
 #ifdef CONFIG_DIAG_OVER_USB
 	if (((driver->logging_mode == USB_MODE) && (!driver->usb_connected)) ||
 				(driver->logging_mode == NO_LOGGING_MODE)) {
@@ -1046,6 +1051,10 @@ static int diagchar_write(struct file *file, const char __user *buf,
 	/* Get the packet type F3/log/event/Pkt response */
 	err = copy_from_user((&pkt_type), buf, 4);
 	/* First 4 bytes indicate the type of payload - ignore these */
+	if (count < 4) {
+		pr_err("diag: Client sending short data\n");
+		return -EBADMSG;
+	}
 	payload_size = count - 4;
 	if (payload_size > USER_SPACE_DATA) {
 		pr_err("diag: Dropping packet, packet payload size crosses 8KB limit. Current payload size %d\n",
@@ -1053,6 +1062,7 @@ static int diagchar_write(struct file *file, const char __user *buf,
 		driver->dropped_count++;
 		return -EBADMSG;
 	}
+
 	if (pkt_type == DCI_DATA_TYPE) {
 		err = copy_from_user(driver->user_space_data, buf + 4,
 							 payload_size);
