@@ -1,4 +1,24 @@
 /*
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
  * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
@@ -99,12 +119,11 @@ WDI_Status WDI_STATableInit
 
     if (NULL == pWDICtx->staTable)
     {
+            
         WDI_STATableClose(pWDICtx);
 
-#ifdef WLAN_DEBUG
         WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "Error allocating memory on WDI_STATableInit"); 
-#endif
         return WDI_STATUS_E_FAILURE;
     }
     
@@ -229,11 +248,9 @@ WDI_STATableAddSta
     if (( pwdiParam->ucSTAIdx  == WDI_STA_INVALID_IDX) ||
         ( pwdiParam->ucSTAIdx >= pWDICtx->ucMaxStations ))
     {
-#ifdef WLAN_DEBUG
       WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
                 "Station id sent by HAL is invalid - not OK"); 
       WDI_ASSERT(0); 
-#endif
       return WDI_STATUS_E_FAILURE; 
     }
     
@@ -278,11 +295,9 @@ WDI_STATableAddSta
                                                      ucSTAIdx, 
                                                      pwdiParam->staMacAddr))
     {
-#ifdef WLAN_DEBUG
        WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
                  "Failed to update station entry - internal failure");
        WDI_ASSERT(0);
-#endif
        return WDI_STATUS_E_FAILURE; 
     }
 
@@ -291,11 +306,9 @@ WDI_STATableAddSta
                                                      ucSTAIdx, 
                                                      pwdiParam->macBSSID))
     {
-#ifdef WLAN_DEBUG
        WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
                  "Failed to update station entry - internal failure");
        WDI_ASSERT(0);
-#endif
        return WDI_STATUS_E_FAILURE; 
     }
 
@@ -330,11 +343,9 @@ WDI_STATableDelSta
     if(( ucSTAIdx  == WDI_STA_INVALID_IDX )||
         ( ucSTAIdx >= pWDICtx->ucMaxStations ))
     {
-#ifdef WLAN_DEBUG
        WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
                  "STA Id invalid on Del STA - internal failure");
        WDI_ASSERT(0);
-#endif
        return WDI_STATUS_E_FAILURE; 
     }
     
