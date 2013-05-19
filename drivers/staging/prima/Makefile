@@ -1,48 +1,6 @@
-# We can build either as part of a standalone Kernel build or part
-# of an Android build.  Determine which mechanism is being used
-ifeq ($(MODNAME),)
-	KERNEL_BUILD := 1
-else
-	KERNEL_BUILD := 0
-endif
-
-ifeq ($(KERNEL_BUILD),1)
-	# These are provided in Android-based builds
-	# Need to explicitly define for Kernel-based builds
-	MODNAME := wlan
-	WLAN_ROOT := drivers/staging/prima
-endif
-
-ifeq ($(KERNEL_BUILD),0)
-	# These are configurable via Kconfig for kernel-based builds
-	# Need to explicitly configure for Android-based builds
-
-	#Flag to enable BlueTooth AMP feature
-	CONFIG_PRIMA_WLAN_BTAMP := n
-
-	#Flag to enable Legacy Fast Roaming(LFR)
-	CONFIG_PRIMA_WLAN_LFR := y
-
-	#JB kernel has PMKSA patches, hence enabling this flag
-	CONFIG_PRIMA_WLAN_OKC := y
-
-	# JB kernel has CPU enablement patches, so enable
-	CONFIG_PRIMA_WLAN_11AC_HIGH_TP := y
-
-	#Flag to enable TDLS feature
-	CONFIG_QCOM_TDLS := y
-
-	#Flag to enable Fast Transition (11r) feature
-	ifeq ($(CONFIG_PRONTO_WLAN), m)
-	CONFIG_QCOM_VOWIFI_11R := y
-	endif
-
-	#Flag to enable Protected Managment Frames (11w) feature
-	ifneq ($(CONFIG_PRONTO_WLAN),)
-	CONFIG_WLAN_FEATURE_11W := y
-	endif
-
-endif
+KERNEL_BUILD := 1
+MODNAME := wlan
+WLAN_ROOT := drivers/staging/prima
 
 # Feature flags which are not (currently) configurable via Kconfig
 
@@ -597,22 +555,22 @@ ifeq ($(CONFIG_WLAN_FEATURE_11W),y)
 CDEFINES += -DWLAN_FEATURE_11W
 endif
 
-ifneq (, $(filter msm8960, $(BOARD_PLATFORM)))
+ifeq ($(CONFIG_ARCH_MSM8960),y)
 EXTRA_CFLAGS += -march=armv7-a
 CDEFINES += -DMSM_PLATFORM_8960
 endif
 
-ifneq (, $(filter msm8660, $(BOARD_PLATFORM)))
+ifeq ($(CONFIG_ARCH_MSM8X60),y)
 EXTRA_CFLAGS += -march=armv7-a
 CDEFINES += -DMSM_PLATFORM_8660
 endif
 
-ifneq (, $(filter msm7630_surf msm7630_fusion, $(BOARD_PLATFORM)))
+ifeq ($(CONFIG_MACH_MSM7X30_SURF),y)
 EXTRA_CFLAGS += -march=armv7-a
 CDEFINES += -DMSM_PLATFORM_7x30
 endif
 
-ifneq (, $(filter msm7627_surf, $(BOARD_PLATFORM)))
+ifeq ($(CONFIG_MACH_MSM7X27_SURF),y)
 EXTRA_CFLAGS += -march=armv6
 CDEFINES += -DMSM_PLATFORM_7x27
 endif
@@ -625,13 +583,7 @@ ifeq ($(RE_ENABLE_WIFI_ON_WDI_TIMEOUT),1)
 CDEFINES += -DWDI_RE_ENABLE_WIFI_ON_WDI_TIMEOUT
 endif
 
-ifeq ($(KERNEL_BUILD),1)
 CDEFINES += -DWLAN_OPEN_SOURCE
-endif
-
-ifeq ($(findstring opensource, $(WLAN_ROOT)), opensource)
-CDEFINES += -DWLAN_OPEN_SOURCE
-endif
 
 # Fix build for GCC 4.7
 EXTRA_CFLAGS += -Wno-maybe-uninitialized -Wno-unused-function
