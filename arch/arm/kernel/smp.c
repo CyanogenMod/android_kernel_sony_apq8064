@@ -581,6 +581,8 @@ static void ipi_cpu_stop(unsigned int cpu)
 					smp_processor_id());
 #endif
 
+	flush_cache_all();
+
 	while (1)
 		cpu_relax();
 }
