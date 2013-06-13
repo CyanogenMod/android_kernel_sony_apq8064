@@ -1,5 +1,4 @@
 /* Copyright (c) 2009-2013, The Linux Foundation. All rights reserved.
- * Copyright (C) 2013 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1380,7 +1379,7 @@ do_rotate_unlock_mutex:
 	return rc;
 }
 
-static u32 msm_rotator_set_perf_level(u32 wh, u32 is_rgb)
+static void msm_rotator_set_perf_level(u32 wh, u32 is_rgb)
 {
 	u32 perf_level;
 
@@ -1398,7 +1397,6 @@ static u32 msm_rotator_set_perf_level(u32 wh, u32 is_rgb)
 		perf_level);
 #endif
 
-	return perf_level;
 }
 
 static int rot_enable_iommu_clocks(struct msm_rotator_dev *rot_dev)
@@ -1493,7 +1491,6 @@ static int msm_rotator_start(unsigned long arg,
 	unsigned int dst_w, dst_h;
 	unsigned int is_planar420 = 0;
 	int fast_yuv_en = 0;
-	u32 perf_level;
 
 	if (copy_from_user(&info, (void __user *)arg, sizeof(info)))
 		return -EFAULT;
@@ -1597,18 +1594,7 @@ static int msm_rotator_start(unsigned long arg,
 
 	mutex_lock(&msm_rotator_dev->rotator_lock);
 
-	perf_level = msm_rotator_set_perf_level(
-				(info.src.width*info.src.height), is_rgb);
-	dev_info(msm_rotator_dev->device,
-		 "scale: %i, rot: %i, src: %ix%i, dst: %ix%i, s_dst: %ix%i, " \
-		 "sfmt: %i, dfmt: %i => fyuv: %i, pl: %u\n",
-		 info.downscale_ratio, info.rotations,
-		 info.src.width, info.src.height,
-		 info.dst.width, info.dst.height,
-		 dst_w, dst_h,
-		 info.src.format,
-		 info.dst.format,
-		 fast_yuv_en, perf_level);
+	msm_rotator_set_perf_level((info.src.width*info.src.height), is_rgb);
 
 	for (s = 0; s < MAX_SESSIONS; s++) {
 		if ((msm_rotator_dev->rot_session[s] != NULL) &&
