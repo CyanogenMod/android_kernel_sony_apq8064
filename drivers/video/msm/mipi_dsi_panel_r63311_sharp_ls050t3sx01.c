@@ -1,6 +1,6 @@
 /* drivers/video/msm/mipi_dsi_panel_r63311_sharp_ls050t3sx01.c
  *
- * Copyright (C) 2012 Sony Mobile Communications AB.
+ * Copyright (C) 2012-2013 Sony Mobile Communications AB.
  *
  * Author: Yutaka Seijyou <Yutaka.X.Seijyou@sonymobile.com>
  *
@@ -19,6 +19,34 @@
 static char mcap[] = {
 	0xB0, 0x00
 };
+
+static char mcap_protect_off[] = {
+	0xB0, 0x04
+};
+
+static char nop[] = {
+	0x00, 0x00
+};
+
+static char gamma_setting_r[] = {
+	0xC7, 0x0F, 0x13, 0x17, 0x1D, 0x28, 0x3C, 0x2A,
+	0x42, 0x4F, 0x5D, 0x6C, 0x75, 0x0F, 0x14, 0x18,
+	0x1E, 0x2A, 0x3E, 0x2D, 0x46, 0x54, 0x62, 0x70,
+	0x78
+};
+static char gamma_setting_g[] = {
+	0xC8, 0x20, 0x23, 0x26, 0x2B, 0x32, 0x43, 0x2D,
+	0x42, 0x4F, 0x5D, 0x6C, 0x75, 0x22, 0x25, 0x28,
+	0x2D, 0x34, 0x46, 0x30, 0x46, 0x54, 0x62, 0x70,
+	0x78
+};
+static char gamma_setting_b[] = {
+	0xC9, 0x1A, 0x22, 0x27, 0x2D, 0x36, 0x45, 0x2E,
+	0x43, 0x52, 0x62, 0x6F, 0x75, 0x1B, 0x23, 0x28,
+	0x2F, 0x38, 0x48, 0x32, 0x47, 0x57, 0x66, 0x73,
+	0x78
+};
+
 static char exit_sleep[] = {
 	0x11
 };
@@ -52,6 +80,16 @@ static struct dsi_cmd_desc display_init_cmd_seq[] = {
 };
 
 static struct dsi_cmd_desc display_on_cmd_seq[] = {
+	{DTYPE_GEN_WRITE2, 1, 0, 0, 0,
+		sizeof(mcap_protect_off), mcap_protect_off},
+	{DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(nop), nop},
+	{DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(nop), nop},
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0,
+		sizeof(gamma_setting_r), gamma_setting_r},
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0,
+		sizeof(gamma_setting_g), gamma_setting_g},
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0,
+		sizeof(gamma_setting_b), gamma_setting_b},
 	{DTYPE_DCS_WRITE, 1, 0, 0, 0,
 		sizeof(display_on), display_on},
 };
