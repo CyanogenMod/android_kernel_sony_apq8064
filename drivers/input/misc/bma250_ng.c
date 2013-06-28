@@ -818,7 +818,7 @@ static void bma250_create_dbfs_entry(struct driver_data *dd)
 	}
 
 	dd->dbfs_regs = debugfs_create_file("registers",
-					   S_IRUGO | S_IWUGO,
+					   S_IRUSR | S_IWUSR,
 					   dd->dbfs_root, dd,
 					   &dbfs_fops);
 	if (dd->dbfs_regs <= (struct dentry *)NULL) {

@@ -1,5 +1,5 @@
 /* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
- * Copyright (C) 2012 Sony Mobile Communications AB.
+ * Copyright (C) 2012-2013 Sony Mobile Communications AB.
  * Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1020,11 +1020,24 @@ static irqreturn_t hdmi_msm_isr(int irq, void *dev_id)
 	hpd_int_ctrl = HDMI_INP_ND(0x0254);
 	if ((hpd_int_ctrl & (1 << 2)) && (hpd_int_status & (1 << 0))) {
 		/*
-		 * Got HPD interrupt. Ack the interrupt and disable any
-		 * further HPD interrupts until we process this interrupt.
+		 * Got HPD interrupt.
 		 */
-		HDMI_OUTP(0x0254, ((hpd_int_ctrl | (BIT(0))) & ~BIT(2)));
 
+		if ((hpd_int_ctrl & (1 << 1))) {
+			/*
+			 *  Ack the interrupt and enable HPD interrupts
+			 *  to make sure to get disconnect interrupt
+			 */
+			HDMI_OUTP(0x0254,
+					((hpd_int_ctrl | BIT(0)) & ~BIT(1)));
+		} else {
+			/*
+			 *  Ack the interrupt and disable any HPD interrupts
+			 *  until we process this interrupt.
+			 */
+			HDMI_OUTP(0x0254,
+					((hpd_int_ctrl | BIT(0)) & ~BIT(2)));
+		}
 		external_common_state->hpd_state =
 			(HDMI_INP(0x0250) & BIT(1)) >> 1;
 		DEV_DBG("%s: Queuing work to handle HPD %s event\n", __func__,

@@ -406,6 +406,9 @@ void diag_debugfs_init(void)
 		&diag_dbgfs_bridge_ops);
 #endif
 
+	debugfs_create_file("mask_check", 0664, diag_dbgfs_dent, 0,
+		&diag_dbgfs_mask_check_ops);
+
 	diag_dbgfs_table_index = 0;
 	diag_dbgfs_finished = 0;
 }

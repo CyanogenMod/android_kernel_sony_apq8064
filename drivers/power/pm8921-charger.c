@@ -483,11 +483,10 @@ static int repeat_count;
 module_param(repeat_count, int, 0644);
 
 static struct pm8921_chg_chip *the_chip;
-
 static void check_temp_thresholds(struct pm8921_chg_chip *chip);
+
 static int get_batttemp_irq(struct pm8921_chg_chip *chip,
 				enum pmic_chg_interrupts irq);
-static int btc_override_worker_helper(struct pm8921_chg_chip *chip);
 static void set_appropriate_vbatdet(struct pm8921_chg_chip *chip);
 static void update_soc_scalers(struct pm8921_chg_chip *chip);
 
@@ -3034,10 +3033,10 @@ static void vin_collapse_check_worker(struct work_struct *work)
 		__pm8921_charger_vbus_draw(USB_WALL_THRESHOLD_MA);
 		pr_debug("usb_now=%d, usb_target = %d\n",
 				USB_WALL_THRESHOLD_MA, usb_target_ma);
-
-		schedule_delayed_work(&chip->unplug_check_work,
-			      round_jiffies_relative(msecs_to_jiffies
-					(UNPLUG_CHECK_WAIT_PERIOD_MS)));
+		if (!delayed_work_pending(&chip->unplug_check_work))
+			schedule_delayed_work(&chip->unplug_check_work,
+				      msecs_to_jiffies
+						(UNPLUG_CHECK_WAIT_PERIOD_MS));
 	} else {
 		handle_usb_insertion_removal(chip);
 	}
@@ -3911,14 +3910,19 @@ static void update_heartbeat(struct work_struct *work)
 				struct pm8921_chg_chip, update_heartbeat_work);
 	bool chg_present = chip->usb_present || chip->dc_present;
 
-	/* Need to monitor battery health for COLD and HOT */
+	/* for battery health when charger is not connected */
 	if (chip->btc_override && !chg_present)
-		btc_override_worker_helper(chip);
+		schedule_delayed_work(&chip->btc_override_work,
+			round_jiffies_relative(msecs_to_jiffies
+					(chip->btc_delay_ms)));
 
-	/* At fully charged condition temperature can change that could
-	 * give a change on the recharge condition.
+	/*
+	 * check temp thresholds when charger is present and
+	 * and battery is FULL. The temperature here can impact
+	 * the charging restart conditions.
 	 */
-	if (chg_present && !wake_lock_active(&chip->eoc_wake_lock))
+	if (chip->btc_override && chg_present &&
+				!wake_lock_active(&chip->eoc_wake_lock))
 		check_temp_thresholds(chip);
 
 	power_supply_changed(&chip->batt_psy);
@@ -4340,17 +4344,23 @@ static int get_batttemp_irq(struct pm8921_chg_chip *chip,
 	return temp;
 }
 
-static int btc_override_worker_helper(struct pm8921_chg_chip *chip)
+static void btc_override_worker(struct work_struct *work)
 {
 	int decidegc;
 	int temp;
 	int rc = 0;
-	int rc_fail = 0;
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct pm8921_chg_chip *chip = container_of(dwork,
+				struct pm8921_chg_chip, btc_override_work);
+
+	if (!chip->btc_override) {
+		pr_err("called when not enabled\n");
+		return;
+	}
 
 	rc = get_prop_batt_temp(chip, &decidegc);
 	if (rc) {
 		pr_info("Failed to read temperature\n");
-		rc_fail = rc;
 		goto fail_btc_temp;
 	}
 
@@ -4388,7 +4398,13 @@ static int btc_override_worker_helper(struct pm8921_chg_chip *chip)
 				panic("Couldnt override comps to stop chg\n");
 	}
 
-	return 0;
+	if ((is_dc_chg_plugged_in(the_chip) || is_usb_chg_plugged_in(the_chip))
+		&& get_prop_batt_status(chip) != POWER_SUPPLY_STATUS_FULL) {
+		schedule_delayed_work(&chip->btc_override_work,
+					round_jiffies_relative(msecs_to_jiffies
+						(chip->btc_delay_ms)));
+		return;
+	}
 
 fail_btc_temp:
 	rc = pm_chg_override_hot(chip, 0);
@@ -4397,31 +4413,6 @@ fail_btc_temp:
 	rc = pm_chg_override_cold(chip, 0);
 	if (rc)
 		pr_err("Couldnt write 0 to cold comp\n");
-
-	return rc_fail;
-}
-
-static void btc_override_worker(struct work_struct *work)
-{
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct pm8921_chg_chip *chip = container_of(dwork,
-				struct pm8921_chg_chip, btc_override_work);
-
-	if (!chip->btc_override) {
-		pr_err("called when not enabled\n");
-		return;
-	}
-
-	if (btc_override_worker_helper(chip) < 0)
-		return;
-
-	if ((is_dc_chg_plugged_in(the_chip) || is_usb_chg_plugged_in(the_chip))
-		&& get_prop_batt_status(chip) != POWER_SUPPLY_STATUS_FULL) {
-		schedule_delayed_work(&chip->btc_override_work,
-					round_jiffies_relative(msecs_to_jiffies
-						(chip->btc_delay_ms)));
-		return;
-	}
 }
 
 /**
@@ -4639,6 +4630,11 @@ static void __devinit determine_initial_state(struct pm8921_chg_chip *chip)
 		schedule_delayed_work(&chip->unplug_check_work,
 			msecs_to_jiffies(UNPLUG_CHECK_WAIT_PERIOD_MS));
 		pm8921_chg_enable_irq(chip, CHG_GONE_IRQ);
+
+		if (chip->btc_override)
+			schedule_delayed_work(&chip->btc_override_work,
+					round_jiffies_relative(msecs_to_jiffies
+						(chip->btc_delay_ms)));
 	}
 
 	pm8921_chg_enable_irq(chip, DCIN_VALID_IRQ);

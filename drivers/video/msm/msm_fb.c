@@ -1037,10 +1037,6 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 #if defined(CONFIG_DEBUG_FS) || defined(CONFIG_FB_MSM_RECOVER_PANEL)
 			mutex_lock(&mfd->power_lock);
 #endif
-			mfd->op_enable = FALSE;
-			curr_pwr_state = mfd->panel_power_on;
-			mfd->panel_power_on = FALSE;
-
 			if (mfd->msmfb_no_update_notify_timer.function)
 				del_timer(&mfd->msmfb_no_update_notify_timer);
 			complete(&mfd->msmfb_no_update_notify);
@@ -1048,9 +1044,14 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 			bl_updated = 0;
 
 			/* clean fb to prevent displaying old fb */
-			if (info->screen_base)
+			if (info->screen_base) {
 				memset((void *)info->screen_base, 0,
 				       info->fix.smem_len);
+				msm_fb_pan_display(&info->var, info);
+			}
+			mfd->op_enable = FALSE;
+			curr_pwr_state = mfd->panel_power_on;
+			mfd->panel_power_on = FALSE;
 
 			ret = pdata->off(mfd->pdev);
 			if (ret)
