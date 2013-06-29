@@ -86,7 +86,8 @@ int msm_isp_vfe_msg_to_img_mode(struct msm_cam_media_controller *pmctl,
 {
 	int image_mode;
 	uint32_t vfe_output_mode = pmctl->vfe_output_mode;
-	vfe_output_mode &= ~(VFE_OUTPUTS_RDI0|VFE_OUTPUTS_RDI1);
+	vfe_output_mode &= ~(VFE_OUTPUTS_RDI0|
+		VFE_OUTPUTS_RDI1|VFE_OUTPUTS_RDI2);
 	if (vfe_msg == VFE_MSG_OUTPUT_PRIMARY) {
 		switch (vfe_output_mode) {
 		case VFE_OUTPUTS_MAIN_AND_PREVIEW:
@@ -146,6 +147,11 @@ int msm_isp_vfe_msg_to_img_mode(struct msm_cam_media_controller *pmctl,
 	} else if (vfe_msg == VFE_MSG_OUTPUT_TERTIARY2) {
 		if (pmctl->vfe_output_mode & VFE_OUTPUTS_RDI1)
 			image_mode = MSM_V4L2_EXT_CAPTURE_MODE_RDI1;
+		else
+			image_mode = -1;
+	} else if (vfe_msg == VFE_MSG_OUTPUT_TERTIARY3) {
+		if (pmctl->vfe_output_mode & VFE_OUTPUTS_RDI2)
+			image_mode = MSM_V4L2_EXT_CAPTURE_MODE_RDI2;
 		else
 			image_mode = -1;
 	} else
@@ -350,7 +356,9 @@ static int msm_isp_notify_vfe(struct msm_cam_media_controller *pmctl,
 			case MSG_ID_OUTPUT_TERTIARY2:
 				msgid = VFE_MSG_OUTPUT_TERTIARY2;
 				break;
-
+			case MSG_ID_OUTPUT_TERTIARY3:
+				msgid = VFE_MSG_OUTPUT_TERTIARY3;
+				break;
 			default:
 				pr_err("%s: Invalid VFE output id: %d\n",
 					   __func__, isp_output->output_id);
@@ -381,18 +389,14 @@ static int msm_isp_notify_vfe(struct msm_cam_media_controller *pmctl,
 		struct msm_stats_buf *stats_buf = NULL;
 
 		isp_event->isp_data.isp_msg.msg_id = MSG_ID_STATS_COMPOSITE;
-		stats->aec.buff = msm_pmem_stats_ptov_lookup(pmctl,
-					stats->aec.buff, &(stats->aec.fd));
-		stats->awb.buff = msm_pmem_stats_ptov_lookup(pmctl,
-					stats->awb.buff, &(stats->awb.fd));
-		stats->af.buff = msm_pmem_stats_ptov_lookup(pmctl,
-					stats->af.buff, &(stats->af.fd));
-		stats->ihist.buff = msm_pmem_stats_ptov_lookup(pmctl,
-					stats->ihist.buff, &(stats->ihist.fd));
-		stats->rs.buff = msm_pmem_stats_ptov_lookup(pmctl,
-					stats->rs.buff, &(stats->rs.fd));
-		stats->cs.buff = msm_pmem_stats_ptov_lookup(pmctl,
-					stats->cs.buff, &(stats->cs.fd));
+		CDBG("%s: aec (%d, %x) awb (%d, %x) af (%d, %x) ", __func__,
+			stats->aec.fd, (uint32_t)stats->aec.buff,
+			stats->awb.fd, (uint32_t)stats->awb.buff,
+			stats->af.fd, (uint32_t)stats->af.buff);
+		CDBG("%s: rs (%d, %x) cs(%d, %x) ihist(%d, %x)", __func__,
+			stats->rs.fd, (uint32_t)stats->rs.buff,
+			stats->cs.fd, (uint32_t)stats->cs.buff,
+			stats->ihist.fd, (uint32_t)stats->ihist.buff);
 
 		stats_buf = kmalloc(sizeof(struct msm_stats_buf), GFP_ATOMIC);
 		if (!stats_buf) {
@@ -557,6 +561,7 @@ static int msm_axi_config(struct v4l2_subdev *sd,
 	case CMD_AXI_STOP:
 	case CMD_AXI_CFG_TERT1:
 	case CMD_AXI_CFG_TERT2:
+	case CMD_AXI_CFG_TERT3:
 		/* Dont need to pass buffer information.
 		 * subdev will get the buffer from media
 		 * controller free queue.

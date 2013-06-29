@@ -1,5 +1,5 @@
-/* Copyright (c) 2009-2012, The Linux Foundation. All rights reserved.
- * Copyright (c) 2012 Sony Mobile Communications AB.
+/* Copyright (c) 2009-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -238,6 +238,26 @@
 #define MSM_CAM_IOCTL_AXI_RELEASE \
 	_IO(MSM_CAM_IOCTL_MAGIC, 67)
 
+#define MSM_CAM_IOCTL_V4L2_EVT_NATIVE_CMD \
+	_IOWR(MSM_CAM_IOCTL_MAGIC, 68, struct msm_camera_v4l2_ioctl_t)
+
+#define MSM_CAM_IOCTL_V4L2_EVT_NATIVE_FRONT_CMD \
+	_IOWR(MSM_CAM_IOCTL_MAGIC, 69, struct msm_camera_v4l2_ioctl_t)
+
+#define MSM_CAM_IOCTL_AXI_LOW_POWER_MODE \
+	_IOWR(MSM_CAM_IOCTL_MAGIC, 70, uint8_t *)
+
+#define MSM_CAM_IOCTL_INTF_MCTL_MAPPING_CFG \
+	_IOR(MSM_CAM_IOCTL_MAGIC, 71, struct intf_mctl_mapping_cfg *)
+
+struct ioctl_native_cmd {
+	unsigned short mode;
+	unsigned short address;
+	unsigned short value_1;
+	unsigned short value_2;
+	unsigned short value_3;
+};
+
 struct v4l2_event_and_payload {
 	struct v4l2_event evt;
 	uint32_t payload_length;
@@ -289,12 +309,12 @@ struct msm_mctl_post_proc_cmd {
 
 #define MSM_MAX_CAMERA_CONFIGS 2
 
-#define PP_SNAP  0x01
-#define PP_RAW_SNAP ((0x01)<<1)
-#define PP_PREV  ((0x01)<<2)
-#define PP_THUMB ((0x01)<<3)
-#define PP_RDI_PREV ((0x01)<<4)
-#define PP_MASK		(PP_SNAP|PP_RAW_SNAP|PP_PREV|PP_THUMB|PP_RDI_PREV)
+#define PP_SNAP  BIT(0)
+#define PP_RAW_SNAP BIT(1)
+#define PP_PREV  BIT(2)
+#define PP_THUMB BIT(3)
+#define PP_RDI   BIT(4)
+#define PP_MASK		(PP_SNAP|PP_RAW_SNAP|PP_PREV|PP_THUMB)
 
 #define MSM_CAM_CTRL_CMD_DONE  0
 #define MSM_CAM_SENSOR_VFE_CMD 1
@@ -488,11 +508,11 @@ struct msm_camera_cfg_cmd {
 #define CMD_STATS_AF_ENABLE		13
 #define CMD_STATS_AEC_ENABLE		14
 #define CMD_STATS_AWB_ENABLE		15
-#define CMD_STATS_ENABLE  		16
+#define CMD_STATS_ENABLE		16
 
 #define CMD_STATS_AXI_CFG		17
 #define CMD_STATS_AEC_AXI_CFG		18
-#define CMD_STATS_AF_AXI_CFG 		19
+#define CMD_STATS_AF_AXI_CFG		19
 #define CMD_STATS_AWB_AXI_CFG		20
 #define CMD_STATS_RS_AXI_CFG		21
 #define CMD_STATS_CS_AXI_CFG		22
@@ -545,6 +565,7 @@ struct msm_camera_cfg_cmd {
 #define CMD_AXI_CFG_SEC_ALL_CHNLS      BIT(11)
 #define CMD_AXI_CFG_TERT1              BIT(12)
 #define CMD_AXI_CFG_TERT2              BIT(13)
+#define CMD_AXI_CFG_TERT3              BIT(14)
 
 #define CMD_AXI_START  0xE1
 #define CMD_AXI_STOP   0xE2
@@ -698,8 +719,7 @@ struct outputCfg {
 #define OUTPUT_SEC_ALL_CHNLS     BIT(11)
 #define OUTPUT_TERT1             BIT(12)
 #define OUTPUT_TERT2             BIT(13)
-
-
+#define OUTPUT_TERT3             BIT(14)
 
 #define MSM_FRAME_PREV_1	0
 #define MSM_FRAME_PREV_2	1
@@ -720,6 +740,7 @@ struct outputCfg {
 #define OUTPUT_TYPE_SAWB   BIT(12)
 #define OUTPUT_TYPE_IHST   BIT(13)
 #define OUTPUT_TYPE_CSTA   BIT(14)
+#define OUTPUT_TYPE_R2   BIT(15)
 
 struct fd_roi_info {
 	void *info;
@@ -995,13 +1016,16 @@ struct msm_snapshot_pp_status {
 #define CFG_CONFIG_VREG_ARRAY         52
 #define CFG_CONFIG_CLK_ARRAY          53
 #define CFG_GPIO_OP                   54
+#define CFG_SET_VISION_MODE           55
+#define CFG_SET_VISION_AE             56
+#define CFG_HDR_UPDATE                57
 /* extension begin */
-#define CFG_SET_GPIO_CTRL		55
-#define CFG_SET_WRITE_CMD		56
-#define CFG_SET_READ_CMD		57
-#define CFG_GET_ROM			58
+#define CFG_SET_GPIO_CTRL             58
+#define CFG_SET_WRITE_CMD             59
+#define CFG_SET_READ_CMD              60
+#define CFG_GET_ROM                   61
 /* extension end */
-#define CFG_MAX                       59
+#define CFG_MAX                       62
 
 
 #define MOVE_NEAR	0
@@ -1018,20 +1042,6 @@ struct msm_snapshot_pp_status {
 #define SENSOR_FULL_SIZE		1
 #define SENSOR_QVGA_SIZE		2
 #define SENSOR_INVALID_SIZE		3
-
-#define CAMERA_EFFECT_OFF		0
-#define CAMERA_EFFECT_MONO		1
-#define CAMERA_EFFECT_NEGATIVE		2
-#define CAMERA_EFFECT_SOLARIZE		3
-#define CAMERA_EFFECT_SEPIA		4
-#define CAMERA_EFFECT_POSTERIZE		5
-#define CAMERA_EFFECT_WHITEBOARD	6
-#define CAMERA_EFFECT_BLACKBOARD	7
-#define CAMERA_EFFECT_AQUA		8
-#define CAMERA_EFFECT_EMBOSS		9
-#define CAMERA_EFFECT_SKETCH		10
-#define CAMERA_EFFECT_NEON		11
-#define CAMERA_EFFECT_MAX		12
 
 /* QRD */
 #define CAMERA_EFFECT_BW		10
@@ -1219,6 +1229,8 @@ struct sensor_pict_fps {
 struct exp_gain_cfg {
 	uint16_t gain;
 	uint32_t line;
+	int32_t luma_avg;
+	uint16_t fgain;
 };
 
 struct focus_cfg {
@@ -1245,7 +1257,7 @@ struct sensor_3d_exp_cfg {
 	uint16_t gb_gain;
 	uint16_t gain_adjust;
 };
-struct sensor_3d_cali_data_t{
+struct sensor_3d_cali_data_t {
 	unsigned char left_p_matrix[3][4][8];
 	unsigned char right_p_matrix[3][4][8];
 	unsigned char square_len[8];
@@ -1327,6 +1339,17 @@ struct msm_sensor_output_reg_addr_t {
 	uint16_t y_output;
 	uint16_t line_length_pclk;
 	uint16_t frame_length_lines;
+};
+
+enum sensor_hdr_update_t {
+	SENSOR_HDR_UPDATE_AWB,
+	SENSOR_HDR_UPDATE_LSC,
+};
+
+struct sensor_hdr_update_parm_t {
+	enum sensor_hdr_update_t type;
+	uint16_t awb_gain_r, awb_gain_b;
+	uint8_t lsc_table[504];
 };
 
 struct sensor_driver_params_type {
@@ -1449,6 +1472,9 @@ struct csiphy_cfg_data {
 #define CSI_RAW8    0x2A
 #define CSI_RAW10   0x2B
 #define CSI_RAW12   0x2C
+#define CSI_YUV420_Y_8 0x30
+#define CSI_YUV420_UV_8 0x31
+#define CSI_YUV420_JM_8 0x32
 
 #define CSI_DECODE_6BIT 0
 #define CSI_DECODE_8BIT 1
@@ -1675,6 +1701,7 @@ struct sensor_cfg_data {
 		struct sensor_output_info_t output_info;
 		struct msm_eeprom_data_t eeprom_data;
 		struct csi_lane_params_t csi_lane_params;
+		struct sensor_hdr_update_parm_t hdr_update_parm;
 		/* QRD */
 		uint16_t antibanding;
 		uint8_t contrast;
@@ -1689,6 +1716,8 @@ struct sensor_cfg_data {
 		int is_autoflash;
 		struct mirror_flip mirror_flip;
 		void *setting;
+		int32_t vision_mode_enable;
+		int32_t vision_ae;
 		/* extension begin */
 		struct sensor_gpio_ctrl gpio_ctrl;
 		struct sensor_i2c_io i2c_io;
@@ -1844,11 +1873,6 @@ struct msm_calib_wb {
 	uint16_t gr_over_gb;
 };
 
-struct msm_calib_wb_light_info {
-	uint8_t lightidx[10];
-	struct msm_calib_wb wb_light_info[3];
-};
-
 struct msm_calib_af {
 	uint16_t macro_dac;
 	uint16_t inf_dac;
@@ -1860,11 +1884,6 @@ struct msm_calib_lsc {
 	uint16_t b_gain[221];
 	uint16_t gr_gain[221];
 	uint16_t gb_gain[221];
-};
-
-struct msm_calib_lsc_light_info {
-	uint8_t lightidx[10];
-	struct msm_calib_lsc lsc_light_info[3];
 };
 
 struct pixel_t {
@@ -2098,6 +2117,10 @@ struct msm_mctl_set_sdev_data {
 #define VIDIOC_MSM_VFE_RELEASE \
 	_IO('V', BASE_VIDIOC_PRIVATE + 25)
 
+#define VIDIOC_MSM_AXI_LOW_POWER_MODE \
+	_IO('V', BASE_VIDIOC_PRIVATE + 26)
+
+
 struct msm_camera_v4l2_ioctl_t {
 	uint32_t id;
 	uint32_t len;
@@ -2113,6 +2136,7 @@ struct msm_camera_vfe_params_t {
 	uint16_t port_info;
 	uint32_t inst_handle;
 	uint16_t cmd_type;
+	uint8_t stream_error;
 };
 
 enum msm_camss_irq_idx {
@@ -2252,6 +2276,13 @@ struct msm_ver_num_info {
 	uint32_t main;
 	uint32_t minor;
 	uint32_t rev;
+};
+
+struct intf_mctl_mapping_cfg {
+	int is_bayer_sensor;
+	int vnode_id;
+	int num_entries;
+	uint32_t image_modes[MSM_V4L2_EXT_CAPTURE_MODE_MAX];
 };
 
 #define VIDIOC_MSM_CPP_CFG \

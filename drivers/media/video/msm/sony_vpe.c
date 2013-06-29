@@ -1,7 +1,7 @@
 /* drivers/media/video/msm/sony_vpe.c
  *
  * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
- * Copyright (C) 2012 Sony Mobile Communications AB.
+ * Copyright (C) 2012-2013 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2, as
@@ -114,7 +114,8 @@ static int vpe_reset(void)
 	spin_unlock_irqrestore(&vpe_ctrl->lock, flags);
 
 	vpe_reset_state_variables();
-	vpe_version = msm_camera_io_r(vpe_ctrl->vpebase + VPE_HW_VERSION_OFFSET);
+	vpe_version = msm_camera_io_r(vpe_ctrl->vpebase
+					+ VPE_HW_VERSION_OFFSET);
 	D("vpe_version = 0x%x\n", vpe_version);
 
 	/* disable all interrupts.*/
@@ -155,8 +156,7 @@ static int msm_vpe_cfg_update(void *pinfo)
 	rot_flag = msm_camera_io_r(vpe_ctrl->vpebase +
 						VPE_OP_MODE_OFFSET) & 0xE00;
 	if (pinfo != NULL) {
-		D("%s: Crop info in2_w = %d, in2_h = %d "
-			"out2_w = %d out2_h = %d\n",
+		D("%s:Crop info in2_w=%d,in2_h=%d,out2_w=%d,out2_h=%d\n",
 			__func__, pcrop->src_w, pcrop->src_h,
 			pcrop->dst_w, pcrop->dst_h);
 		rc = vpe_update_scaler(pcrop);
@@ -172,15 +172,18 @@ static void vpe_update_scale_coef(uint32_t *p)
 	uint32_t i, offset;
 	offset = *p;
 	for (i = offset; i < (VPE_SCALE_COEFF_NUM + offset); i++) {
-		msm_camera_io_w(*(++p), vpe_ctrl->vpebase + VPE_SCALE_COEFF_LSBn(i));
-		msm_camera_io_w(*(++p), vpe_ctrl->vpebase + VPE_SCALE_COEFF_MSBn(i));
+		msm_camera_io_w(*(++p),
+			vpe_ctrl->vpebase + VPE_SCALE_COEFF_LSBn(i));
+		msm_camera_io_w(*(++p),
+			vpe_ctrl->vpebase + VPE_SCALE_COEFF_MSBn(i));
 	}
 }
 
 static void vpe_input_plane_config(uint32_t *p)
 {
 	msm_camera_io_w(*p, vpe_ctrl->vpebase + VPE_SRC_FORMAT_OFFSET);
-	msm_camera_io_w(*(++p), vpe_ctrl->vpebase + VPE_SRC_UNPACK_PATTERN1_OFFSET);
+	msm_camera_io_w(*(++p),
+		vpe_ctrl->vpebase + VPE_SRC_UNPACK_PATTERN1_OFFSET);
 	msm_camera_io_w(*(++p), vpe_ctrl->vpebase + VPE_SRC_IMAGE_SIZE_OFFSET);
 	msm_camera_io_w(*(++p), vpe_ctrl->vpebase + VPE_SRC_YSTRIDE1_OFFSET);
 	msm_camera_io_w(*(++p), vpe_ctrl->vpebase + VPE_SRC_SIZE_OFFSET);
@@ -190,7 +193,8 @@ static void vpe_input_plane_config(uint32_t *p)
 static void vpe_output_plane_config(uint32_t *p)
 {
 	msm_camera_io_w(*p, vpe_ctrl->vpebase + VPE_OUT_FORMAT_OFFSET);
-	msm_camera_io_w(*(++p), vpe_ctrl->vpebase + VPE_OUT_PACK_PATTERN1_OFFSET);
+	msm_camera_io_w(*(++p),
+		vpe_ctrl->vpebase + VPE_OUT_PACK_PATTERN1_OFFSET);
 	msm_camera_io_w(*(++p), vpe_ctrl->vpebase + VPE_OUT_YSTRIDE1_OFFSET);
 	msm_camera_io_w(*(++p), vpe_ctrl->vpebase + VPE_OUT_SIZE_OFFSET);
 	msm_camera_io_w(*(++p), vpe_ctrl->vpebase + VPE_OUT_XY_OFFSET);
@@ -709,8 +713,7 @@ static int msm_vpe_start_transfer(struct msm_vpe_transfer_cfg *transfercmd,
 	crop_info.dst_h = transfercmd->dst_crop.h;
 	crop_info.src_x = (transfercmd->dst_crop.w - transfercmd->src_crop.w)/2;
 	crop_info.src_y = (transfercmd->dst_crop.h - transfercmd->src_crop.h)/2;
-	D("Crop info src_w = %d, src_h = %d "
-		"dst_w = %d dst_h = %d\n",
+	D("Crop info src_w = %d, src_h = %d dst_w = %d dst_h = %d\n",
 		crop_info.src_w,
 		crop_info.src_h,
 		crop_info.dst_w,
@@ -897,6 +900,8 @@ DECLARE_TASKLET(vpe_standalone_tasklet, vpe_do_tasklet, 0);
 
 static irqreturn_t vpe_parse_irq(int irq_num, void *data)
 {
+	if (!vpe_ctrl || !vpe_ctrl->vpebase)
+		return IRQ_HANDLED;
 	vpe_ctrl->irq_status = msm_camera_io_r_mb(vpe_ctrl->vpebase +
 							VPE_INTR_STATUS_OFFSET);
 	msm_camera_io_w_mb(vpe_ctrl->irq_status, vpe_ctrl->vpebase +
