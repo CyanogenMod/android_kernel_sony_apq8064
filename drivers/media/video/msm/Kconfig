@@ -74,7 +74,7 @@ config WEBCAM_OV7692
 	  Omni Vision VGA YUV Sensor.
 config WEBCAM_OV9726
 	bool "Sensor OV9726 (VGA Bayer)"
-	depends on MSM_CAMERA && (ARCH_MSM8X60 || ARCH_MSM7X30 || ARCH_MSM7X27A || ARCH_MSM8960)
+	depends on MSM_CAMERA && (ARCH_MSM8X60 || ARCH_MSM7X30 || ARCH_MSM7X27A)
 	default n
 	---help---
 	  Omni Vision VGA Bayer Sensor.
@@ -208,12 +208,23 @@ config OV8825
 	  two mipi lanes, required for msm8625 platform.
 	  Say Y here if this is msm8625 variant platform.
 
-config OV8830
-	bool "Sensor ov8830 (Omnivision 8MP)"
+config IMX135
+	bool "Sensor imx135 (Sony 13MP)"
 	depends on MSM_CAMERA
 	---help---
-	Support for OV8830 sensor driver.
-	Omnivision 8MP Bayer Sensor.
+	  Support for IMX135 sensor driver.
+	  This is a Sony 13MP Bayer Sensor with autofocus and video HDR
+	  support.
+	  Say Y if the platform uses IMX135 sensor.
+
+config OV9724
+	bool "Sensor ov9724 (Omnivision 1.3M)"
+	depends on MSM_CAMERA
+	---help---
+	  Support for OV9724 sensor driver.
+	  It is a Bayer 1.3MP sensor with auto focus and it supports
+	  two mipi lanes, required for msm8625 platform.
+	  Say Y here if this is msm8625 variant platform.
 
 config VB6801
 	bool "Sensor vb6801"
@@ -246,10 +257,6 @@ config IMX074_EEPROM
 
 config IMX091_EEPROM
 	bool "IMX091 EEPROM support"
-	depends on MSM_CAMERA
-
-config OV8830_EEPROM
-	bool "OV8830 EEPROM support"
 	depends on MSM_CAMERA
 
 config MSM_GEMINI
@@ -395,7 +402,7 @@ config IMX091
 	  runs at 30 fps preview and 14 fps snapshot
 
 config SONY_CAM_V4L2
-	bool "SONY specific camera (Main camera)"
+	bool "SONY specific camera"
 	depends on MSM_CAMERA && ARCH_MSM8960 && MSM_CAMERA_V4L2
 	default n
 	---help---

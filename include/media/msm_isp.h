@@ -51,7 +51,7 @@
 #define MSG_ID_AXI_ERROR                32
 #define MSG_ID_CAMIF_OVERFLOW           33
 #define MSG_ID_VIOLATION                34
-#define MSG_ID_VFE_ERROR                35
+#define MSG_ID_CAMIF_ERROR              35
 #define MSG_ID_BUS_OVERFLOW             36
 #define MSG_ID_SOF_ACK                  37
 #define MSG_ID_STOP_REC_ACK             38
@@ -237,7 +237,7 @@
 #define VFE_CMD_COLORXFORM_ENC_UPDATE                   160
 #define VFE_CMD_COLORXFORM_VIEW_UPDATE                  161
 #define VFE_CMD_TEST_GEN_CFG                            162
-#define VFE_CMD_STOP_RECORDING_DONE                     163
+#define VFE_CMD_SELECT_RDI                              163
 #define VFE_CMD_SET_STATS_VER                           164
 #define VFE_CMD_RGB_ALL_CFG                             165
 #define VFE_CMD_RGB_ALL_UPDATE                          166

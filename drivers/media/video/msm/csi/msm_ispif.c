@@ -54,6 +54,7 @@ static int msm_ispif_intf_reset(struct ispif_device *ispif,
 		case RDI0:
 			data |= (0x1 << RDI_0_VFE_RST_STB) |
 				(0x1 << RDI_0_CSID_RST_STB);
+			ispif->rdi0_sof_count = 0;
 			break;
 
 		case PIX1:
@@ -64,11 +65,13 @@ static int msm_ispif_intf_reset(struct ispif_device *ispif,
 		case RDI1:
 			data |= (0x1 << RDI_1_VFE_RST_STB) |
 				(0x1 << RDI_1_CSID_RST_STB);
+			ispif->rdi1_sof_count = 0;
 			break;
 
 		case RDI2:
 			data |= (0x1 << RDI_2_VFE_RST_STB) |
 				(0x1 << RDI_2_CSID_RST_STB);
+			ispif->rdi2_sof_count = 0;
 			break;
 
 		default:
@@ -582,7 +585,7 @@ static void ispif_process_irq(struct ispif_device *ispif,
 
 	if (qcmd->ispifInterruptStatus0 &
 			ISPIF_IRQ_STATUS_PIX_SOF_MASK) {
-			CDBG("%s: ispif PIX irq status", __func__);
+			CDBG("%s: ispif PIX irq status\n", __func__);
 			ispif->pix_sof_count++;
 			v4l2_subdev_notify(&ispif->subdev,
 				NOTIFY_VFE_PIX_SOF_COUNT,
@@ -591,20 +594,23 @@ static void ispif_process_irq(struct ispif_device *ispif,
 
 	if (qcmd->ispifInterruptStatus0 &
 			ISPIF_IRQ_STATUS_RDI0_SOF_MASK) {
-			CDBG("%s: ispif RDI0 irq status", __func__);
 			ispif->rdi0_sof_count++;
+			CDBG("%s: ispif RDI0 irq status, counter = %d",
+				__func__, ispif->rdi0_sof_count);
 			send_rdi_sof(ispif, RDI_0, ispif->rdi0_sof_count);
 	}
 	if (qcmd->ispifInterruptStatus1 &
 		ISPIF_IRQ_STATUS_RDI1_SOF_MASK) {
-		CDBG("%s: ispif RDI1 irq status", __func__);
 		ispif->rdi1_sof_count++;
+		CDBG("%s: ispif RDI1 irq status, counter = %d",
+			__func__, ispif->rdi1_sof_count);
 		send_rdi_sof(ispif, RDI_1, ispif->rdi1_sof_count);
 	}
 	if (qcmd->ispifInterruptStatus2 &
 		ISPIF_IRQ_STATUS_RDI2_SOF_MASK) {
-		CDBG("%s: ispif RDI2 irq status", __func__);
 		ispif->rdi2_sof_count++;
+		CDBG("%s: ispif RDI2 irq status, counter = %d",
+			__func__, ispif->rdi2_sof_count);
 		send_rdi_sof(ispif, RDI_2, ispif->rdi2_sof_count);
 	}
 
@@ -638,7 +644,9 @@ static inline void msm_ispif_read_irq_status(struct ispif_irq_status *out,
 	CDBG("%s: irq vfe0 Irq_status0 = 0x%x, 1 = 0x%x, 2 = 0x%x\n",
 		__func__, out->ispifIrqStatus0, out->ispifIrqStatus1,
 		out->ispifIrqStatus2);
-	if (out->ispifIrqStatus0 & ISPIF_IRQ_STATUS_MASK) {
+	if (out->ispifIrqStatus0 & ISPIF_IRQ_STATUS_MASK ||
+		out->ispifIrqStatus1 & ISPIF_IRQ_STATUS_1_MASK ||
+		out->ispifIrqStatus2 & ISPIF_IRQ_STATUS_2_MASK) {
 		if (out->ispifIrqStatus0 & (0x1 << RESET_DONE_IRQ))
 			complete(&ispif->reset_complete);
 		if (out->ispifIrqStatus0 & (0x1 << PIX_INTF_0_OVERFLOW_IRQ))
@@ -794,9 +802,14 @@ static long msm_ispif_cmd(struct v4l2_subdev *sd, void *arg)
 static long msm_ispif_subdev_ioctl(struct v4l2_subdev *sd, unsigned int cmd,
 								void *arg)
 {
+	struct ispif_device *ispif;
 	switch (cmd) {
 	case VIDIOC_MSM_ISPIF_CFG:
 		return msm_ispif_cmd(sd, arg);
+	case VIDIOC_MSM_ISPIF_REL:
+		ispif =	(struct ispif_device *)v4l2_get_subdevdata(sd);
+		msm_ispif_release(ispif);
+		return 0;
 	default:
 		return -ENOIOCTLCMD;
 	}

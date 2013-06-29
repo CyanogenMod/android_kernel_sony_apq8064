@@ -1,5 +1,5 @@
 /* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
- * Copyright (C) 2012 Sony Mobile Communications AB.
+ * Copyright (C) 2013 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -129,6 +129,7 @@
 
 #define VFE_IRQ_STATUS1_RDI0_REG_UPDATE_MASK  0x4000000 /*bit 26*/
 #define VFE_IRQ_STATUS1_RDI1_REG_UPDATE_MASK  0x8000000 /*bit 27*/
+#define VFE_IRQ_STATUS1_RDI2_REG_UPDATE_MASK  0x10000000 /*bit 28*/
 
 /*TODOs the irq status passed from axi to vfe irq handler does not account
 * for 2 irq status registers. So below macro is added to differentiate between
@@ -137,6 +138,7 @@
 *status bit*/
 #define VFE_IRQ_STATUS1_RDI0_REG_UPDATE  0x84000000 /*bit 26*/
 #define VFE_IRQ_STATUS1_RDI1_REG_UPDATE  0x88000000 /*bit 27*/
+#define VFE_IRQ_STATUS1_RDI2_REG_UPDATE  0x90000000 /*bit 28*/
 
 /* imask for while waiting for stop ack,  driver has already
  * requested stop, waiting for reset irq, and async timer irq.
@@ -255,7 +257,7 @@ enum vfe_output_state {
 
 #define V32_AXI_BUS_CMD_OFF       0x00000038
 #define V32_AXI_OUT_OFF           0x0000003C
-#define V32_AXI_OUT_LEN           252
+#define V32_AXI_OUT_LEN           264
 #define V32_AXI_CFG_LEN           47
 #define V32_AXI_BUS_FMT_OFF       1
 #define V32_AXI_BUS_FMT_LEN       4
@@ -542,6 +544,12 @@ enum VFE_YUV_INPUT_COSITING_MODE {
 
 #define VFE32_GAMMA_NUM_ENTRIES  64
 
+#define VFE32_GAMMA_CH0_G_POS    0
+
+#define VFE32_GAMMA_CH1_B_POS    32
+
+#define VFE32_GAMMA_CH2_R_POS    64
+
 #define VFE32_LA_TABLE_LENGTH    64
 
 #define VFE32_LINEARIZATON_TABLE_LENGTH    36
@@ -819,7 +827,7 @@ struct vfe32_output_ch {
 #define VFE32_IMASK_STATS_IHIST_BUS_OVFL      (0x00000001<<20)
 #define VFE32_IMASK_STATS_SKIN_BHIST_BUS_OVFL (0x00000001<<21)
 #define VFE32_IMASK_AXI_ERROR                 (0x00000001<<22)
-#define VFE32_IMASK_BUS_OVFL_ERROR		0x005FFF00
+
 #define VFE_COM_STATUS 0x000FE000
 
 struct vfe32_output_path {
@@ -829,6 +837,7 @@ struct vfe32_output_path {
 	struct vfe32_output_ch out1; /* snapshot */
 	struct vfe32_output_ch out2; /* rdi0    */
 	struct vfe32_output_ch out3; /* rdi01   */
+	struct vfe32_output_ch out4; /* rdi02   */
 };
 
 struct vfe32_frame_extra {
@@ -924,7 +933,6 @@ struct vfe32_frame_extra {
 
 #define VFE33_DMI_DATA_HI               0x000005A0
 #define VFE33_DMI_DATA_LO               0x000005A4
-
 #define VFE_AXI_CFG_MASK                0xFFFFFFFF
 
 #define VFE32_OUTPUT_MODE_PT			BIT(0)
@@ -939,6 +947,7 @@ struct vfe32_frame_extra {
 #define VFE32_OUTPUT_MODE_SECONDARY_ALL_CHNLS	BIT(9)
 #define VFE32_OUTPUT_MODE_TERTIARY1		BIT(10)
 #define VFE32_OUTPUT_MODE_TERTIARY2		BIT(11)
+#define VFE32_OUTPUT_MODE_TERTIARY3		BIT(12)
 
 struct vfe_stats_control {
 	uint32_t droppedStatsFrameCount;
@@ -965,6 +974,7 @@ struct vfe_share_ctrl_t {
 	uint32_t vfe_capture_count;
 	int32_t rdi0_capture_count;
 	int32_t rdi1_capture_count;
+	int32_t rdi2_capture_count;
 	uint8_t update_counter;
 
 	uint32_t operation_mode;     /* streaming or snapshot */
@@ -977,6 +987,7 @@ struct vfe_share_ctrl_t {
 	uint16_t cmd_type;
 	uint8_t vfe_reset_flag;
 	uint8_t dual_enabled;
+	uint8_t lp_mode;
 
 	uint8_t axi_ref_cnt;
 	uint16_t comp_output_mode;
@@ -996,6 +1007,9 @@ struct vfe_share_ctrl_t {
 	atomic_t rdi0_update_ack_pending;
 	atomic_t rdi1_update_ack_pending;
 	atomic_t rdi2_update_ack_pending;
+
+	uint8_t stream_error;
+	uint32_t rdi_comp;
 
 };
 

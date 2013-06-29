@@ -316,7 +316,6 @@ static int msm_stats_bufq_flush(struct msm_stats_bufq_ctrl *stats_ctrl,
 	struct msm_stats_bufq *bufq = NULL;
 	struct msm_stats_meta_buf *stats_buf = NULL;
 
-	D("%s: type : %d\n", __func__, stats_type);
 	bufq = stats_ctrl->bufq[stats_type];
 
 	for (i = 0; i < bufq->num_bufs; i++) {
@@ -355,6 +354,8 @@ static int msm_stats_dqbuf(struct msm_stats_bufq_ctrl *stats_ctrl,
 	bufq = stats_ctrl->bufq[stats_type];
 
 	list_for_each_entry(stats_buf, &bufq->head, list) {
+		if(!stats_buf)
+			return -1;
 		if (stats_buf->state == MSM_STATS_BUFFER_STATE_QUEUED) {
 			/* found one buf */
 			list_del_init(&stats_buf->list);

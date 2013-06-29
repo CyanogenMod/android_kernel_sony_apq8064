@@ -154,7 +154,7 @@ enum msm_camera_v4l2_subdev_notify {
 	NOTIFY_VFE_MSG_STATS,  /* arg = struct isp_msg_stats */
 	NOTIFY_VFE_MSG_COMP_STATS, /* arg = struct msm_stats_buf */
 	NOTIFY_VFE_BUF_EVT, /* arg = struct msm_vfe_resp */
-	NOTIFY_VFE_ERROR,
+	NOTIFY_VFE_CAMIF_ERROR,
 	NOTIFY_VFE_PIX_SOF_COUNT, /*arg = int*/
 	NOTIFY_AXI_RDI_SOF_COUNT, /*arg = struct rdi_count_msg*/
 	NOTIFY_PCLK_CHANGE, /* arg = pclk */
@@ -210,11 +210,13 @@ struct msm_cam_return_frame_info {
 	int dirty;
 	int node_type;
 	struct timeval timestamp;
+	uint32_t frame_id;
 };
 
 struct msm_cam_timestamp {
 	uint8_t present;
 	struct timeval timestamp;
+	uint32_t frame_id;
 };
 
 struct msm_cam_buf_map_info {
@@ -357,6 +359,7 @@ struct msm_cam_v4l2_dev_inst {
 	int vbqueue_initialized;
 	struct mutex inst_lock;
 	uint32_t inst_handle;
+	uint32_t sequence;
 };
 
 struct msm_cam_mctl_node {
