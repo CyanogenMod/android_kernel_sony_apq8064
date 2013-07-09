@@ -1045,6 +1045,12 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 	session->flags   = req->flags & (1 << HIDP_BLUETOOTH_VENDOR_ID);
 	session->idle_to = req->idle_to;
 
+	/* If SCO is active, disable Sniff in Link Policy and unsniff HID Link */
+	if (hci_get_sco_status(session->conn)) {
+		hci_conn_update_sniff_lp(session->conn, false);
+		hci_conn_enter_active_mode(session->conn, true);
+	}
+
 	__hidp_link_session(session);
 
 	if (req->rd_size > 0) {
@@ -1215,6 +1221,37 @@ static struct hid_driver hidp_driver = {
 	.id_table = hidp_table,
 };
 
+void hidp_sco_state_changed(u8 state)
+{
+	struct list_head *p;
+	struct hidp_session *session;
+	BT_INFO("hidp_sco_state_changed, state = %d", state);
+
+	if (state) {
+		/* SCO is connected now, disable Sniff in link policy for all connected hid links */
+		list_for_each(p, &hidp_session_list) {
+			session = list_entry(p, struct hidp_session, list);
+			if (session) {
+				hci_conn_update_sniff_lp(session->conn, false);
+				hci_conn_enter_active_mode(session->conn, true);
+			}
+		}
+	} else {
+		/* SCO is disconnected now, enable back Sniff in link policy for all connected hid links */
+		list_for_each(p, &hidp_session_list) {
+			session = list_entry(p, struct hidp_session, list);
+			if (session) {
+				hci_conn_update_sniff_lp(session->conn, true);
+			}
+		}
+	}
+}
+
+static struct sco_cb hid_sco_cb = {
+	.name		= "HID",
+	.connect_state_changed	= hidp_sco_state_changed,
+};
+
 static int __init hidp_init(void)
 {
 	int ret;
@@ -1229,6 +1266,8 @@ static int __init hidp_init(void)
 	if (ret)
 		goto err_drv;
 
+	hci_register_sco_cb(&hid_sco_cb, true);
+
 	return 0;
 err_drv:
 	hid_unregister_driver(&hidp_driver);
@@ -1240,6 +1279,7 @@ static void __exit hidp_exit(void)
 {
 	hidp_cleanup_sockets();
 	hid_unregister_driver(&hidp_driver);
+	hci_register_sco_cb(&hid_sco_cb, false);
 }
 
 module_init(hidp_init);
