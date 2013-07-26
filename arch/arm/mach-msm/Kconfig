@@ -2834,6 +2834,12 @@ config MSM_USE_USER_ACCESSIBLE_TIMERS
 	  Enables MSM-specific user accessible timers via a shared
 	  memory page containing the cycle counter.
 
+config HAS_MACH_MEMUTILS
+	default n
+	bool "Motorola MSM memcpy enhancements"
+	help
+	Faster memcpy performance for Krait
+
 config MSM_MODEM_SUBSYSTEM_RESTART_MONITOR
 	bool "MSM Modem Subsystem Restart Monitor"
 	default n
