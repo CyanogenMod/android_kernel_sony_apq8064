@@ -578,14 +578,6 @@ static int adreno_setup_pt(struct kgsl_device *device,
 	if (result)
 		goto unmap_memstore_desc;
 
-	if (adreno_is_a305(adreno_dev)) {
-		result = kgsl_mmu_map_global(pagetable,
-				&adreno_dev->on_resume_cmd,
-				GSL_PT_PAGE_RV | GSL_PT_PAGE_WV);
-		if (result)
-			goto unmap_setstate_desc;
-	}
-
 	/*
 	 * Set the mpu end to the last "normal" global memory we use.
 	 * For the IOMMU, this will be used to restrict access to the
