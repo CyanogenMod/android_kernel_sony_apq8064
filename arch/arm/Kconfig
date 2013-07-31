@@ -1899,7 +1899,11 @@ config FIX_MOVABLE_ZONE
 
 config DONT_MAP_HOLE_AFTER_MEMBANK0
 	def_bool n
-	depends on SPARSEMEM
+	depends on ENABLE_VMALLOC_SAVING=n
+
+config ENABLE_VMALLOC_SAVING
+	def_bool n
+	depends on DONT_MAP_HOLE_AFTER_MEMBANK0=n
 
 config ARCH_ENABLE_MEMORY_HOTPLUG
 	def_bool n
