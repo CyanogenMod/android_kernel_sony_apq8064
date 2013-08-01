@@ -1173,7 +1173,7 @@ static int msm_hsic_resume_thread(void *data)
 	if (time_before_eq(jiffies, ehci->next_statechange)) {
 		dbg_log_event(NULL, "Resume bus state delay next_statechange ",
 			ehci->next_statechange);
-		msleep(20);
+		usleep_range(10000, 10000);
 	}
 
 	spin_lock_irq(&ehci->lock);
