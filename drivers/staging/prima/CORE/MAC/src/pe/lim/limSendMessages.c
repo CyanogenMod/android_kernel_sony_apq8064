@@ -74,7 +74,6 @@ static tBeaconFilterIe beaconFilterTable[] = {
    {SIR_MAC_EDCA_PARAM_SET_EID,  0, {0, 0, EDCA_FILTER_MASK,      0}},
    {SIR_MAC_QOS_CAPABILITY_EID,  0, {0, 0, QOS_FILTER_MASK,       0}},
    {SIR_MAC_CHNL_SWITCH_ANN_EID, 1, {0, 0, 0,                     0}},
-   {SIR_MAC_QUIET_EID,           1, {0, 0, 0,                     0}},
    {SIR_MAC_HT_INFO_EID,         0, {0, 0, HT_BYTE0_FILTER_MASK,  0}},  
    {SIR_MAC_HT_INFO_EID,         0, {2, 0, HT_BYTE2_FILTER_MASK,  0}}, 
    {SIR_MAC_HT_INFO_EID,         0, {5, 0, HT_BYTE5_FILTER_MASK,  0}}
@@ -868,56 +867,5 @@ tSirRetStatus limSendTdlsLinkTeardown(tpAniSirGlobal pMac, tANI_U16 staId)
     return retCode;
 }
 
-#endif
-
-#ifdef WLAN_FEATURE_11W
-/** ---------------------------------------------------------
-\fn      limSendExcludeUnencryptInd
-\brief   LIM sends a message to HAL to indicate whether to
-         ignore or indicate the unprotected packet error
-\param   tpAniSirGlobal  pMac
-\param   tANI_BOOLEAN excludeUnenc - true: ignore, false:
-         indicate
-\param   tpPESession  psessionEntry - session context
-\return  status
-  -----------------------------------------------------------*/
-tSirRetStatus limSendExcludeUnencryptInd(tpAniSirGlobal pMac,
-                                         tANI_BOOLEAN excludeUnenc,
-                                         tpPESession  psessionEntry)
-{
-    tSirRetStatus   retCode = eSIR_SUCCESS;
-    tSirMsgQ msgQ;
-    tSirWlanExcludeUnencryptParam * pExcludeUnencryptParam;
-
-    if (eHAL_STATUS_SUCCESS != palAllocateMemory(pMac->hHdd,
-                                                  (void **) &pExcludeUnencryptParam,
-                                                  sizeof(tSirWlanExcludeUnencryptParam)))
-    {
-        limLog(pMac, LOGP,
-            FL( "Unable to PAL allocate memory during limSendExcludeUnencryptInd"));
-        return eSIR_MEM_ALLOC_FAILED;
-    }
-
-    pExcludeUnencryptParam->excludeUnencrypt = excludeUnenc;
-    sirCopyMacAddr(pExcludeUnencryptParam->bssId, psessionEntry->bssId);
-
-    msgQ.type =  WDA_EXCLUDE_UNENCRYPTED_IND;
-    msgQ.reserved = 0;
-    msgQ.bodyptr = pExcludeUnencryptParam;
-    msgQ.bodyval = 0;
-    PELOG3(limLog(pMac, LOG3,
-                FL("Sending WDA_EXCLUDE_UNENCRYPTED_IND"));)
-    MTRACE(macTraceMsgTx(pMac, psessionEntry->peSessionId, msgQ.type));
-    retCode = wdaPostCtrlMsg(pMac, &msgQ);
-    if (eSIR_SUCCESS != retCode)
-    {
-        palFreeMemory(pMac->hHdd, pExcludeUnencryptParam);
-        limLog(pMac, LOGP,
-               FL("Posting  WDA_EXCLUDE_UNENCRYPTED_IND to WDA failed, reason=%X"),
-               retCode);
-    }
-
-    return retCode;
-}
 #endif
 

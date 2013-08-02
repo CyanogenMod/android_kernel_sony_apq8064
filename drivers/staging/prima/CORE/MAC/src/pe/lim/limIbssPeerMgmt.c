@@ -1113,7 +1113,8 @@ limIbssStaAdd(
                 if(beaconParams.paramChangeBitmap)
                 {
                     PELOGE(limLog(pMac, LOGE, FL("---> Update Beacon Params "));)
-                    schSetFixedBeaconFields(pMac, psessionEntry);    
+                    schSetFixedBeaconFields(pMac, psessionEntry);
+                    beaconParams.bssIdx = psessionEntry->bssIdx;
                     limSendBeaconParams(pMac, &beaconParams, psessionEntry );
                 }
             }
@@ -1383,16 +1384,11 @@ limIbssCoalesce(
 
     sirCopyMacAddr(currentBssId,psessionEntry->bssId);
 
-    limLog(pMac, LOG1, FL("Current BSSID :" MAC_ADDRESS_STR " Received BSSID :" MAC_ADDRESS_STR ),
-                                  MAC_ADDR_ARRAY(currentBssId), MAC_ADDR_ARRAY(pHdr->bssId));
     /* Check for IBSS Coalescing only if Beacon is from different BSS */
     if ( !palEqualMemory( pMac->hHdd, currentBssId, pHdr->bssId, sizeof( tSirMacAddr ) ) )
     {
         if (! fTsfLater) // No Coalescing happened.
-        {
-            PELOGW(limLog(pMac, LOGW, FL("No Coalescing happened"));)
             return eSIR_LIM_IGNORE_BEACON;
-        }
         /*
          * IBSS Coalescing happened.
          * save the received beacon, and delete the current BSS. The rest of the
@@ -1401,8 +1397,6 @@ limIbssCoalesce(
         pMac->lim.gLimIbssCoalescingHappened = true;
         PELOGW(limLog(pMac, LOGW, FL("IBSS Coalescing happened"));)
         ibss_coalesce_save(pMac, pHdr, pBeacon);
-        limLog(pMac, LOGW, FL("Delete BSSID :" MAC_ADDRESS_STR ),
-                                  MAC_ADDR_ARRAY(currentBssId));
         ibss_bss_delete(pMac,psessionEntry);
         return eSIR_SUCCESS;
     }
@@ -1472,7 +1466,8 @@ limIbssCoalesce(
         if(beaconParams.paramChangeBitmap)
         {
             PELOGE(limLog(pMac, LOGE, FL("beaconParams.paramChangeBitmap=1 ---> Update Beacon Params "));)
-            schSetFixedBeaconFields(pMac, psessionEntry);    
+            schSetFixedBeaconFields(pMac, psessionEntry);
+            beaconParams.bssIdx = psessionEntry->bssIdx;
             limSendBeaconParams(pMac, &beaconParams, psessionEntry );
         }
     }
@@ -1558,7 +1553,7 @@ void limIbssHeartBeatHandle(tpAniSirGlobal pMac,tpPESession psessionEntry)
 
                     (void) limDelSta(pMac, pStaDs, false /*asynchronous*/,psessionEntry);
                     limDeleteDphHashEntry(pMac, pStaDs->staAddr, peerIdx,psessionEntry);
-                    limReleasePeerIdx(pMac, peerIdx, psessionEntry);
+
                     //Send indication.
                     ibss_status_chg_notify( pMac, pTempNode->peerMacAddr, staIndex, 
                                             ucUcastSig, ucBcastSig,

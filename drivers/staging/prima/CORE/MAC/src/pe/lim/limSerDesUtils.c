@@ -1085,14 +1085,6 @@ limJoinReqSerDes(tpAniSirGlobal pMac, tpSirSmeJoinReq pJoinReq, tANI_U8 *pBuf)
     if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
         return eSIR_FAILURE;    
     
-#ifdef WLAN_FEATURE_11W
-    pJoinReq->MgmtEncryptionType = limGetU32(pBuf);
-    pBuf += sizeof(tANI_U32);
-    len -= sizeof(tANI_U32);
-    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
-        return eSIR_FAILURE;
-#endif
-
 #ifdef WLAN_FEATURE_VOWIFI_11R
     //is11Rconnection;
     pJoinReq->is11Rconnection = (tAniBool)limGetU32(pBuf);
@@ -1103,6 +1095,13 @@ limJoinReqSerDes(tpAniSirGlobal pMac, tpSirSmeJoinReq pJoinReq, tANI_U8 *pBuf)
 #endif
 
 #ifdef FEATURE_WLAN_CCX
+    //CCX version IE
+    pJoinReq->isCCXFeatureIniEnabled = (tAniBool)limGetU32(pBuf);
+    pBuf += sizeof(tAniBool);
+    len -= sizeof(tAniBool);
+    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
+       return eSIR_FAILURE;
+
     //isCCXconnection;
     pJoinReq->isCCXconnection = (tAniBool)limGetU32(pBuf);
     pBuf += sizeof(tAniBool);

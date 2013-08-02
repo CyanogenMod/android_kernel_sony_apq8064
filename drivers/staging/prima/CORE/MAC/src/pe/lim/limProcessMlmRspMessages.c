@@ -1961,18 +1961,6 @@ void limProcessMlmDelBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ,tpPESession 
    {
       WDA_TrafficStatsTimerActivate(FALSE);
    }
-
-#ifdef WLAN_FEATURE_11W
-    if (psessionEntry->limRmfEnabled)
-    {
-        if ( eSIR_SUCCESS != limSendExcludeUnencryptInd(pMac, TRUE, psessionEntry) )
-        {
-            limLog( pMac, LOGE,
-                    FL( "Could not send down Exclude Unencrypted Indication!" ),
-                    psessionEntry->limMlmState );
-        }
-    }
-#endif
 }
 
 void limProcessStaMlmDelBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ,tpPESession psessionEntry)
@@ -2540,8 +2528,7 @@ limProcessIbssMlmAddBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ ,tpPESession 
         schEdcaProfileUpdate(pMac, psessionEntry);
         //TBD-RAJESH limInitPreauthList should re removed for IBSS also ?????
        //limInitPreAuthList(pMac);
-        if (0 == psessionEntry->freePeerIdxHead)
-            limInitPeerIdxpool(pMac,psessionEntry);
+        limInitPeerIdxpool(pMac,psessionEntry);
         // Create timers used by LIM
 #ifdef FIXME_GEN6  //following code may not be required, as limCreateTimers is now invoked from limInitialize (peStart)
         if (!pMac->lim.gLimTimersCreated)
@@ -3195,18 +3182,6 @@ void limProcessMlmAddBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
     {
        WDA_TrafficStatsTimerActivate(TRUE);
     }
-
-#ifdef WLAN_FEATURE_11W
-    if (psessionEntry->limRmfEnabled)
-    {
-        if ( eSIR_SUCCESS != limSendExcludeUnencryptInd(pMac, FALSE, psessionEntry) )
-        {
-            limLog( pMac, LOGE,
-                    FL( "Could not send down Exclude Unencrypted Indication!" ),
-                    psessionEntry->limMlmState );
-        }
-    }
-#endif
 }
 /**
  * limProcessMlmSetKeyRsp()

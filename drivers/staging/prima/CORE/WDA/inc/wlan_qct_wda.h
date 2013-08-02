@@ -528,7 +528,6 @@ tBssSystemRole wdaGetGlobalSystemRole(tpAniSirGlobal pMac);
 // FIXME Temporary value for R33D integaration
 //#define WDA_TL_TX_FRAME_TIMEOUT  20000 /* in msec a very high upper limit */
 
-#define DPU_FEEDBACK_UNPROTECTED_ERROR 0x0F
 
 
 /* ---------------------------------------------------------------------------
@@ -730,10 +729,7 @@ tBssSystemRole wdaGetGlobalSystemRole(tpAniSirGlobal pMac);
 /* WDA_GETRSSI1 ***************************************************************/
 #  define WDA_GETRSSI1(pRxMeta) (((WDI_DS_RxMetaInfoType*)(pRxMeta))->rssi1)
 
-/* WDA_GET_RX_RMF *****************************************************/
-#ifdef WLAN_FEATURE_11W
-#  define WDA_GET_RX_RMF(pRxMeta) (((WDI_DS_RxMetaInfoType*)(pRxMeta))->rmf)
-#endif
+
 
 /* --------------------------------------------------------------------*/
 
@@ -924,9 +920,6 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #define WDA_TIMER_ADC_RSSI_STATS       SIR_HAL_TIMER_ADC_RSSI_STATS
 #define WDA_TIMER_TRAFFIC_STATS_IND    SIR_HAL_TRAFFIC_STATS_IND
 
-#ifdef WLAN_FEATURE_11W
-#define WDA_EXCLUDE_UNENCRYPTED_IND    SIR_HAL_EXCLUDE_UNENCRYPTED_IND
-#endif
 
 #ifdef FEATURE_WLAN_CCX
 #define WDA_TSM_STATS_REQ              SIR_HAL_TSM_STATS_REQ
@@ -1036,7 +1029,7 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #endif // FEATURE_WLAN_SCAN_PNO
 
 #ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
-#define WDA_START_ROAM_CANDIDATE_LOOKUP_REQ             SIR_HAL_START_ROAM_CANDIDATE_LOOKUP_REQ
+#define WDA_ROAM_SCAN_OFFLOAD_REQ   SIR_HAL_ROAM_SCAN_OFFLOAD_REQ
 #endif
 
 #ifdef WLAN_WAKEUP_EVENTS
@@ -1118,6 +1111,9 @@ v_BOOL_t WDA_IsHwFrameTxTranslationCapable(v_PVOID_t pVosGCtx,
 
 #define WDA_UpdateRssiBmps(pvosGCtx,  staId, rssi) \
         WLANTL_UpdateRssiBmps(pvosGCtx, staId, rssi)
+
+#define WDA_UpdateLinkCapacity(pvosGCtx,  staId, linkCapacity) \
+        WLANTL_UpdateLinkCapacity(pvosGCtx, staId, linkCapacity)
 
 #ifdef WLAN_PERF 
 /*==========================================================================

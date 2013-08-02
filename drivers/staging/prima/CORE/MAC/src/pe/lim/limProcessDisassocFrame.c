@@ -39,8 +39,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
+
+
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limProcessDisassocFrame.cc contains the code
  * for processing Disassocation Frame.
@@ -93,9 +94,7 @@ limProcessDisassocFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession
     tpSirMacMgmtHdr    pHdr;
     tpDphHashNode      pStaDs;
     tLimMlmDisassocInd mlmDisassocInd;
-#ifdef WLAN_FEATURE_11W
-    tANI_U32            frameLen;
-#endif
+
 
     pHdr = WDA_GET_RX_MAC_HEADER(pRxPacketInfo);
     pBody = WDA_GET_RX_MPDU_DATA(pRxPacketInfo);
@@ -120,22 +119,6 @@ limProcessDisassocFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession
 
         return;
     }
-
-#ifdef WLAN_FEATURE_11W
-    /* PMF: If this session is a PMF session, then ensure that this frame was protected */
-    if(psessionEntry->limRmfEnabled  && (WDA_GET_RX_DPU_FEEDBACK(pRxPacketInfo) & DPU_FEEDBACK_UNPROTECTED_ERROR))
-    {
-        PELOGE(limLog(pMac, LOGE, FL("received an unprotected disassoc from AP"));)
-        // If the frame received is unprotected, forward it to the supplicant to initiate
-        // an SA query
-        frameLen = WDA_GET_RX_PAYLOAD_LEN(pRxPacketInfo);
-        //send the unprotected frame indication to SME
-        limSendSmeUnprotectedMgmtFrameInd( pMac, pHdr->fc.subType,
-                                           (tANI_U8*)pHdr, (frameLen + sizeof(tSirMacMgmtHdr)),
-                                           psessionEntry->smeSessionId, psessionEntry);
-        return;
-    }
-#endif
 
     // Get reasonCode from Disassociation frame body
     reasonCode = sirReadU16(pBody);
@@ -166,7 +149,7 @@ limProcessDisassocFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession
 
     if (limCheckDisassocDeauthAckPending(pMac, (tANI_U8*)pHdr->sa))
     {
-        PELOGW(limLog(pMac, LOGE, 
+        PELOGW(limLog(pMac, LOGW,
                     FL("Ignore the DisAssoc received, while waiting for ack of disassoc/deauth"));)
         limCleanUpDisassocDeauthReq(pMac,(tANI_U8*)pHdr->sa, 1);
         return;
@@ -238,10 +221,10 @@ limProcessDisassocFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession
             case eSIR_MAC_GR_KEY_UPDATE_TIMEOUT_REASON:
             case eSIR_MAC_RSN_IE_MISMATCH_REASON:
             case eSIR_MAC_1X_AUTH_FAILURE_REASON:
-            case eSIR_MAC_PREV_AUTH_NOT_VALID_REASON:
                 // Valid reasonCode in received Disassociation frame
                 break;
 
+            case eSIR_MAC_DEAUTH_LEAVING_BSS_REASON:
             case eSIR_MAC_DISASSOC_LEAVING_BSS_REASON:
                 // Valid reasonCode in received Disassociation frame
                 // as long as we're not about to channel switch
@@ -269,18 +252,18 @@ limProcessDisassocFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession
     else
     {
         // Received Disassociation frame in either IBSS
-        // or un-known role. Log error and ignore it
-        limLog(pMac, LOGE,
+        // or un-known role. Log and ignore it
+        limLog(pMac, LOG1,
                FL("received Disassoc frame with invalid reasonCode %d in role %d in sme state %d from "),
                reasonCode, psessionEntry->limSystemRole, psessionEntry->limSmeState);
-        limPrintMacAddr(pMac, pHdr->sa, LOGE);
+        limPrintMacAddr(pMac, pHdr->sa, LOG1);
 
         return;
     }
 
     // Disassociation from peer MAC entity
 
-   PELOGE(limLog(pMac, LOGE,
+   PELOG1(limLog(pMac, LOG1,
            FL("Received Disassoc frame from sta with assocId=%d with reasonCode=%d. Peer MAC is "MAC_ADDRESS_STR),
            pStaDs->assocId, reasonCode, MAC_ADDR_ARRAY(pHdr->sa));)
 

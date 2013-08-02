@@ -591,6 +591,11 @@ typedef enum
 #define CFG_RETRY_LIMIT_TWO_MAX        ( 15 )
 #define CFG_RETRY_LIMIT_TWO_DEFAULT    ( 15 )
 
+#define CFG_DISABLE_AGG_WITH_BTC_NAME       "gDisableAggWithBTC"
+#define CFG_DISABLE_AGG_WITH_BTC_MIN        ( 0 )
+#define CFG_DISABLE_AGG_WITH_BTC_MAX        ( 1 )
+#define CFG_DISABLE_AGG_WITH_BTC_DEFAULT    ( 1 )
+
 #ifdef WLAN_AP_STA_CONCURRENCY
 
 #define CFG_PASSIVE_MAX_CHANNEL_TIME_CONC_NAME      "gPassiveMaxChannelTimeConc"
@@ -618,10 +623,15 @@ typedef enum
 #define CFG_REST_TIME_CONC_MAX                      ( 10000 )
 #define CFG_REST_TIME_CONC_DEFAULT                  ( 100 )
 
-#define CFG_NUM_CHAN_COMBINED_CONC_NAME             "gNumChanCombinedConc"
-#define CFG_NUM_CHAN_COMBINED_CONC_MIN              ( 1 )
-#define CFG_NUM_CHAN_COMBINED_CONC_MAX              ( 255 )
-#define CFG_NUM_CHAN_COMBINED_CONC_DEFAULT          ( 1 )
+#define CFG_NUM_STA_CHAN_COMBINED_CONC_NAME             "gNumStaChanCombinedConc"
+#define CFG_NUM_STA_CHAN_COMBINED_CONC_MIN              ( 1 )
+#define CFG_NUM_STA_CHAN_COMBINED_CONC_MAX              ( 255 )
+#define CFG_NUM_STA_CHAN_COMBINED_CONC_DEFAULT          ( 3 )
+
+#define CFG_NUM_P2P_CHAN_COMBINED_CONC_NAME             "gNumP2PChanCombinedConc"
+#define CFG_NUM_P2P_CHAN_COMBINED_CONC_MIN              ( 1 )
+#define CFG_NUM_P2P_CHAN_COMBINED_CONC_MAX              ( 255 )
+#define CFG_NUM_P2P_CHAN_COMBINED_CONC_DEFAULT          ( 1 )
 
 #endif
 
@@ -654,6 +664,11 @@ typedef enum
 #define CFG_IGNORE_DTIM_MIN                    WNI_CFG_IGNORE_DTIM_STAMIN
 #define CFG_IGNORE_DTIM_MAX                    WNI_CFG_IGNORE_DTIM_STAMAX
 #define CFG_IGNORE_DTIM_DEFAULT                WNI_CFG_IGNORE_DTIM_STADEF
+
+#define CFG_MAX_LI_MODULATED_DTIM_NAME         "gMaxLIModulatedDTIM"
+#define CFG_MAX_LI_MODULATED_DTIM_MIN          ( 1 )
+#define CFG_MAX_LI_MODULATED_DTIM_MAX          ( 10 )
+#define CFG_MAX_LI_MODULATED_DTIM_DEFAULT      ( 10 )
 
 #define CFG_RX_ANT_CONFIGURATION_NAME          "gNumRxAnt"
 #define CFG_RX_ANT_CONFIGURATION_NAME_MIN      ( 1 )
@@ -816,6 +831,16 @@ typedef enum
 #define CFG_ENABLE_WES_MODE_NAME_MIN                        (0)
 #define CFG_ENABLE_WES_MODE_NAME_MAX                        (1)
 #define CFG_ENABLE_WES_MODE_NAME_DEFAULT                    (0)
+
+#define CFG_ROAM_SCAN_N_PROBES                             "gRoamScanNProbes"
+#define CFG_ROAM_SCAN_N_PROBES_MIN                          (1)
+#define CFG_ROAM_SCAN_N_PROBES_MAX                          (10)
+#define CFG_ROAM_SCAN_N_PROBES_DEFAULT                      (2)
+
+#define CFG_ROAM_SCAN_HOME_AWAY_TIME                        "gRoamScanHomeAwayTime"
+#define CFG_ROAM_SCAN_HOME_AWAY_TIME_MIN                    (3)
+#define CFG_ROAM_SCAN_HOME_AWAY_TIME_MAX                    (300)
+#define CFG_ROAM_SCAN_HOME_AWAY_TIME_DEFAULT                (CFG_NEIGHBOR_SCAN_MAX_CHAN_TIME_DEFAULT)
 #endif /* (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR) */
 
 #ifdef FEATURE_WLAN_OKC
@@ -1160,9 +1185,8 @@ typedef enum
 #define CFG_NEIGHBOR_SCAN_RESULTS_REFRESH_PERIOD_MIN          (1000)
 #define CFG_NEIGHBOR_SCAN_RESULTS_REFRESH_PERIOD_MAX          (60000)
 #define CFG_NEIGHBOR_SCAN_RESULTS_REFRESH_PERIOD_DEFAULT      (20000)
-
 #define CFG_EMPTY_SCAN_REFRESH_PERIOD_NAME         "gEmptyScanRefreshPeriod"
-#define CFG_EMPTY_SCAN_REFRESH_PERIOD_MIN          (0)
+#define CFG_EMPTY_SCAN_REFRESH_PERIOD_MIN          (1000)
 #define CFG_EMPTY_SCAN_REFRESH_PERIOD_MAX          (60000)
 #define CFG_EMPTY_SCAN_REFRESH_PERIOD_DEFAULT      (0)
 #endif /* WLAN_FEATURE_NEIGHBOR_ROAMING */
@@ -1697,9 +1721,6 @@ typedef enum
 #define CFG_LIST_OF_NON_DFS_COUNTRY_CODE                    "gListOfNonDfsCountryCode"
 #define CFG_LIST_OF_NON_DFS_COUNTRY_CODE_DEFAULT            "JO,MA"
 
-#define CFG_LIST_OF_NON_11AC_COUNTRY_CODE                    "gListOfNon11acCountryCode"
-#define CFG_LIST_OF_NON_11AC_COUNTRY_CODE_DEFAULT            "RU,UA,ZA"
-
 /*
  * IBSS Operating Channels for 2.4G and 5GHz channels
  */
@@ -1713,6 +1734,26 @@ typedef enum
 #define CFG_IBSS_ADHOC_CHANNEL_24GHZ_MAX          ( 14 )
 #define CFG_IBSS_ADHOC_CHANNEL_24GHZ_DEFAULT      ( 6 )
 
+#define CFG_LIST_OF_NON_11AC_COUNTRY_CODE                    "gListOfNon11acCountryCode"
+#define CFG_LIST_OF_NON_11AC_COUNTRY_CODE_DEFAULT            "RU,UA,ZA"
+
+#define CFG_MAX_MEDIUM_TIME                      "gMaxMediumTime"
+#define CFG_MAX_MEDIUM_TIME_STAMIN               WNI_CFG_MAX_MEDIUM_TIME_STAMIN
+#define CFG_MAX_MEDIUM_TIME_STAMAX               WNI_CFG_MAX_MEDIUM_TIME_STAMAX
+#define CFG_MAX_MEDIUM_TIME_STADEFAULT           WNI_CFG_MAX_MEDIUM_TIME_STADEF
+
+/*
+ * SAP/P2P-GO mode traffic monitor
+ */
+#define CFG_ENABLE_TRAFFIC_MONITOR                "gEnableTrafficMonitor"
+#define CFG_ENABLE_TRAFFIC_MONITOR_MIN            ( 0 )
+#define CFG_ENABLE_TRAFFIC_MONITOR_MAX            ( 1 )
+#define CFG_ENABLE_TRAFFIC_MONITOR_DEFAULT        ( 0 )
+
+#define CFG_TRAFFIC_IDLE_TIMEOUT                  "gTrafficIdleTimeout"
+#define CFG_TRAFFIC_IDLE_TIMEOUT_MIN              ( 3000 )
+#define CFG_TRAFFIC_IDLE_TIMEOUT_MAX              ( 10000 )
+#define CFG_TRAFFIC_IDLE_TIMEOUT_DEFAULT          ( 5000 )
 
 /*--------------------------------------------------------------------------- 
   Type declarations
@@ -1797,8 +1838,6 @@ typedef struct
    v_BOOL_t      fIsShortPreamble;
    v_BOOL_t      fIsAutoIbssBssid;
    v_MACADDR_t   IbssBssid;
-   v_U32_t       AdHocChannel5G;
-   v_U32_t       AdHocChannel24G;
    
    v_U8_t        intfAddrMask;
    v_MACADDR_t   intfMacAddr[VOS_MAX_CONCURRENCY_PERSONA];
@@ -1873,14 +1912,17 @@ typedef struct
    v_U32_t        nActiveMinChnTimeConc;     //in units of milliseconds
    v_U32_t        nActiveMaxChnTimeConc;     //in units of milliseconds
    v_U32_t        nRestTimeConc;             //in units of milliseconds
-   v_U8_t         nNumChanCombinedConc;      //number of channels combined
-                                             //in each split scan operation
+   v_U8_t         nNumStaChanCombinedConc;   //number of channels combined for
+                                             //STA in each split scan operation
+   v_U8_t         nNumP2PChanCombinedConc;   //number of channels combined for
+                                             //P2P in each split scan operation
 #endif
 
    v_U8_t         nMaxPsPoll;
 
    v_U8_t         nRssiFilterPeriod;
    v_BOOL_t       fIgnoreDtim;
+   v_U8_t         fMaxLIModulatedDTIM;
 
    v_U8_t         nRxAnt;
    v_U8_t         fEnableFwHeartBeatMonitoring;
@@ -2024,6 +2066,8 @@ typedef struct
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
    v_BOOL_t                    nRoamPrefer5GHz;
    v_BOOL_t                    nRoamIntraBand;
+   v_U8_t                      nProbes;
+   v_U16_t                     nRoamScanHomeAwayTime;
 #endif
    v_S31_t                     linkSpeedRssiMid;
    v_S31_t                     linkSpeedRssiLow;
@@ -2078,9 +2122,13 @@ typedef struct
    v_U8_t                      retryLimitZero;
    v_U8_t                      retryLimitOne;
    v_U8_t                      retryLimitTwo;
+   v_U8_t                      disableAggWithBtc;
    char                        listOfNonDfsCountryCode[128];
    v_BOOL_t                    enableSSR;
    char                        listOfNon11acCountryCode[128];
+   v_U32_t                     cfgMaxMediumTime;
+   v_U8_t                      enableTrafficMonitor;
+   v_U32_t                     trafficIdleTimeout;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
