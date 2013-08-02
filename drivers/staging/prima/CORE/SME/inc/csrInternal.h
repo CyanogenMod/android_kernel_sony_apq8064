@@ -574,14 +574,17 @@ typedef struct tagCsrConfig
 
     tANI_U32  nActiveMinChnTimeBtc;     //in units of milliseconds
     tANI_U32  nActiveMaxChnTimeBtc;     //in units of milliseconds
+    tANI_U8   disableAggWithBtc;
 #ifdef WLAN_AP_STA_CONCURRENCY
     tANI_U32  nPassiveMinChnTimeConc;    //in units of milliseconds
     tANI_U32  nPassiveMaxChnTimeConc;    //in units of milliseconds
     tANI_U32  nActiveMinChnTimeConc;     //in units of milliseconds
     tANI_U32  nActiveMaxChnTimeConc;     //in units of milliseconds
     tANI_U32  nRestTimeConc;             //in units of milliseconds
-    tANI_U8   nNumChanCombinedConc;      //number of channels combined
-                                         //in each split scan operation
+    tANI_U8   nNumStaChanCombinedConc;   //number of channels combined for
+                                         //Sta in each split scan operation
+    tANI_U8   nNumP2PChanCombinedConc;   //number of channels combined for
+                                         //P2P in each split scan operation
 #endif
 
     tANI_BOOLEAN IsIdleScanEnabled;
@@ -614,9 +617,11 @@ typedef struct tagCsrConfig
     tANI_U8       RoamRssiDiff;
     tANI_U8       nImmediateRoamRssiDiff;
     tANI_BOOLEAN  nRoamPrefer5GHz;
-    tANI_BOOLEAN  nRoamIntraBand;
     tANI_BOOLEAN  isWESModeEnabled;
     tANI_BOOLEAN  nRoamScanControl;
+    tANI_BOOLEAN  nRoamIntraBand;
+    tANI_U8       nProbes;
+    tANI_U16      nRoamScanHomeAwayTime;
 #endif
 
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING

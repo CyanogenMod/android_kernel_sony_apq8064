@@ -11,7 +11,7 @@ BUILD_DEBUG_VERSION := 1
 BUILD_DIAG_VERSION := 0
 
 #Do we panic on bug?  default is to warn
-PANIC_ON_BUG := 0
+PANIC_ON_BUG := 1
 
 #Re-enable wifi on WDI timeout
 RE_ENABLE_WIFI_ON_WDI_TIMEOUT := 0
@@ -517,7 +517,9 @@ endif
 #normally, TDLS negative behavior is not needed
 ifeq ($(CONFIG_QCOM_TDLS),y)
 CDEFINES += -DFEATURE_WLAN_TDLS
+ifeq ($(BUILD_DEBUG_VERSION),1)
 CDEFINES += -DWLAN_FEATURE_TDLS_DEBUG
+endif
 CDEFINES += -DCONFIG_TDLS_IMPLICIT
 #CDEFINES += -DFEATURE_WLAN_TDLS_NEGATIVE
 #Code under FEATURE_WLAN_TDLS_INTERNAL is ported from volans, This code
@@ -550,10 +552,6 @@ endif
 
 # enable the MAC Address auto-generation feature
 CDEFINES += -DWLAN_AUTOGEN_MACADDR_FEATURE
-
-ifeq ($(CONFIG_WLAN_FEATURE_11W),y)
-CDEFINES += -DWLAN_FEATURE_11W
-endif
 
 ifeq ($(CONFIG_ARCH_MSM8960),y)
 EXTRA_CFLAGS += -march=armv7-a

@@ -39,7 +39,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-
 /*
  * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limScanResultUtils.h contains the utility definitions

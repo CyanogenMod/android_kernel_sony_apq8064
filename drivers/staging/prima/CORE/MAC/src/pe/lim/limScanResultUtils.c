@@ -216,7 +216,7 @@ limCollectBssDescription(tpAniSirGlobal pMac,
       pBssDescr->channelId = rxChannel;
    }
 
-    pBssDescr->channelIdSelf = rxChannel;
+    pBssDescr->channelIdSelf = pBssDescr->channelId;
     //set the network type in bss description
     channelNum = pBssDescr->channelId;
     pBssDescr->nwType = limGetNwType(pMac, channelNum, SIR_MAC_MGMT_FRAME, pBPR);
@@ -477,9 +477,9 @@ limCheckAndAddBssDescription(tpAniSirGlobal pMac,
     ieLen = WDA_GET_RX_PAYLOAD_LEN(pRxPacketInfo);
     if (ieLen <= SIR_MAC_B_PR_SSID_OFFSET)
     {
-        limLog(pMac, LOGP,
-               FL("RX packet has invalid length %d"), ieLen);
-        return;
+               limLog(pMac, LOGP,
+                   FL("RX packet has invalid length %d\n"), ieLen);
+                  return;
     }
 
     ieLen -= SIR_MAC_B_PR_SSID_OFFSET;
@@ -503,7 +503,10 @@ limCheckAndAddBssDescription(tpAniSirGlobal pMac,
     limCollectBssDescription(pMac, &pBssDescr->bssDescription,
                              pBPR, pRxPacketInfo);
 #endif
-
+    /* Calling dfsChannelList which will convert DFS channel
+     * to Active channel for x secs if this channel is DFS channel */
+    limSetDFSChannelList(pMac, pBssDescr->bssDescription.channelIdSelf,
+                               &pMac->lim.dfschannelList);
     pBssDescr->bssDescription.fProbeRsp = fProbeRsp;
 
     pBssDescr->next = NULL;

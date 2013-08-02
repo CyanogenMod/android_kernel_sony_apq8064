@@ -118,11 +118,6 @@ eHalStatus sme_HandlePostChannelSwitchInd(tHalHandle hHal);
 tANI_BOOLEAN csrIsScanAllowed(tpAniSirGlobal pMac);
 #endif
 
-#ifdef WLAN_FEATURE_11W
-eHalStatus sme_UnprotectedMgmtFrmInd( tHalHandle hHal,
-                                      tpSirSmeUnprotMgmtFrameInd pSmeMgmtFrm );
-#endif
-
 //Internal SME APIs
 eHalStatus sme_AcquireGlobalLock( tSmeStruct *psSme)
 {
@@ -1405,34 +1400,6 @@ eHalStatus sme_PCFilterMatchCountResponseHandler(tHalHandle hHal, void* pMsg)
 #endif // WLAN_FEATURE_PACKET_FILTERING
 
 
-#ifdef WLAN_FEATURE_11W
-/*------------------------------------------------------------------
- *
- * Handle the unprotected management frame indication from LIM and
- * forward it to HDD.
- *
- *------------------------------------------------------------------*/
-
-eHalStatus sme_UnprotectedMgmtFrmInd( tHalHandle hHal,
-                                      tpSirSmeUnprotMgmtFrameInd pSmeMgmtFrm)
-{
-    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
-    eHalStatus  status = eHAL_STATUS_SUCCESS;
-    tCsrRoamInfo pRoamInfo = {0};
-    tANI_U32 SessionId = pSmeMgmtFrm->sessionId;
-
-    pRoamInfo.nFrameLength = pSmeMgmtFrm->frameLen;
-    pRoamInfo.pbFrames = pSmeMgmtFrm->frameBuf;
-    pRoamInfo.frameType = pSmeMgmtFrm->frameType;
-
-    /* forward the mgmt frame to HDD */
-    csrRoamCallCallback(pMac, SessionId, &pRoamInfo, 0, eCSR_ROAM_UNPROT_MGMT_FRAME_IND, 0);
-
-    return status;
-}
-#endif
-
-
 /*--------------------------------------------------------------------------
 
   \brief sme_ProcessMsg() - The main message processor for SME.
@@ -1739,20 +1706,6 @@ eHalStatus sme_ProcessMsg(tHalHandle hHal, vos_msg_t* pMsg)
                     }
                     break;
                 }
-#endif
-
-#ifdef WLAN_FEATURE_11W
-           case eWNI_SME_UNPROT_MGMT_FRM_IND:
-                if (pMsg->bodyptr)
-                {
-                    sme_UnprotectedMgmtFrmInd(pMac, pMsg->bodyptr);
-                    vos_mem_free(pMsg->bodyptr);
-                }
-                else
-                {
-                    smsLog(pMac, LOGE, "Empty rsp message for meas (eWNI_SME_UNPROT_MGMT_FRM_IND), nothing to process");
-                }
-                break;
 #endif
 
           default:
@@ -6177,12 +6130,6 @@ eHalStatus sme_HandleChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
        return status;  
    }
 
-   /* purge current scan results
-    if i don't do this than I still get old ap's (of different country code) as available (even if they are powered off). 
-    Looks like a bug in current scan sequence. 
-   */
-   csrScanFlushResult(pMac);
-
    /* overwrite the defualt country code */
    palCopyMemory(pMac->hHdd, pMac->scan.countryCodeDefault, pMac->scan.countryCodeCurrent, WNI_CFG_COUNTRY_CODE_LEN);
 
@@ -6973,6 +6920,76 @@ eHalStatus sme_setRoamIntraBand(tHalHandle hHal, const v_BOOL_t nRoamIntraBand)
 }
 
 /* ---------------------------------------------------------------------------
+    \fn sme_UpdateRoamScanNProbes
+    \brief  function to update roam scan N probes
+            This function is called through dynamic setConfig callback function
+            to update roam scan N probes
+    \param  hHal - HAL handle for device
+    \param  nProbes number of probe requests to be sent out
+    \- return Success or failure
+    -------------------------------------------------------------------------*/
+eHalStatus sme_UpdateRoamScanNProbes(tHalHandle hHal, const v_U8_t nProbes)
+{
+    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+    eHalStatus          status    = eHAL_STATUS_SUCCESS;
+
+    status = sme_AcquireGlobalLock( &pMac->sme );
+    if ( HAL_STATUS_SUCCESS( status ) )
+    {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
+                     "%s: gRoamScanNProbes is changed from %d to %d", __func__,
+                      pMac->roam.configParam.nProbes,
+                      nProbes);
+        pMac->roam.configParam.nProbes = nProbes;
+        sme_ReleaseGlobalLock( &pMac->sme );
+    }
+#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+    if (pMac->roam.configParam.isRoamOffloadScanEnabled)
+    {
+        csrRoamOffloadScan(pMac, ROAM_SCAN_OFFLOAD_UPDATE_CFG,
+                           REASON_NPROBES_CHANGED);
+    }
+#endif
+    return status ;
+}
+
+/* ---------------------------------------------------------------------------
+    \fn sme_UpdateRoamScanHomeAwayTime
+    \brief  function to update roam scan Home away time
+            This function is called through dynamic setConfig callback function
+            to update roam scan home away time
+    \param  hHal - HAL handle for device
+    \param  nRoamScanAwayTime Scan home away time
+    \- return Success or failure
+    -------------------------------------------------------------------------*/
+eHalStatus sme_UpdateRoamScanHomeAwayTime(tHalHandle hHal, const v_U16_t nRoamScanHomeAwayTime)
+{
+    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+    eHalStatus          status    = eHAL_STATUS_SUCCESS;
+
+    status = sme_AcquireGlobalLock( &pMac->sme );
+    if ( HAL_STATUS_SUCCESS( status ) )
+    {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
+                     "%s: gRoamScanHomeAwayTime is changed from %d to %d", __func__,
+                      pMac->roam.configParam.nRoamScanHomeAwayTime,
+                      nRoamScanHomeAwayTime);
+        pMac->roam.configParam.nRoamScanHomeAwayTime = nRoamScanHomeAwayTime;
+        sme_ReleaseGlobalLock( &pMac->sme );
+    }
+
+#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+    if (pMac->roam.configParam.isRoamOffloadScanEnabled)
+    {
+        csrRoamOffloadScan(pMac, ROAM_SCAN_OFFLOAD_UPDATE_CFG,
+                           REASON_HOME_AWAY_TIME_CHANGED);
+    }
+#endif
+    return status;
+}
+
+
+/* ---------------------------------------------------------------------------
     \fn sme_getRoamIntraBand
     \brief  get Intra band roaming
     \param  hHal - HAL handle for device
@@ -6982,6 +6999,30 @@ v_BOOL_t sme_getRoamIntraBand(tHalHandle hHal)
 {
     tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
     return pMac->roam.configParam.nRoamIntraBand;
+}
+
+/* ---------------------------------------------------------------------------
+    \fn sme_getRoamScanNProbes
+    \brief  get N Probes
+    \param  hHal - HAL handle for device
+    \- return Success or failure
+    -------------------------------------------------------------------------*/
+v_U8_t sme_getRoamScanNProbes(tHalHandle hHal)
+{
+    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+    return pMac->roam.configParam.nProbes;
+}
+
+/* ---------------------------------------------------------------------------
+    \fn sme_getRoamScanHomeAwayTime
+    \brief  get Roam scan home away time
+    \param  hHal - HAL handle for device
+    \- return Success or failure
+    -------------------------------------------------------------------------*/
+v_U16_t sme_getRoamScanHomeAwayTime(tHalHandle hHal)
+{
+    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+    return pMac->roam.configParam.nRoamScanHomeAwayTime;
 }
 
 
@@ -7842,24 +7883,6 @@ eHalStatus sme_GetCountryRevision(tHalHandle hHal, tANI_U8 *pRevision)
 }
 
 /*--------------------------------------------------------------------------
-  \brief sme_getIsCcxFeatureEnabled() - get CCX feature enabled or not
-  This is a synchronuous call
-  \param hHal - The handle returned by macOpen.
-  \return TRUE (1) - if the CCX feature is enabled
-          FALSE (0) - if feature is disabled (compile or runtime)
-  \sa
-  --------------------------------------------------------------------------*/
-tANI_BOOLEAN sme_getIsCcxFeatureEnabled(tHalHandle hHal)
-{
-#ifdef FEATURE_WLAN_CCX
-    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
-    return pMac->roam.configParam.isCcxIniFeatureEnabled;
-#else
-    return eANI_BOOLEAN_FALSE;
-#endif
-}
-
-/*--------------------------------------------------------------------------
   \brief sme_GetWESMode() - get WES Mode
   This is a synchronous call
   \param hHal - The handle returned by macOpen
@@ -7884,7 +7907,24 @@ v_BOOL_t sme_GetRoamScanControl(tHalHandle hHal)
     tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
     return pMac->roam.configParam.nRoamScanControl;
 }
+
+/*--------------------------------------------------------------------------
+  \brief sme_getIsCcxFeatureEnabled() - get CCX feature enabled or not
+  This is a synchronuous call
+  \param hHal - The handle returned by macOpen.
+  \return TRUE (1) - if the CCX feature is enabled
+          FALSE (0) - if feature is disabled (compile or runtime)
+  \sa
+  --------------------------------------------------------------------------*/
+tANI_BOOLEAN sme_getIsCcxFeatureEnabled(tHalHandle hHal)
+{
+#ifdef FEATURE_WLAN_CCX
+    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+    return pMac->roam.configParam.isCcxIniFeatureEnabled;
+#else
+    return eANI_BOOLEAN_FALSE;
 #endif
+}
 
 /*--------------------------------------------------------------------------
   \brief sme_getIsLfrFeatureEnabled() - get LFR feature enabled or not
@@ -7922,6 +7962,7 @@ tANI_BOOLEAN sme_getIsFtFeatureEnabled(tHalHandle hHal)
 #endif
 }
 
+#endif
 
 /* ---------------------------------------------------------------------------
     \fn sme_IsFeatureSupportedByFW
@@ -8047,16 +8088,6 @@ VOS_STATUS sme_DeleteTdlsPeerSta(tHalHandle hHal, tANI_U8 sessionId, tSirMacAddr
 
 }
 /* ---------------------------------------------------------------------------
-    \fn sme_IsPmcBmps
-    \API to Check if PMC state is BMPS.
-
-    \- return v_BOOL_t
-    -------------------------------------------------------------------------*/
-v_BOOL_t sme_IsPmcBmps(tHalHandle hHal)
-{
-    return (BMPS == pmcGetPmcState(hHal));
-}
-/* ---------------------------------------------------------------------------
     \fn sme_SetTdlsPowerSaveProhibited
     \API to set/reset the isTdlsPowerSaveProhibited.
 
@@ -8070,6 +8101,17 @@ void sme_SetTdlsPowerSaveProhibited(tHalHandle hHal, v_BOOL_t val)
     return;
 }
 #endif
+/* ---------------------------------------------------------------------------
+    \fn sme_IsPmcBmps
+    \API to Check if PMC state is BMPS.
+
+    \- return v_BOOL_t
+    -------------------------------------------------------------------------*/
+v_BOOL_t sme_IsPmcBmps(tHalHandle hHal)
+{
+    return (BMPS == pmcGetPmcState(hHal));
+}
+
 #ifdef FEATURE_WLAN_TDLS_INTERNAL
 /*
  * SME API to start TDLS discovery Procedure

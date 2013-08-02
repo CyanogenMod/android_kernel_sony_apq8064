@@ -25,6 +25,8 @@
 
   \brief WLAN Host Device Driver implementation for TDLS
 
+  Copyright (c) 2013 Qualcomm Atheros, Inc. All Rights Reserved.
+  Qualcomm Atheros Confidential and Proprietary.
   ========================================================================*/
 
 #include <wlan_hdd_includes.h>
@@ -43,6 +45,7 @@ static struct mutex tdls_lock;
 static tANI_S32 wlan_hdd_get_tdls_discovery_peer_cnt(tdlsCtx_t *pHddTdlsCtx);
 static tANI_S32 wlan_hdd_tdls_peer_reset_discovery_processed(tdlsCtx_t *pHddTdlsCtx);
 static void wlan_hdd_tdls_timers_destroy(tdlsCtx_t *pHddTdlsCtx);
+
 #ifdef CONFIG_TDLS_IMPLICIT
 static void wlan_hdd_tdls_pre_setup(struct work_struct *work);
 #endif
@@ -556,16 +559,57 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
         sme_IsFeatureSupportedByFW(TDLS));
         return 0;
     }
+    /* TDLS is supported only in STA / P2P Client modes,
+     * hence the check for TDLS support in a specific Device mode.
+     * Do not return a failure rather do not continue further
+     * with the initialization as tdls_init would be called
+     * during the open adapter for a p2p interface at which point
+     * the device mode would be a P2P_DEVICE. The point here is to
+     * continue initialization for STA / P2P Client modes.
+     * TDLS exit also check for the device mode for clean up hence
+     * there is no issue even if success is returned.
+     */
+    if (0 == WLAN_HDD_IS_TDLS_SUPPORTED_ADAPTER(pAdapter))
+    {
+        return 0;
+    }
+    /* Check for the valid pHddTdlsCtx. If valid do not further
+     * allocate the memory, rather continue with the initialization.
+     * If tdls_initialization would get reinvoked  without tdls_exit
+     * getting invoked (SSR) there is no point to further proceed
+     * with the memory allocations.
+     */
+    if (NULL == pAdapter->sessionCtx.station.pHddTdlsCtx)
+    {
+        pHddTdlsCtx = vos_mem_malloc(sizeof(tdlsCtx_t));
 
-    pHddTdlsCtx = vos_mem_malloc(sizeof(tdlsCtx_t));
+        if (NULL == pHddTdlsCtx) {
+            hddLog(VOS_TRACE_LEVEL_ERROR, "%s malloc failed!", __func__);
+            pAdapter->sessionCtx.station.pHddTdlsCtx = NULL;
+            return -1;
+        }
+        /* initialize TDLS pAdater context */
+        vos_mem_zero(pHddTdlsCtx, sizeof(tdlsCtx_t));
+#ifdef TDLS_USE_SEPARATE_DISCOVERY_TIMER
+        vos_timer_init(&pHddTdlsCtx->peerDiscoverTimer,
+                VOS_TIMER_TYPE_SW,
+                wlan_hdd_tdls_discover_peer_cb,
+                pHddTdlsCtx);
+#endif
 
-    if (NULL == pHddTdlsCtx) {
-        hddLog(VOS_TRACE_LEVEL_ERROR, "%s malloc failed!", __func__);
-        pAdapter->sessionCtx.station.pHddTdlsCtx = NULL;
-        return -1;
+        vos_timer_init(&pHddTdlsCtx->peerUpdateTimer,
+                VOS_TIMER_TYPE_SW,
+                wlan_hdd_tdls_update_peer_cb,
+                pHddTdlsCtx);
+        vos_timer_init(&pHddTdlsCtx->peerDiscoveryTimeoutTimer,
+                VOS_TIMER_TYPE_SW,
+                wlan_hdd_tdls_discovery_timeout_peer_cb,
+                pHddTdlsCtx);
+
+        pAdapter->sessionCtx.station.pHddTdlsCtx = pHddTdlsCtx;
     }
 
-    pAdapter->sessionCtx.station.pHddTdlsCtx = pHddTdlsCtx;
+    pHddTdlsCtx = pAdapter->sessionCtx.station.pHddTdlsCtx;
 
     /* initialize TDLS global context */
     pHddCtx->connected_peer_count = 0;
@@ -584,9 +628,6 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
                                             sizeof(v_MACADDR_t)) ;
     }
 
-    /* initialize TDLS pAdater context */
-    vos_mem_zero(pHddTdlsCtx, sizeof(tdlsCtx_t));
-
     pHddTdlsCtx->pAdapter = pAdapter;
 
     for (i = 0; i < 256; i++)
@@ -596,22 +637,6 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
 
     pHddTdlsCtx->curr_candidate = NULL;
     pHddTdlsCtx->magic = 0;
-
-#ifdef TDLS_USE_SEPARATE_DISCOVERY_TIMER
-    vos_timer_init(&pHddTdlsCtx->peerDiscoverTimer,
-            VOS_TIMER_TYPE_SW,
-            wlan_hdd_tdls_discover_peer_cb,
-            pHddTdlsCtx);
-#endif
-
-    vos_timer_init(&pHddTdlsCtx->peerUpdateTimer,
-            VOS_TIMER_TYPE_SW,
-            wlan_hdd_tdls_update_peer_cb,
-            pHddTdlsCtx);
-    vos_timer_init(&pHddTdlsCtx->peerDiscoveryTimeoutTimer,
-            VOS_TIMER_TYPE_SW,
-            wlan_hdd_tdls_discovery_timeout_peer_cb,
-            pHddTdlsCtx);
 
     /* remember configuration even if it is not used right now. it could be used later */
     pHddTdlsCtx->threshold_config.tx_period_t = pHddCtx->cfg_ini->fTDLSTxStatsPeriod;
@@ -888,7 +913,7 @@ int wlan_hdd_tdls_recv_discovery_resp(hdd_adapter_t *pAdapter, u8 *mac)
         }
         else
         {
-            VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL, 
+            VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
             "Rssi Threshold not met: "MAC_ADDRESS_STR" rssi = %d threshold = %d ",
             MAC_ADDR_ARRAY(curr_peer->peerMac), curr_peer->rssi,
             pHddTdlsCtx->threshold_config.rssi_trigger_threshold);
