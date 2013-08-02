@@ -481,6 +481,8 @@ static int disable_safety_timer;
 module_param(disable_safety_timer, int, 0644);
 static int repeat_count;
 module_param(repeat_count, int, 0644);
+static int eoc_bat_fet_close;
+module_param(eoc_bat_fet_close, int, 0644);
 
 static struct pm8921_chg_chip *the_chip;
 static void check_temp_thresholds(struct pm8921_chg_chip *chip);
@@ -722,6 +724,9 @@ static int update_disable_charge_state(struct pm8921_chg_chip *chip,
 
 		en_bit_val = chg_en_set_data[bitno].chg_auto_en_bit_val;
 		dis_bit_val = chg_en_set_data[bitno].chg_dis_bit_val;
+
+		if (bitno == DIS_BIT_EOC && eoc_bat_fet_close && !dis_bit_val)
+			dis_bit_val = true;
 	}
 
 	rc = pm_chg_auto_enable(chip, en_bit_val);
@@ -983,6 +988,13 @@ static int pm_chg_iterm_set(struct pm8921_chg_chip *chip, int chg_current)
 {
 	u8 temp;
 
+	/* Do not use this functionality in HW since SW is not using this.
+	 * SW is comparing 'chip->term_current' by polling the actual
+	 * charge current.
+	 * Also HW has limitation to only set the limit to 200 mA.
+	 */
+	return 0;
+
 	if (chg_current < PM8921_CHG_ITERM_MIN_MA
 			|| chg_current > PM8921_CHG_ITERM_MAX_MA) {
 		pr_err("bad mA=%d asked to set\n", chg_current);
@@ -999,6 +1011,9 @@ static int pm_chg_iterm_get(struct pm8921_chg_chip *chip, int *chg_current)
 {
 	u8 temp;
 	int rc;
+
+	*chg_current = chip->term_current;
+	return 0;
 
 	rc = pm8xxx_readb(chip->dev->parent, CHG_ITERM, &temp);
 	if (rc) {
@@ -1901,6 +1916,10 @@ static int get_prop_batt_status(struct pm8921_chg_chip *chip)
 				chip->soc_scale.override_full_to_not_chg))
 
 			batt_state = POWER_SUPPLY_STATUS_NOT_CHARGING;
+	} else if (fsm_state == FSM_STATE_ON_BAT_3 &&
+			charging_disabled == DIS_BIT_EOC_MASK &&
+			power_supply_am_i_supplied(&chip->batt_psy)) {
+		batt_state = POWER_SUPPLY_STATUS_FULL;
 	}
 	return batt_state;
 }
@@ -4185,7 +4204,7 @@ static int is_charging_finished(struct pm8921_chg_chip *chip,
 		}
 		pr_debug("regulation_loop=%d\n", regulation_loop);
 
-		if (regulation_loop != 0 && regulation_loop != VDD_LOOP)
+		if (!(regulation_loop & VDD_LOOP))
 			return CHG_IN_PROGRESS;
 	} /* !is_ext_charging */
 

@@ -182,6 +182,9 @@ struct pm8921_bms_chip {
 	int			disable_flat_portion_ocv;
 	int			ocv_dis_high_soc;
 	int			ocv_dis_low_soc;
+	int			pon_disable_flat_portion_ocv;
+	int			pon_ocv_dis_high_soc;
+	int			pon_ocv_dis_low_soc;
 	int			high_ocv_correction_limit_uv;
 	int			low_ocv_correction_limit_uv;
 	int			hold_soc_est;
@@ -1044,16 +1047,50 @@ static int read_soc_params_raw(struct pm8921_bms_chip *chip,
 {
 	int usb_chg;
 	int est_ocv_uv;
+	int rc;
 
 	mutex_lock(&chip->bms_output_lock);
 	pm_bms_lock_output_data(chip);
 
-	pm_bms_read_output_data(chip,
+	rc = pm_bms_read_output_data(chip,
 			LAST_GOOD_OCV_VALUE, &raw->last_good_ocv_raw);
-	read_cc(chip, &raw->cc);
+	if (!rc)
+		rc = read_cc(chip, &raw->cc);
 
 	pm_bms_unlock_output_data(chip);
 	mutex_unlock(&chip->bms_output_lock);
+
+	if (rc) {
+		if (chip->prev_last_good_ocv_raw == OCV_RAW_UNINITIALIZED) {
+			/* Raw param read has never been successful yet.
+			 * Try estimate the OCV instead.
+			 */
+			est_ocv_uv = estimate_ocv(chip);
+			if (est_ocv_uv > 0 &&
+				est_ocv_uv != raw->last_good_ocv_uv) {
+				raw->last_good_ocv_uv = est_ocv_uv;
+				chip->last_ocv_uv = est_ocv_uv;
+				reset_cc(chip);
+				raw->cc = 0;
+				chip->bmsm.last_good_ocv =
+					raw->last_good_ocv_uv;
+
+				pr_info("estimated PON_OCV_UV = %d\n",
+					chip->last_ocv_uv);
+				rc = 0;
+			} else if (est_ocv_uv < 0) {
+				rc = est_ocv_uv;
+				pr_err("Failed reading raw parameters. "\
+					"Still uninitialized.\n");
+			} else {
+				rc = 0;
+			}
+		} else {
+			pr_err("Failed reading raw parameters. Using previous "\
+				"values\n");
+		}
+		return rc;
+	}
 
 	usb_chg =  usb_chg_plugged_in(chip);
 
@@ -2200,6 +2237,13 @@ static bool is_shutdown_soc_within_limits(struct pm8921_bms_chip *chip, int soc)
 		return 0;
 	}
 
+	if (chip->pon_disable_flat_portion_ocv &&
+		is_between(chip->pon_ocv_dis_high_soc,
+				chip->pon_ocv_dis_low_soc, soc)) {
+		pr_debug("power on SOC is in flat area, use shutdown SOC\n");
+		return 1;
+	}
+
 	if (abs(chip->shutdown_soc - soc) > chip->shutdown_soc_valid_limit) {
 		pr_debug("rejecting shutdown soc = %d, soc = %d limit = %d\n",
 			chip->shutdown_soc, soc,
@@ -2561,6 +2605,14 @@ static int report_state_of_charge(struct pm8921_bms_chip *chip)
 	if (last_soc != -EINVAL) {
 		if (chip->first_report_after_suspend) {
 			chip->first_report_after_suspend = false;
+
+			/* Someone might reset 'last_soc' just before going to
+			 * suspend. It can though be updated when another
+			 * external reads SOC before that goes to suspend.
+			 */
+			if (chip->last_soc_at_suspend == -EINVAL)
+				chip->last_soc_at_suspend = last_soc;
+
 			if (chip->soc_updated_on_resume) {
 				/*  coming here after a long suspend */
 				chip->soc_updated_on_resume = false;
@@ -3716,6 +3768,10 @@ static int __devinit pm8921_bms_probe(struct platform_device *pdev)
 	chip->disable_flat_portion_ocv = pdata->disable_flat_portion_ocv;
 	chip->ocv_dis_high_soc = pdata->ocv_dis_high_soc;
 	chip->ocv_dis_low_soc = pdata->ocv_dis_low_soc;
+	chip->pon_disable_flat_portion_ocv =
+		pdata->pon_disable_flat_portion_ocv;
+	chip->pon_ocv_dis_high_soc = pdata->pon_ocv_dis_high_soc;
+	chip->pon_ocv_dis_low_soc = pdata->pon_ocv_dis_low_soc;
 
 	chip->high_ocv_correction_limit_uv
 					= pdata->high_ocv_correction_limit_uv;
@@ -3863,6 +3919,7 @@ static int pm8921_bms_resume(struct device *dev)
 
 static const struct dev_pm_ops pm8921_bms_pm_ops = {
 	.resume		= pm8921_bms_resume,
+	.suspend 	= pm8921_bms_suspend,
 };
 
 static struct platform_driver pm8921_bms_driver = {

@@ -440,7 +440,7 @@ static int mipi_dsi_panel_plf_power(int on)
 								__func__, rc);
 			goto exit;
 		}
-		msleep(201);				/* Spec says > 200 ms */
+		usleep_range(25000, 26000);
 
 		rc = regulator_set_optimum_mode(reg_l2, 135000);
 		if (rc < 0) {
@@ -456,7 +456,7 @@ static int mipi_dsi_panel_plf_power(int on)
 							/* Enable VSP/VSN */
 		gpio_set_value_cansleep(lcd_dcdc_en_gpio, 1);
 		mipi_dsi_panel_plf_reset(0);		/* Reset LOW */
-		msleep(51);				/* Spec says > 50 ms */
+		usleep_range(25000, 26000);
 		mipi_dsi_panel_plf_reset(1);		/* Reset HIGH */
 		usleep_range(11000, 12000);		/* Spec says > 10 ms */
 	} else {
@@ -465,7 +465,7 @@ static int mipi_dsi_panel_plf_power(int on)
 		usleep_range(11000, 12000);		/* Spec says > 10 ms */
 							/* Disable VSP/VSN */
 		gpio_set_value_cansleep(lcd_dcdc_en_gpio, 0);
-		msleep(51);				/* Spec says > 50 ms) */
+		usleep_range(25000, 26000);
 		rc = regulator_disable(reg_l2);		/* Disable dsi-vdda */
 		if (rc)
 			pr_err("%s: disable l2 failed, rc=%d\n", __func__, rc);

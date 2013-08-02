@@ -416,7 +416,7 @@ static int apq8064_pm8921_therm_mitigation[] = {
 
 #define MAX_VOLTAGE_MV	4200
 #define V_CUTOFF_MV	3200
-#define CHG_TERM_MA	200
+#define CHG_TERM_MA	310
 static struct pm8921_charger_platform_data
 apq8064_pm8921_chg_pdata __devinitdata = {
 	.ttrkl_time		= 64,
@@ -485,6 +485,9 @@ apq8064_pm8921_bms_pdata __devinitdata = {
 	.normal_voltage_calc_ms		= 20000,
 	.low_voltage_calc_ms		= 1000,
 #ifndef CONFIG_PM8921_SONY_BMS_CHARGER
+	.pon_disable_flat_portion_ocv	= 1,
+	.pon_ocv_dis_high_soc		= 55,
+	.pon_ocv_dis_low_soc		= 25,
 	.low_voltage_detect		= 1,
 	.vbatt_cutoff_retries		= 5,
 	.high_ocv_correction_limit_uv	= 50,

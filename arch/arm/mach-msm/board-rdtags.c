@@ -20,7 +20,7 @@
 
 struct rdtags_tag_const {
 	const char const key[16];
-	const char const value[32];
+	const char const value[64];
 };
 
 struct rdtags_build_tags {

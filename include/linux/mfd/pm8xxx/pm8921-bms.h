@@ -46,6 +46,9 @@ struct pm8xxx_bms_core_data {
  * @disable_flat_portion_ocv:	feature to disable ocv updates while in sleep
  * @ocv_dis_high_soc:		the high soc percent when ocv should be disabled
  * @ocv_dis_low_soc:		the low soc percent when ocv should be enabled
+ * @pon_disable_flat_portion_ocv:	feature to disable power on ocv reading
+ * @pon_ocv_dis_high_soc:	the upper power on ocv soc percent to disregard
+ * @pon_ocv_dis_low_soc:	the lower power on ocv soc percent to disregard
  * @low_voltage_detect:		feature to enable 0 SOC reporting on low voltage
  * @vbatt_cutoff_retries:	number of tries before we report a 0 SOC
  * @high_ocv_correction_limit_uv:	the max amount of OCV corrections
@@ -77,6 +80,9 @@ struct pm8921_bms_platform_data {
 	int				disable_flat_portion_ocv;
 	int				ocv_dis_high_soc;
 	int				ocv_dis_low_soc;
+	int				pon_disable_flat_portion_ocv;
+	int				pon_ocv_dis_high_soc;
+	int				pon_ocv_dis_low_soc;
 	int				low_voltage_detect;
 	int				vbatt_cutoff_retries;
 	int				high_ocv_correction_limit_uv;

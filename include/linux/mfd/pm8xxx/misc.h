@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -341,11 +341,6 @@ static inline int pm8xxx_aux_clk_control(enum pm8xxx_aux_clk_id clk_id,
 }
 static inline int pm8xxx_hsed_bias_control(enum pm8xxx_hsed_bias bias,
 							bool enable)
-{
-	return -ENODEV;
-}
-
-static inline int pm8xxx_read_register(u16 addr, u8 *value)
 {
 	return -ENODEV;
 }
