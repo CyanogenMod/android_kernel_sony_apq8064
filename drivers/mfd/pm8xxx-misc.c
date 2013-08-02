@@ -230,7 +230,6 @@ int pm8xxx_read_register(u16 addr, u8 *value)
 }
 EXPORT_SYMBOL_GPL(pm8xxx_read_register);
 
-
 /*
  * Set an SMPS regulator to be disabled in its CTRL register, but enabled
  * in the master enable register.  Also set it's pull down enable bit.

@@ -34,6 +34,7 @@ static char interface_id_setting[] = {
 static char dsi_control[] = {
 	0xB6, 0x3A, 0xD3
 };
+#ifndef CONFIG_FB_MSM_DISABLE_GAMMA
 static char gamma_setting_r[] = {
 	0xC7, 0x07, 0x08, 0x0B, 0x12, 0x22, 0x3D, 0x30,
 	0x40, 0x7F, 0x4E, 0x66, 0x78, 0x07, 0x08, 0x0B,
@@ -52,6 +53,7 @@ static char gamma_setting_b[] = {
 	0x33, 0x3D, 0x4C, 0x35, 0x44, 0x62, 0x50, 0x5C,
 	0x78
 };
+#endif
 
 /* Display ON Sequence */
 static char exit_sleep[] = {
@@ -92,12 +94,14 @@ static struct dsi_cmd_desc display_init_cmd_seq[] = {
 		sizeof(interface_id_setting), interface_id_setting},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0,
 		sizeof(dsi_control), dsi_control},
+#ifndef CONFIG_FB_MSM_DISABLE_GAMMA
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0,
 		sizeof(gamma_setting_r), gamma_setting_r},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0,
 		sizeof(gamma_setting_g), gamma_setting_g},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0,
 		sizeof(gamma_setting_b), gamma_setting_b},
+#endif
 };
 
 static struct dsi_cmd_desc display_on_cmd_seq[] = {

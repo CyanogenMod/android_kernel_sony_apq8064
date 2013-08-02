@@ -795,6 +795,10 @@ config FB_MSM_PANEL_NONE
 	  This will disable LCD panel
 endchoice
 
+config FB_MSM_DISABLE_GAMMA
+	bool "Disable panel gamma setting"
+	default n
+
 config LGIT_VIDEO_WXGA_CABC
 	bool "Content Adaptive Backlight Control on LGIT WXGA Panel"
 	default y

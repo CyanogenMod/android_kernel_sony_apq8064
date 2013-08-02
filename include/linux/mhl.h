@@ -128,6 +128,7 @@ struct mhl_device {
 	struct work_struct rap_retry_work;
 	int rap_command_counter;
 	struct list_head rap_queue;
+	struct timer_list rap_powerkey_timer;
 #endif
 
 #ifdef CONFIG_MHL_OSD_NAME
@@ -145,7 +146,8 @@ struct mhl_device {
 
 	int key_release_supported;
 	int mouse_enabled;
-	int mouse_speed;
+	int mouse_move_distance_dx;
+	int mouse_move_distance_dy;
 	struct input_dev *input;
 
 	struct early_suspend early_suspend;

@@ -38,10 +38,10 @@
 #define RAPK_WAIT_TIME		(jiffies + HZ)
 #define RAPK_RETRY_TIME		(jiffies + HZ/2)
 #define RAP_SEND_RETRY_MAX	2
+#define SEND_POWERKEY_TIME	(jiffies + HZ/3)
 #endif /* CONFIG_MHL_RAP */
 
 #define MHL_KEYCODE_OFFSET	0x40
-#define MOUSE_MOVE_DISTANCE	25
 /*
  * mhl.c - MHL control abustruction provides following feature
  * - Userspace interface
@@ -60,6 +60,7 @@ static DEFINE_MUTEX(rap_command_queue_mutex);
 struct workqueue_struct *rap_command_workqueue;
 static int mhl_rap_send_msc_msg(struct mhl_device *mhl_dev, u8 sub_cmd,
 	u8 cmd_data);
+static void mhl_handle_input(struct mhl_device *mhl_dev, u8 key_code);
 #endif /* CONFIG_MHL_RAP */
 
 static DEFINE_MUTEX(usb_online_mutex);
@@ -165,6 +166,35 @@ static int mhl_check_sink_version(struct mhl_device *mhl_dev)
 		ret_val = 1;
 
 	return ret_val;
+}
+
+static void mhl_check_sink_devcat_plim(struct mhl_device *mhl_dev)
+{
+	int devcat = mhl_dev->state.peer_devcap[DEVCAP_OFFSET_DEV_CAT];
+	int plim0 = devcat & MHL_DEV_CATEGORY_PLIM0_BIT;
+	int plim1 = devcat & MHL_DEV_CATEGORY_PLIM1_BIT;
+	int mhl_version = mhl_dev->state.peer_devcap[DEVCAP_OFFSET_MHL_VERSION];
+
+	/* Default value. Note that we use 700 mA instead of 500 mA here. */
+	int charging_current = 700;
+
+	if (mhl_version >= 0x20) {
+		/* Set charging current depending on the sink. */
+		if (!plim1 && !plim0) {
+			/* Use default current. */
+		} else if (!plim1 && plim0) {
+			charging_current = 900;
+		} else if (plim1 && !plim0) {
+			/* This can be 1500 mA according to the MHL 2.0 spec,
+			 * but we have no way to test that and therefore won't
+			 * set it any higher than 900 mA at this point. */
+			charging_current = 900;
+		} else {
+			/* Unknown configuration. Use default current. */
+		}
+	}
+
+	mhl_dev->ops->charging_control(TRUE, charging_current);
 }
 
 int mhl_notify_online(struct mhl_device *mhl_dev)
@@ -310,8 +340,7 @@ int mhl_msc_command_done(struct mhl_device *mhl_dev,
 		case MHL_DEV_CATEGORY_OFFSET:
 			if (req->retval & MHL_DEV_CATEGORY_POW_BIT) {
 				if (mhl_dev->ops->charging_control)
-					mhl_dev->ops->charging_control
-						(TRUE, 700);
+					mhl_check_sink_devcat_plim(mhl_dev);
 			} else {
 				if (mhl_dev->ops->charging_control)
 					mhl_dev->ops->charging_control
@@ -533,19 +562,32 @@ static void mhl_rap_send_retry_timer(unsigned long data)
 	queue_work(rap_command_workqueue, &mhl_dev->rap_retry_work);
 }
 
+static void mhl_rap_powerkey_timer(unsigned long data)
+{
+	struct mhl_device *mhl_dev = (struct mhl_device *)data;
+	if (!mhl_dev)
+		return;
+
+	dev_info(&mhl_dev->dev, "send powerkey\n");
+
+	/* fake Vendor_Specific key event to suspend phone */
+	mhl_handle_input(mhl_dev, 0x7E);
+	mhl_handle_input(mhl_dev, 0x7E | 0x80);
+}
+
 static void mhl_init_rap_timers(struct mhl_device *mhl_dev)
 {
 	init_timer(&mhl_dev->rap_send_timer);
 	mhl_dev->rap_send_timer.function = mhl_rap_send_timer;
 	mhl_dev->rap_send_timer.data = (unsigned long)mhl_dev;
-	mhl_dev->rap_send_timer.expires = 0xffffffffL;
-	add_timer(&mhl_dev->rap_send_timer);
 
 	init_timer(&mhl_dev->rap_retry_timer);
 	mhl_dev->rap_retry_timer.function = mhl_rap_send_retry_timer;
 	mhl_dev->rap_retry_timer.data = (unsigned long)mhl_dev;
-	mhl_dev->rap_retry_timer.expires = 0xffffffffL;
-	add_timer(&mhl_dev->rap_retry_timer);
+
+	init_timer(&mhl_dev->rap_powerkey_timer);
+	mhl_dev->rap_powerkey_timer.function = mhl_rap_powerkey_timer;
+	mhl_dev->rap_powerkey_timer.data = (unsigned long)mhl_dev;
 }
 #endif /* CONFIG_MHL_RAP */
 /*
@@ -791,9 +833,12 @@ static void mhl_print_devcap(struct mhl_device *mhl_dev, int offset)
 	switch (offset) {
 	case DEVCAP_OFFSET_DEV_CAT:
 		reg = mhl_dev->state.peer_devcap[offset];
-		pr_info("DCAP: %02X %s: %02X DEV_TYPE=%X POW=%s\n",
+		pr_info("DCAP: %02X %s: %02X DEV_TYPE=%X POW=%s PLIM0=%s PLIM1=%s\n",
 			offset, devcap_reg_name[offset], reg,
-			reg & 0x0F, (reg & 0x10) ? "y" : "n");
+			reg & 0x0F,
+			(reg & MHL_DEV_CATEGORY_POW_BIT) ? "y" : "n",
+			(reg & MHL_DEV_CATEGORY_PLIM0_BIT) ? "y" : "n",
+			(reg & MHL_DEV_CATEGORY_PLIM1_BIT) ? "y" : "n");
 		break;
 	case DEVCAP_OFFSET_FEATURE_FLAG:
 		reg = mhl_dev->state.peer_devcap[offset];
@@ -937,19 +982,23 @@ static void mhl_handle_input(struct mhl_device *mhl_dev, u8 key_code)
 			break;
 		case 0x01: /* UP */
 			input_report_rel(mhl_dev->input, REL_Y,
-					 -mhl_dev->mouse_speed * key_pressed);
+					-mhl_dev->mouse_move_distance_dy
+					* key_pressed);
 			break;
 		case 0x02: /* DOWN */
 			input_report_rel(mhl_dev->input, REL_Y,
-					 mhl_dev->mouse_speed * key_pressed);
+					mhl_dev->mouse_move_distance_dy
+					* key_pressed);
 			break;
 		case 0x03: /* LEFT */
 			input_report_rel(mhl_dev->input, REL_X,
-					 -mhl_dev->mouse_speed * key_pressed);
+					-mhl_dev->mouse_move_distance_dx
+					* key_pressed);
 			break;
 		case 0x04: /* RIGHT */
 			input_report_rel(mhl_dev->input, REL_X,
-					 mhl_dev->mouse_speed * key_pressed);
+					mhl_dev->mouse_move_distance_dx
+					* key_pressed);
 			break;
 		default:
 			input_report_key(mhl_dev->input, input_key_code,
@@ -1020,9 +1069,10 @@ static int mhl_rap_action(struct mhl_device *mhl_dev, u8 action_code)
 			mhl_notify_rap_recv(mhl_dev, action_code);
 			/* NACK any RAP call until we resumed */
 			mhl_dev->suspended = 1;
-			/* fake Vendor_Specific key event to suspend phone */
-			mhl_handle_input(mhl_dev, 0x7E);
-			mhl_handle_input(mhl_dev, 0x7E | 0x80);
+			/* reserve power key transmission */
+			dev_info(&mhl_dev->dev, "set powerkey\n");
+			mod_timer(&mhl_dev->rap_powerkey_timer,
+						SEND_POWERKEY_TIME);
 		}
 		break;
 	default:
@@ -1428,15 +1478,31 @@ static ssize_t mhl_show_mouse_mode(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct mhl_device *mhl_dev = to_mhl_device(dev);
-	return snprintf(buf, PAGE_SIZE, "%d,%d\n",
-			mhl_dev->mouse_enabled, mhl_dev->mouse_speed);
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			mhl_dev->mouse_enabled);
 }
 
 static ssize_t mhl_store_mouse_mode(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct mhl_device *mhl_dev = to_mhl_device(dev);
-	sscanf(buf, "%d,%d", &mhl_dev->mouse_enabled, &mhl_dev->mouse_speed);
+	sscanf(buf, "%d", &mhl_dev->mouse_enabled);
+	return count;
+}
+
+static ssize_t mhl_store_mouse_move_distance_dx(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct mhl_device *mhl_dev = to_mhl_device(dev);
+	sscanf(buf, "%d", &mhl_dev->mouse_move_distance_dx);
+	return count;
+}
+
+static ssize_t mhl_store_mouse_move_distance_dy(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct mhl_device *mhl_dev = to_mhl_device(dev);
+	sscanf(buf, "%d", &mhl_dev->mouse_move_distance_dy);
 	return count;
 }
 
@@ -1476,6 +1542,9 @@ static void mhl_early_suspend(struct early_suspend *handler)
 
 	dev_info(&mhl_dev->dev, "early suspend\n");
 
+	/* cancel power key transmission */
+	del_timer(&mhl_dev->rap_powerkey_timer);
+
 	if (mhl_dev->mhl_online != MHL_ONLINE || !mhl_dev->tmds_state
 			|| !mhl_dev->full_operation) {
 		mhl_dev->suspended = 1;
@@ -1497,6 +1566,9 @@ static void mhl_early_resume(struct early_suspend *handler)
 	dev_info(&mhl_dev->dev, "early resume\n");
 
 	mhl_dev->suspended = 0;
+
+	/* cancel power key transmission */
+	del_timer(&mhl_dev->rap_powerkey_timer);
 
 	if (mhl_dev->mhl_online != MHL_ONLINE || !mhl_dev->full_operation)
 		return;
@@ -1576,7 +1648,8 @@ struct mhl_device *mhl_device_register(const char *name,
 
 	mhl_dev->key_release_supported = 0;
 	mhl_dev->mouse_enabled = 0;
-	mhl_dev->mouse_speed = MOUSE_MOVE_DISTANCE;
+	mhl_dev->mouse_move_distance_dx = 0;
+	mhl_dev->mouse_move_distance_dy = 0;
 	mhl_dev->input = input_allocate_device();
 	if (!mhl_dev->input) {
 		dev_err(&mhl_dev->dev, "failed to alloc input device\n");
@@ -1627,6 +1700,7 @@ void mhl_device_unregister(struct mhl_device *mhl_dev)
 #ifdef CONFIG_MHL_RAP
 	del_timer(&mhl_dev->rap_send_timer);
 	del_timer(&mhl_dev->rap_retry_timer);
+	del_timer(&mhl_dev->rap_powerkey_timer);
 #endif /* CONFIG_MHL_RAP */
 	mutex_lock(&mhl_dev->ops_mutex);
 	if (mhl_dev->input) {
@@ -1647,6 +1721,10 @@ static struct device_attribute mhl_class_attributes[] = {
 	__ATTR(device_id, 0440, mhl_show_device_id, NULL),
 	__ATTR(adopter_id, 0440, mhl_show_adopter_id, NULL),
 	__ATTR(mouse_mode, 0660, mhl_show_mouse_mode, mhl_store_mouse_mode),
+	__ATTR(mouse_move_distance_dx, 0660, NULL,
+		mhl_store_mouse_move_distance_dx),
+	__ATTR(mouse_move_distance_dy, 0660, NULL,
+		mhl_store_mouse_move_distance_dy),
 	__ATTR_NULL,
 };
 

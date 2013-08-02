@@ -20,6 +20,7 @@ static char mcap[] = {
 	0xB0, 0x00
 };
 
+#ifndef CONFIG_FB_MSM_DISABLE_GAMMA
 static char mcap_protect_off[] = {
 	0xB0, 0x04
 };
@@ -46,6 +47,7 @@ static char gamma_setting_b[] = {
 	0x2F, 0x38, 0x48, 0x32, 0x47, 0x57, 0x66, 0x73,
 	0x78
 };
+#endif
 
 static char exit_sleep[] = {
 	0x11
@@ -80,6 +82,7 @@ static struct dsi_cmd_desc display_init_cmd_seq[] = {
 };
 
 static struct dsi_cmd_desc display_on_cmd_seq[] = {
+#ifndef CONFIG_FB_MSM_DISABLE_GAMMA
 	{DTYPE_GEN_WRITE2, 1, 0, 0, 0,
 		sizeof(mcap_protect_off), mcap_protect_off},
 	{DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(nop), nop},
@@ -90,6 +93,7 @@ static struct dsi_cmd_desc display_on_cmd_seq[] = {
 		sizeof(gamma_setting_g), gamma_setting_g},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0,
 		sizeof(gamma_setting_b), gamma_setting_b},
+#endif
 	{DTYPE_DCS_WRITE, 1, 0, 0, 0,
 		sizeof(display_on), display_on},
 };

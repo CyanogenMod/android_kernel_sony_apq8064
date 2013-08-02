@@ -1,6 +1,6 @@
 /* Copyright (c) 2012, The Linux Foundation. All rights reserved.
  * Copyright (C) 2011 Sony Ericsson Mobile Communications AB.
- * Copyright (C) 2012 Sony Mobile Communications AB.
+ * Copyright (C) 2012-2013 Sony Mobile Communications AB.
  * Copyright (C) 2011 Silicon Image Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -52,6 +52,8 @@ enum DevCapOffset_e {
 /* Device Category */
 #define MHL_DEV_CATEGORY_OFFSET		DEVCAP_OFFSET_DEV_CAT
 #define MHL_DEV_CATEGORY_POW_BIT	BIT(4)
+#define MHL_DEV_CATEGORY_PLIM0_BIT	BIT(5)
+#define MHL_DEV_CATEGORY_PLIM1_BIT	BIT(6)
 
 #define	MHL_DEV_CAT_SINK			0x01
 #define	MHL_DEV_CAT_SOURCE			0x02

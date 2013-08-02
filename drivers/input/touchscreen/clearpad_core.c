@@ -2659,6 +2659,7 @@ static int synaptics_clearpad_pm_resume(struct device *dev)
 #endif
 	spin_lock_irqsave(&this->slock, flags);
 	irq_pending = this->irq_pending;
+	this->irq_pending = false;
 	this->dev_busy = false;
 	spin_unlock_irqrestore(&this->slock, flags);
 
