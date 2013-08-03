@@ -363,11 +363,6 @@ typedef enum
 #define CFG_ROAM_PREFER_5GHZ_MIN              ( 0 )  
 #define CFG_ROAM_PREFER_5GHZ_MAX              ( 1 )  
 #define CFG_ROAM_PREFER_5GHZ_DEFAULT          ( 1 )
-
-#define CFG_ROAM_INTRA_BAND                   "gRoamIntraBand"
-#define CFG_ROAM_INTRA_BAND_MIN               ( 0 )
-#define CFG_ROAM_INTRA_BAND_MAX               ( 1 )
-#define CFG_ROAM_INTRA_BAND_DEFAULT           ( 0 )
 #endif
 
 #define CFG_STAT_TIMER_INTERVAL_NAME           "gStatTimerInterval"
@@ -810,27 +805,7 @@ typedef enum
 #define CFG_IMMEDIATE_ROAM_RSSI_DIFF_MIN                    (0)
 #define CFG_IMMEDIATE_ROAM_RSSI_DIFF_MAX                    (125)
 #define CFG_IMMEDIATE_ROAM_RSSI_DIFF_DEFAULT                (3)
-
-/*This parameter is used to set Wireless Extended Security Mode.*/
-#define CFG_ENABLE_WES_MODE_NAME                            "gWESModeEnabled"
-#define CFG_ENABLE_WES_MODE_NAME_MIN                        (0)
-#define CFG_ENABLE_WES_MODE_NAME_MAX                        (1)
-#define CFG_ENABLE_WES_MODE_NAME_DEFAULT                    (0)
 #endif /* (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR) */
-
-#ifdef FEATURE_WLAN_OKC
-#define CFG_OKC_FEATURE_ENABLED_NAME                       "OkcEnabled"
-#define CFG_OKC_FEATURE_ENABLED_MIN                        (0)
-#define CFG_OKC_FEATURE_ENABLED_MAX                        (1)
-#define CFG_OKC_FEATURE_ENABLED_DEFAULT                    (1)
-#endif
-
-#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
-#define CFG_ROAM_SCAN_OFFLOAD_ENABLED                       "gRoamScanOffloadEnabled"
-#define CFG_ROAM_SCAN_OFFLOAD_ENABLED_MIN                   (0)
-#define CFG_ROAM_SCAN_OFFLOAD_ENABLED_MAX                   (1)
-#define CFG_ROAM_SCAN_OFFLOAD_ENABLED_DEFAULT               (1)
-#endif
 
 #define CFG_QOS_WMM_PKT_CLASSIFY_BASIS_NAME                "PktClassificationBasis" // DSCP or 802.1Q
 #define CFG_QOS_WMM_PKT_CLASSIFY_BASIS_MIN                  (0)
@@ -1259,6 +1234,11 @@ typedef enum
 #define CFG_ENABLE_DFS_CHNL_SCAN_MAX               ( 1 )
 #define CFG_ENABLE_DFS_CHNL_SCAN_DEFAULT           ( 1 )
 
+#define CFG_ENABLE_IGNORE_CHAN165                   "gIgnore_Chan165"
+#define CFG_ENABLE_IGNORE_CHAN165_MIN               ( 0 )
+#define CFG_ENABLE_IGNORE_CHAN165_MAX               ( 1 )
+#define CFG_ENABLE_IGNORE_CHAN165_DEFAULT           ( 0 )
+
 typedef enum
 {
     eHDD_LINK_SPEED_REPORT_ACTUAL = 0,
@@ -1318,11 +1298,6 @@ typedef enum
 #define CFG_MC_ADDR_LIST_FILTER_MAX                ( 1 )
 #define CFG_MC_ADDR_LIST_FILTER_DEFAULT            ( 0 )
 #endif
-
-#define CFG_ENABLE_SSR                      "gEnableSSR"
-#define CFG_ENABLE_SSR_MIN                  ( 0 )
-#define CFG_ENABLE_SSR_MAX                  ( 1 )
-#define CFG_ENABLE_SSR_DEFAULT              ( 1 )
 
 /*
  * VOS Trace Enable Control
@@ -1507,7 +1482,7 @@ typedef enum
 #define CFG_ALLOW_MCC_GO_DIFF_BI_NAME           "gAllowMCCGODiffBI"
 #define CFG_ALLOW_MCC_GO_DIFF_BI_MIN            ( 0 )
 #define CFG_ALLOW_MCC_GO_DIFF_BI_MAX            ( 4 )
-#define CFG_ALLOW_MCC_GO_DIFF_BI_DEFAULT        ( 4 )
+#define CFG_ALLOW_MCC_GO_DIFF_BI_DEFAULT        ( 2 ) 
 
 /*
  * Enable/Disable Thermal Mitigation feature
@@ -1693,27 +1668,6 @@ typedef enum
 #define CFG_DISABLE_LDPC_WITH_TXBF_AP_MAX         ( 1 )
 #define CFG_DISABLE_LDPC_WITH_TXBF_AP_DEFAULT     ( 0 )
 #endif
-
-#define CFG_LIST_OF_NON_DFS_COUNTRY_CODE                    "gListOfNonDfsCountryCode"
-#define CFG_LIST_OF_NON_DFS_COUNTRY_CODE_DEFAULT            "JO,MA"
-
-#define CFG_LIST_OF_NON_11AC_COUNTRY_CODE                    "gListOfNon11acCountryCode"
-#define CFG_LIST_OF_NON_11AC_COUNTRY_CODE_DEFAULT            "RU,UA,ZA"
-
-/*
- * IBSS Operating Channels for 2.4G and 5GHz channels
- */
-#define CFG_IBSS_ADHOC_CHANNEL_5GHZ_NAME          "gAdHocChannel5G"
-#define CFG_IBSS_ADHOC_CHANNEL_5GHZ_MIN           ( 36 )
-#define CFG_IBSS_ADHOC_CHANNEL_5GHZ_MAX           ( 165 )
-#define CFG_IBSS_ADHOC_CHANNEL_5GHZ_DEFAULT       ( 44 )
-
-#define CFG_IBSS_ADHOC_CHANNEL_24GHZ_NAME         "gAdHocChannel24G"
-#define CFG_IBSS_ADHOC_CHANNEL_24GHZ_MIN          ( 1 )
-#define CFG_IBSS_ADHOC_CHANNEL_24GHZ_MAX          ( 14 )
-#define CFG_IBSS_ADHOC_CHANNEL_24GHZ_DEFAULT      ( 6 )
-
-
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -1797,8 +1751,6 @@ typedef struct
    v_BOOL_t      fIsShortPreamble;
    v_BOOL_t      fIsAutoIbssBssid;
    v_MACADDR_t   IbssBssid;
-   v_U32_t       AdHocChannel5G;
-   v_U32_t       AdHocChannel24G;
    
    v_U8_t        intfAddrMask;
    v_MACADDR_t   intfMacAddr[VOS_MAX_CONCURRENCY_PERSONA];
@@ -1913,14 +1865,8 @@ typedef struct
    v_BOOL_t                     isFastTransitionEnabled;
    v_U8_t                       RoamRssiDiff;
    v_U8_t                       nImmediateRoamRssiDiff;
-   v_BOOL_t                     isWESModeEnabled;
 #endif
-#ifdef FEATURE_WLAN_OKC
-   v_BOOL_t                     isOkcIniFeatureEnabled;
-#endif
-#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
-   v_BOOL_t                     isRoamOffloadScanEnabled;
-#endif
+
    hdd_wmm_classification_t     PktClassificationBasis; // DSCP or 802.1Q
    v_BOOL_t                     bImplicitQosEnabled;
 
@@ -2023,7 +1969,6 @@ typedef struct
    v_S31_t                     linkSpeedRssiHigh;
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
    v_BOOL_t                    nRoamPrefer5GHz;
-   v_BOOL_t                    nRoamIntraBand;
 #endif
    v_S31_t                     linkSpeedRssiMid;
    v_S31_t                     linkSpeedRssiLow;
@@ -2048,6 +1993,7 @@ typedef struct
    v_BOOL_t                    ignoreDynamicDtimInP2pMode;
    v_U16_t                     configMccParam;
    v_U32_t                     numBuffAdvert;
+   v_U8_t                      ignore_chan165;
    v_BOOL_t                    enableRxSTBC;
 #ifdef FEATURE_WLAN_TDLS       
    v_BOOL_t                    fEnableTDLSSupport;
@@ -2078,9 +2024,6 @@ typedef struct
    v_U8_t                      retryLimitZero;
    v_U8_t                      retryLimitOne;
    v_U8_t                      retryLimitTwo;
-   char                        listOfNonDfsCountryCode[128];
-   v_BOOL_t                    enableSSR;
-   char                        listOfNon11acCountryCode[128];
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
@@ -2091,7 +2034,6 @@ v_BOOL_t hdd_update_config_dat ( hdd_context_t *pHddCtx );
 VOS_STATUS hdd_cfg_get_config(hdd_context_t *pHddCtx, char *pBuf, int buflen);
 eCsrPhyMode hdd_cfg_xlate_to_csr_phy_mode( eHddDot11Mode dot11Mode );
 VOS_STATUS hdd_execute_config_command(hdd_context_t *pHddCtx, char *command);
-tANI_BOOLEAN hdd_is_okc_mode_enabled(hdd_context_t *pHddCtx);
 
 #define FIELD_OFFSET(__type, __field) ((unsigned int)(&((__type *)0)->__field))
 #define VAR_OFFSET( _Struct, _Var ) ( (unsigned int) FIELD_OFFSET(_Struct, _Var ) )

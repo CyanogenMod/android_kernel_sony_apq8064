@@ -134,6 +134,10 @@ when        who    what, where, why
 /*Maximum number of ACs */
 #define WLANTL_MAX_AC                         4
 
+
+/* Bit Mask to represent All Stations */
+#define WLAN_ALL_STA                         0xFF
+
 /* Maximum number of station supported by TL, including BC. */
 #define WLAN_MAX_STA_COUNT  (HAL_NUM_STA)
 #define WLAN_NON32_STA_COUNT   14
@@ -2620,46 +2624,5 @@ WLANTL_ClearTxXmitPending
 (
   v_PVOID_t       pvosGCtx
 );
-
-/*==========================================================================
-  FUNCTION   WLANTL_UpdateSTABssIdforIBSS
-
-  DESCRIPTION
-    HDD will call this API to update the BSSID for this Station.
-
-  DEPENDENCIES
-    The HDD Should registered the staID with TL before calling this function.
-
-  PARAMETERS
-
-    IN
-    pvosGCtx:    Pointer to the global vos context; a handle to TL's
-                    or WDA's control block can be extracted from its context
-    IN
-    ucSTAId       The Station ID for Bssid to be updated
-    IN
-    pBssid          BSSID to be updated
-
-  RETURN VALUE
-      The result code associated with performing the operation
-
-      VOS_STATUS_E_INVAL:  Input parameters are invalid
-      VOS_STATUS_E_FAULT:  Station ID is outside array boundaries or pointer to
-                           TL cb is NULL ; access would cause a page fault
-      VOS_STATUS_E_EXISTS: Station was not registered
-      VOS_STATUS_SUCCESS:  Everything is good :)
-
-    SIDE EFFECTS
-============================================================================*/
-
-VOS_STATUS
-WLANTL_UpdateSTABssIdforIBSS
-(
-  v_PVOID_t             pvosGCtx,
-  v_U8_t                ucSTAId,
-  v_U8_t               *pBssid
-);
-
-
 
 #endif /* #ifndef WLAN_QCT_WLANTL_H */

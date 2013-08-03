@@ -825,12 +825,9 @@ static VOS_STATUS btcDeferAclCreate( tpAniSirGlobal pMac, tpSmeBtEvent pEvent )
             if(BT_EVENT_CREATE_ACL_CONNECTION == pAclEventHist->btEventType[pAclEventHist->bNextEventIdx - 1])
             {
                 //The last cached event is creation, replace it with the new one
-                if (pAclEvent)
-                {
-                    vos_mem_copy(pAclEvent,
-                                 &pEvent->uEventParam.btAclConnection,
-                                 sizeof(tSmeBtAclConnectionParam));
-                }
+                vos_mem_copy(pAclEvent, 
+                                &pEvent->uEventParam.btAclConnection, 
+                                sizeof(tSmeBtAclConnectionParam));
                 //done
                 break;
             }
@@ -987,12 +984,9 @@ static VOS_STATUS btcDeferSyncCreate( tpAniSirGlobal pMac, tpSmeBtEvent pEvent )
                 pSyncEventHist->btEventType[pSyncEventHist->bNextEventIdx - 1])
             {
                 //The last cached event is creation, replace it with the new one
-                if(pSyncEvent)
-                {
-                    vos_mem_copy(pSyncEvent,
-                                 &pEvent->uEventParam.btSyncConnection,
-                                 sizeof(tSmeBtSyncConnectionParam));
-                }
+                vos_mem_copy(pSyncEvent, 
+                                &pEvent->uEventParam.btSyncConnection, 
+                                sizeof(tSmeBtSyncConnectionParam));
                 //done
                 break;
             }

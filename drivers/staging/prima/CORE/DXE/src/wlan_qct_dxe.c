@@ -101,8 +101,6 @@ when           who        what, where, why
 #define T_WLANDXE_MAX_HW_ACCESS_WAIT       2000
 #define WLANDXE_MAX_REAPED_RX_FRAMES       512
 
-#define WLANPAL_RX_INTERRUPT_PRO_MASK      0x20
-#define WLANDXE_RX_INTERRUPT_PRO_UNMASK    0x5F
 /* This is temporary fot the compile
  * WDI will release official version
  * This must be removed */
@@ -2027,7 +2025,8 @@ static wpt_status dxeRXFrameRefillRing
       }
 
       /* Kick off the DXE ring, if not in any power save mode */
-      if(WLANDXE_POWER_STATE_FULL == dxeCtxt->hostPowerState)
+      if((WLANDXE_POWER_STATE_IMPS != dxeCtxt->hostPowerState) &&
+         (WLANDXE_POWER_STATE_DOWN != dxeCtxt->hostPowerState))
       {
          wpalWriteRegister(WALNDEX_DMA_ENCH_ADDRESS,
                            1 << channelEntry->assignedDMAChannel);
@@ -2461,7 +2460,6 @@ void dxeRXEventHandler
    WLANDXE_ChannelCBType    *channelCb  = NULL;
    wpt_uint32                chHighStat = 0;
    wpt_uint32                chLowStat  = 0;
-   wpt_uint32                regValue;
 
    dxeCtxt = (WLANDXE_CtrlBlkType *)(msgContent->pContext);
 
@@ -2692,23 +2690,36 @@ void dxeRXEventHandler
    {
       HDXE_ASSERT(0);
    }
-   wpalWriteRegister(dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_HIGH_PRI].channelRegister.chDXECtrlRegAddr,
-                     dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_HIGH_PRI].extraConfig.chan_mask);
+   if(!(WLANDXE_CH_STAT_INT_ED_MASK & chHighStat))
+   {
+      HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED,
+               "dxeRXEventHandler RX High, Not yet ED, re-enable CH");
+      wpalWriteRegister(dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_HIGH_PRI].channelRegister.chDXECtrlRegAddr,
+                        dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_HIGH_PRI].extraConfig.chan_mask);
+   }
+   else
+   {
+      HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED,
+               "dxeRXEventHandler RX High, CH STAT = ED_MASK, will RIVA PC");
+   }
 
    /* Prepare Control Register EN Channel */
    if(!(dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI].extraConfig.chan_mask & WLANDXE_CH_CTRL_EN_MASK))
    {
       HDXE_ASSERT(0);
    }
-
-   wpalWriteRegister(dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI].channelRegister.chDXECtrlRegAddr,
-                     dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI].extraConfig.chan_mask);
-
-   /* Clear Interrupt handle processing bit
-    * RIVA may power down */
-   wpalReadRegister(WLANDXE_INT_MASK_REG_ADDRESS, &regValue);
-   regValue &= WLANDXE_RX_INTERRUPT_PRO_UNMASK;
-   wpalWriteRegister(WLANDXE_INT_MASK_REG_ADDRESS, regValue);
+   if(!(WLANDXE_CH_STAT_INT_ED_MASK & chLowStat))
+   {
+      HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED,
+               "dxeRXEventHandler RX Low, Not yet ED, re-enable CH");
+      wpalWriteRegister(dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI].channelRegister.chDXECtrlRegAddr,
+                        dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI].extraConfig.chan_mask);
+   }
+   else
+   {
+      HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED,
+               "dxeRXEventHandler RX Low, CH STAT = ED_MASK, will RIVA PC");
+   }
 
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __func__);
@@ -2812,7 +2823,10 @@ static void dxeRXISR
 {
    WLANDXE_CtrlBlkType      *dxeCtxt    = (WLANDXE_CtrlBlkType *)hostCtxt;
    wpt_status                status     = eWLAN_PAL_STATUS_SUCCESS;
+#ifdef FEATURE_R33D
    wpt_uint32                regValue;
+#endif /* FEATURE_R33D */
+
 
 #ifdef FEATURE_R33D
    status = wpalReadRegister(WLANDXE_INT_SRC_RAW_ADDRESS,
@@ -2832,12 +2846,6 @@ static void dxeRXISR
       return;
    }
 #endif /* FEATURE_R33D */
-
-   /* Set Interrupt processing bit
-    * During this bit set, WLAN HW may not power collapse */
-   wpalReadRegister(WLANDXE_INT_MASK_REG_ADDRESS, &regValue);
-   regValue |= WLANPAL_RX_INTERRUPT_PRO_MASK;
-   wpalWriteRegister(WLANDXE_INT_MASK_REG_ADDRESS, regValue);
 
    /* Disable interrupt at here
     * Disable RX Ready system level Interrupt at here
@@ -4699,11 +4707,6 @@ wpt_status WLANDXE_Stop
    dxeCtxt = (WLANDXE_CtrlBlkType *)pDXEContext;
    for(idx = 0; idx < WDTS_CHANNEL_MAX; idx++)
    {
-      if(VOS_TIMER_STATE_RUNNING == wpalTimerGetCurStatus(&dxeCtxt->dxeChannel[idx].healthMonitorTimer))
-      {
-         wpalTimerStop(&dxeCtxt->dxeChannel[idx].healthMonitorTimer);
-      }
-
       status = dxeChannelStop(dxeCtxt, &dxeCtxt->dxeChannel[idx]);
       if(eWLAN_PAL_STATUS_SUCCESS != status)
       {

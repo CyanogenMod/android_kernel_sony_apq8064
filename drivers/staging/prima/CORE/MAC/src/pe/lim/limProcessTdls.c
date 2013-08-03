@@ -49,10 +49,12 @@
 
   Are listed for each API below.
 
+Copyright (c) 2013 Qualcomm Atheros, Inc.All Rights Reserved.
+Qualcomm Atheros Confidential and Proprietary.
 
-  Copyright (c) 2010 QUALCOMM Incorporated.
-  All Rights Reserved.
-  Qualcomm Confidential and Proprietary
+Copyright (c) 2010 Qualcomm Technologies, Inc.All Rights Reserved.
+Qualcomm Technologies Confidential and Proprietary
+
 ===========================================================================*/
 
 /*===========================================================================
@@ -937,12 +939,6 @@ static tSirRetStatus limSendTdlsDisRspFrame(tpAniSirGlobal pMac,
     tANI_U8            *pFrame;
     void               *pPacket;
     eHalStatus          halstatus;
-    uint32              selfDot11Mode;
-//  Placeholder to support different channel bonding mode of TDLS than AP.
-//  Today, WNI_CFG_CHANNEL_BONDING_MODE will be overwritten when connecting to AP
-//  To support this feature, we need to introduce WNI_CFG_TDLS_CHANNEL_BONDING_MODE
-//  As of now, we hardcoded to max channel bonding of dot11Mode (i.e HT80 for 11ac/HT40 for 11n)
-//  uint32 tdlsChannelBondingMode;
 
     /* 
      * The scheme here is to fill out a 'tDot11fProbeRequest' structure
@@ -984,55 +980,27 @@ static tSirRetStatus limSendTdlsDisRspFrame(tpAniSirGlobal pMac,
     /* Populate extended supported rates */
     PopulateDot11fTdlsExtCapability( pMac, &tdlsDisRsp.ExtCap );
 
-    wlan_cfgGetInt(pMac,WNI_CFG_DOT11_MODE,&selfDot11Mode);
-
+    /* Include HT Capability IE */
+    //This does not depend on peer capabilities. If it is supported then it should be included
+    PopulateDot11fHTCaps( pMac, psessionEntry, &tdlsDisRsp.HTCaps );
     if (psessionEntry->currentOperChannel <= SIR_11B_CHANNEL_END)
     {
-        if (IS_DOT11_MODE_HT(selfDot11Mode))
-        {
-            /* Include HT Capability IE */
-            PopulateDot11fHTCaps( pMac, NULL, &tdlsDisRsp.HTCaps );
-            tdlsDisRsp.HTCaps.present = 1;
-            /* hardcode NO channel bonding in 2.4Ghz */
-            tdlsDisRsp.HTCaps.supportedChannelWidthSet = 0;
-        }
-        else
-        {
-            tdlsDisRsp.HTCaps.present = 0;
-        }
-#ifdef WLAN_FEATURE_11AC
-        /* in 2.4Ghz, hardcode NO 11ac */
-        tdlsDisRsp.VHTCaps.present = 0;
-#endif
+        tdlsDisRsp.HTCaps.present = 1;
+        tdlsDisRsp.HTCaps.supportedChannelWidthSet = 0;
     }
     else
     {
-        if (IS_DOT11_MODE_HT(selfDot11Mode))
+        if (tdlsDisRsp.HTCaps.present)
         {
-            /* Include HT Capability IE */
-            PopulateDot11fHTCaps( pMac, NULL, &tdlsDisRsp.HTCaps );
+            tdlsDisRsp.HTCaps.supportedChannelWidthSet = 1; // pVhtCaps->supportedChannelWidthSet;
+        }
+    }
 
-            tdlsDisRsp.HTCaps.present = 1;
-            //Placeholder to support different channel bonding mode of TDLS than AP.
-            //wlan_cfgGetInt(pMac,WNI_CFG_TDLS_CHANNEL_BONDING_MODE,&tdlsChannelBondingMode);
-            //tdlsDisRsp.HTCaps.supportedChannelWidthSet = tdlsChannelBondingMode ? 1 : 0;
-            tdlsDisRsp.HTCaps.supportedChannelWidthSet = 1; // hardcode it to max
-        }
-        else
-        {
-            tdlsDisRsp.HTCaps.present = 0;
-        }
-#ifdef WLAN_FEATURE_11AC
-        if (IS_DOT11_MODE_VHT(selfDot11Mode))
-        {
-            /* Include VHT Capability IE */
-            PopulateDot11fVHTCaps( pMac, &tdlsDisRsp.VHTCaps );
-        }
-        else
-        {
-            tdlsDisRsp.VHTCaps.present = 0;
-        }
-#endif
+    /* Include VHT Capability IE */
+    PopulateDot11fVHTCaps( pMac, &tdlsDisRsp.VHTCaps );
+    if (psessionEntry->currentOperChannel <= SIR_11B_CHANNEL_END)
+    {
+        tdlsDisRsp.VHTCaps.present = 0;
     }
 
     /* 
@@ -1193,12 +1161,6 @@ tSirRetStatus limSendTdlsLinkSetupReqFrame(tpAniSirGlobal pMac,
     tANI_U8            *pFrame;
     void               *pPacket;
     eHalStatus          halstatus;
-    uint32              selfDot11Mode;
-//  Placeholder to support different channel bonding mode of TDLS than AP.
-//  Today, WNI_CFG_CHANNEL_BONDING_MODE will be overwritten when connecting to AP
-//  To support this feature, we need to introduce WNI_CFG_TDLS_CHANNEL_BONDING_MODE
-//  As of now, we hardcoded to max channel bonding of dot11Mode (i.e HT80 for 11ac/HT40 for 11n)
-//  uint32 tdlsChannelBondingMode;
 
     /* 
      * The scheme here is to fill out a 'tDot11fProbeRequest' structure
@@ -1261,49 +1223,29 @@ tSirRetStatus limSendTdlsLinkSetupReqFrame(tpAniSirGlobal pMac,
      * of peer caps
      */
 
-    wlan_cfgGetInt(pMac,WNI_CFG_DOT11_MODE,&selfDot11Mode);
-
+    /* Include HT Capability IE */
+    PopulateDot11fHTCaps( pMac, NULL, &tdlsSetupReq.HTCaps );
     if (psessionEntry->currentOperChannel <= SIR_11B_CHANNEL_END)
     {
-        if (IS_DOT11_MODE_HT(selfDot11Mode))
-        {
-            /* Include HT Capability IE */
-            PopulateDot11fHTCaps( pMac, NULL, &tdlsSetupReq.HTCaps );
-
-            tdlsSetupReq.HTCaps.present = 1;
-            /* hardcode NO channel bonding in 2.4Ghz */
-            tdlsSetupReq.HTCaps.supportedChannelWidthSet = 0;
-        }
-        else
-        {
-            tdlsSetupReq.HTCaps.present = 0;
-        }
-#ifdef WLAN_FEATURE_11AC
-        /* in 2.4Ghz, hardcode NO 11ac */
-        tdlsSetupReq.VHTCaps.present = 0;
-#endif
+        tdlsSetupReq.HTCaps.present = 1;
+        tdlsSetupReq.HTCaps.supportedChannelWidthSet = 0;
     }
     else
     {
-        if (IS_DOT11_MODE_HT(selfDot11Mode))
+        if (tdlsSetupReq.HTCaps.present)
         {
-            /* Include HT Capability IE */
-            PopulateDot11fHTCaps( pMac, NULL, &tdlsSetupReq.HTCaps );
-
-            tdlsSetupReq.HTCaps.present = 1;
-            //Placeholder to support different channel bonding mode of TDLS than AP.
-            //wlan_cfgGetInt(pMac,WNI_CFG_TDLS_CHANNEL_BONDING_MODE,&tdlsChannelBondingMode);
-            //tdlsSetupReq.HTCaps.supportedChannelWidthSet = tdlsChannelBondingMode ? 1 : 0;
-            tdlsSetupReq.HTCaps.supportedChannelWidthSet = 1; // hardcode it to max
+            tdlsSetupReq.HTCaps.supportedChannelWidthSet = 1; // pVhtCaps->supportedChannelWidthSet;
         }
-        else
-        {
-            tdlsSetupReq.HTCaps.present = 0;
-        }
-#ifdef WLAN_FEATURE_11AC
-        /* Include VHT Capability IE */
-        PopulateDot11fVHTCaps( pMac, &tdlsSetupReq.VHTCaps );
-        if (IS_DOT11_MODE_VHT(selfDot11Mode))
+    }
+    /* Include VHT Capability IE */
+    PopulateDot11fVHTCaps( pMac, &tdlsSetupReq.VHTCaps );
+    if (psessionEntry->currentOperChannel <= SIR_11B_CHANNEL_END)
+    {
+        tdlsSetupReq.VHTCaps.present = 0;
+    }
+    else
+    {
+        if (tdlsSetupReq.VHTCaps.present)
         {
             tANI_U16 aid;
             tpDphHashNode       pStaDs;
@@ -1315,11 +1257,6 @@ tSirRetStatus limSendTdlsLinkSetupReqFrame(tpAniSirGlobal pMac,
                 tdlsSetupReq.AID.assocId = aid | LIM_AID_MASK; // set bit 14 and 15 1's
             }
         }
-        else
-        {
-            tdlsSetupReq.VHTCaps.present = 0;
-        }
-#endif
     }
     /* 
      * now we pack it.  First, how much space are we going to need?
@@ -1658,12 +1595,6 @@ static tSirRetStatus limSendTdlsSetupRspFrame(tpAniSirGlobal pMac,
     tANI_U8            *pFrame;
     void               *pPacket;
     eHalStatus          halstatus;
-    uint32             selfDot11Mode;
-//  Placeholder to support different channel bonding mode of TDLS than AP.
-//  Today, WNI_CFG_CHANNEL_BONDING_MODE will be overwritten when connecting to AP
-//  To support this feature, we need to introduce WNI_CFG_TDLS_CHANNEL_BONDING_MODE
-//  As of now, we hardcoded to max channel bonding of dot11Mode (i.e HT80 for 11ac/HT40 for 11n)
-//  uint32 tdlsChannelBondingMode;
 
     /* 
      * The scheme here is to fill out a 'tDot11fProbeRequest' structure
@@ -1722,49 +1653,31 @@ static tSirRetStatus limSendTdlsSetupRspFrame(tpAniSirGlobal pMac,
     tdlsSetupRsp.QOSCapsStation.acvi_uapsd = 1;
     tdlsSetupRsp.QOSCapsStation.acvo_uapsd = 1;
 
-    wlan_cfgGetInt(pMac,WNI_CFG_DOT11_MODE,&selfDot11Mode);
-
+    PopulateDot11fHTCaps( pMac, NULL, &tdlsSetupRsp.HTCaps );
     if (psessionEntry->currentOperChannel <= SIR_11B_CHANNEL_END)
     {
-        if (IS_DOT11_MODE_HT(selfDot11Mode))
-        {
-            /* Include HT Capability IE */
-            PopulateDot11fHTCaps( pMac, NULL, &tdlsSetupRsp.HTCaps );
-
-            tdlsSetupRsp.HTCaps.present = 1;
-            /* hardcode NO channel bonding in 2.4Ghz */
-            tdlsSetupRsp.HTCaps.supportedChannelWidthSet = 0;
-        }
-        else
-        {
-            tdlsSetupRsp.HTCaps.present = 0;
-        }
-#ifdef WLAN_FEATURE_11AC
-        /* in 2.4Ghz, hardcode NO 11ac */
-        tdlsSetupRsp.VHTCaps.present = 0;
-#endif
+        tdlsSetupRsp.HTCaps.present = 1;
+        tdlsSetupRsp.HTCaps.supportedChannelWidthSet = 0;
     }
     else
     {
-        if (IS_DOT11_MODE_HT(selfDot11Mode))
+        if (tdlsSetupRsp.HTCaps.present)
         {
-            /* Include HT Capability IE */
-            PopulateDot11fHTCaps( pMac, NULL, &tdlsSetupRsp.HTCaps );
-
-            tdlsSetupRsp.HTCaps.present = 1;
-            //Placeholder to support different channel bonding mode of TDLS than AP.
-            //wlan_cfgGetInt(pMac,WNI_CFG_TDLS_CHANNEL_BONDING_MODE,&tdlsChannelBondingMode);
-            //tdlsSetupRsp.HTCaps.supportedChannelWidthSet = tdlsChannelBondingMode ? 1 : 0;
-            tdlsSetupRsp.HTCaps.supportedChannelWidthSet = 1; // hardcode it to max
+            tdlsSetupRsp.HTCaps.supportedChannelWidthSet = 1; // pVhtCaps->supportedChannelWidthSet;
         }
-        else
-        {
-            tdlsSetupRsp.HTCaps.present = 0;
-        }
-#ifdef WLAN_FEATURE_11AC
-        /* Include VHT Capability IE */
-        PopulateDot11fVHTCaps( pMac, &tdlsSetupRsp.VHTCaps );
-        if (IS_DOT11_MODE_VHT(selfDot11Mode))
+    }
+    /* Include VHT Capability IE */
+    PopulateDot11fVHTCaps( pMac, &tdlsSetupRsp.VHTCaps );
+    if (psessionEntry->currentOperChannel <= SIR_11B_CHANNEL_END)
+    {
+        tdlsSetupRsp.VHTCaps.present = 0;
+        tdlsSetupRsp.VHTCaps.supportedChannelWidthSet = 0;
+        tdlsSetupRsp.VHTCaps.ldpcCodingCap = 0;
+        tdlsSetupRsp.VHTCaps.suBeamFormerCap = 0;
+    }
+    else
+    {
+        if (tdlsSetupRsp.VHTCaps.present)
         {
             tANI_U16 aid;
             tpDphHashNode       pStaDs;
@@ -1776,13 +1689,7 @@ static tSirRetStatus limSendTdlsSetupRspFrame(tpAniSirGlobal pMac,
                 tdlsSetupRsp.AID.assocId = aid | LIM_AID_MASK; // set bit 14 and 15 1's
             }
         }
-        else
-        {
-            tdlsSetupRsp.VHTCaps.present = 0;
-        }
-#endif
     }
-
     tdlsSetupRsp.Status.status = setupStatus ;
 
     /* 
@@ -2423,7 +2330,7 @@ static tSirRetStatus limTdlsPopulateDot11fHTCaps(tpAniSirGlobal pMac, tpPESessio
     pDot11f->rxAS                     = pASCapabilityInfo->rxAS;
     pDot11f->txSoundingPPDUs          = pASCapabilityInfo->txSoundingPPDUs;
 
-    pDot11f->present = pTdlsAddStaReq->htcap_present;
+    pDot11f->present = 1;
 
     return eSIR_SUCCESS;
 
@@ -2445,7 +2352,7 @@ limTdlsPopulateDot11fVHTCaps(tpAniSirGlobal pMac,
         tSirMacVHTRxSupDataRateInfo    vhtRxsupDataRateInfo;
     } uVHTSupDataRateInfo;
 
-    pDot11f->present = pTdlsAddStaReq->vhtcap_present;
+    pDot11f->present = 1;
 
     nCfgValue = pTdlsAddStaReq->vhtCap.vhtCapInfo;
     uVHTCapabilityInfo.nCfgValue32 = nCfgValue;
@@ -2778,8 +2685,7 @@ static void limTdlsUpdateHashNodeInfo(tpAniSirGlobal pMac, tDphHashNode *pStaDs,
     if (pVhtCaps->present)
     {
         pStaDs->mlmStaContext.vhtCapability = 1 ;
-        pStaDs->vhtSupportedChannelWidthSet =  WNI_CFG_VHT_CHANNEL_WIDTH_80MHZ;
-        pStaDs->htSupportedChannelWidthSet = eHT_CHANNEL_WIDTH_40MHZ ;
+        pStaDs->vhtSupportedChannelWidthSet= pVhtCaps->supportedChannelWidthSet;
         pStaDs->vhtLdpcCapable = pVhtCaps->ldpcCodingCap;
         pStaDs->vhtBeamFormerCapable= pVhtCaps->suBeamFormerCap;
         // TODO , is it necessary , Sunil???
@@ -2788,7 +2694,6 @@ static void limTdlsUpdateHashNodeInfo(tpAniSirGlobal pMac, tDphHashNode *pStaDs,
     else
     {
         pStaDs->mlmStaContext.vhtCapability = 0 ;
-        pStaDs->vhtSupportedChannelWidthSet = WNI_CFG_VHT_CHANNEL_WIDTH_20_40MHZ;
     }
 #endif
     /*Calculate the Secondary Coannel Offset */

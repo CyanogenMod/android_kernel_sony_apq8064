@@ -384,9 +384,6 @@ __limProcessSmeStartReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         /// By default return unique scan results
         pMac->lim.gLimReturnUniqueResults = true;
         pMac->lim.gLimSmeScanResultLength = 0;
-#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
-        pMac->lim.gLimSmeLfrScanResultLength = 0;
-#endif
 
         if (((tSirSmeStartReq *) pMsgBuf)->sendNewBssInd)
         {
@@ -839,7 +836,7 @@ __limHandleSmeStartBssRequest(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
              *reserved reserved RIFS Lsig n-GF ht20 11g 11b*/
             palCopyMemory( pMac->hHdd, (void *) &psessionEntry->cfgProtection,
                           (void *) &pSmeStartBssReq->ht_capab,
-                          sizeof( tANI_U16 ));
+                          sizeof( tCfgProtection ));
             psessionEntry->pAPWPSPBCSession = NULL; // Initialize WPS PBC session link list
         }
 
@@ -1329,58 +1326,24 @@ __limProcessSmeScanReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
             tANI_U16    scanRspLen = sizeof(tSirSmeScanRsp);
 
             pMac->lim.gLimRspReqd = false;
-#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
-            if (pScanReq->returnFreshResults & SIR_BG_SCAN_RETURN_LFR_CACHED_RESULTS)
+
+            if (pMac->lim.gLimSmeScanResultLength == 0)
             {
-                pMac->lim.gLimSmeLfrScanResultLength = pMac->lim.gLimMlmLfrScanResultLength;
-                if (pMac->lim.gLimSmeLfrScanResultLength == 0)
-                {
-                    limSendSmeLfrScanRsp(pMac, scanRspLen,
-                                         eSIR_SME_SUCCESS,
-                                         pScanReq->sessionId,
-                                         pScanReq->transactionId);
-                }
-                else
-                {
-                    scanRspLen = sizeof(tSirSmeScanRsp) +
-                                 pMac->lim.gLimSmeLfrScanResultLength -
-                                 sizeof(tSirBssDescription);
-                    limSendSmeLfrScanRsp(pMac, scanRspLen, eSIR_SME_SUCCESS,
-                               pScanReq->sessionId, pScanReq->transactionId);
-                }
+                limSendSmeScanRsp(pMac, scanRspLen, eSIR_SME_SUCCESS, pScanReq->sessionId, pScanReq->transactionId);
             }
             else
             {
-#endif
-               if (pMac->lim.gLimSmeScanResultLength == 0)
-               {
-                  limSendSmeScanRsp(pMac, scanRspLen, eSIR_SME_SUCCESS,
-                          pScanReq->sessionId, pScanReq->transactionId);
-               }
-               else
-               {
-                  scanRspLen = sizeof(tSirSmeScanRsp) +
-                               pMac->lim.gLimSmeScanResultLength -
-                               sizeof(tSirBssDescription);
-                  limSendSmeScanRsp(pMac, scanRspLen, eSIR_SME_SUCCESS,
-                                  pScanReq->sessionId, pScanReq->transactionId);
-               }
-#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+                scanRspLen = sizeof(tSirSmeScanRsp) +
+                             pMac->lim.gLimSmeScanResultLength -
+                             sizeof(tSirBssDescription);
+                limSendSmeScanRsp(pMac, scanRspLen, eSIR_SME_SUCCESS, pScanReq->sessionId, pScanReq->transactionId);
             }
-#endif
 
             if (pScanReq->returnFreshResults & SIR_BG_SCAN_PURGE_RESUTLS)
             {
                 // Discard previously cached scan results
                 limReInitScanResults(pMac);
             }
-#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
-            if (pScanReq->returnFreshResults & SIR_BG_SCAN_PURGE_LFR_RESULTS)
-            {
-                // Discard previously cached scan results
-                limReInitLfrScanResults(pMac);
-            }
-#endif
 
         } // if (pMac->lim.gLimRspReqd)
     } // else ((pMac->lim.gLimSmeState == eLIM_SME_IDLE_STATE) || ...
@@ -1626,18 +1589,6 @@ __limProcessSmeJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         psessionEntry->htSupportedChannelWidthSet = (pSmeJoinReq->cbMode)?1:0; // This is already merged value of peer and self - done by csr in csrGetCBModeFromIes
         psessionEntry->htRecommendedTxWidthSet = psessionEntry->htSupportedChannelWidthSet;
         psessionEntry->htSecondaryChannelOffset = pSmeJoinReq->cbMode;
-
-        /* Record if management frames need to be protected */
-#ifdef WLAN_FEATURE_11W
-        if(eSIR_ED_AES_128_CMAC == pSmeJoinReq->MgmtEncryptionType)
-        {
-            psessionEntry->limRmfEnabled = 1;
-        }
-        else
-        {
-            psessionEntry->limRmfEnabled = 0;
-        }
-#endif
 
         /*Store Persona */
         psessionEntry->pePersona = pSmeJoinReq->staPersona;
@@ -2258,10 +2209,6 @@ __limProcessSmeDisassocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                 case eLIM_SME_LINK_EST_STATE:
                     psessionEntry->limPrevSmeState = psessionEntry->limSmeState;
                     psessionEntry->limSmeState= eLIM_SME_WT_DISASSOC_STATE;
-#ifdef FEATURE_WLAN_TDLS
-                    /* Delete all TDLS peers connected before leaving BSS*/
-                    limDeleteTDLSPeers(pMac, psessionEntry);
-#endif
                     MTRACE(macTrace(pMac, TRACE_CODE_SME_STATE, psessionEntry->peSessionId, psessionEntry->limSmeState));
                     break;
 
@@ -4371,11 +4318,6 @@ limSendSetMaxTxPowerReq ( tpAniSirGlobal pMac, tPowerdBm txPower, tpPESession pS
 #if defined(WLAN_VOWIFI_DEBUG) || defined(FEATURE_WLAN_CCX)
    PELOG1(limLog( pMac, LOG1, "%s:%d: Allocated memory for pMaxTxParams...will be freed in other module", __func__, __LINE__ );)
 #endif
-   if( pMaxTxParams == NULL )
-   {
-      limLog( pMac, LOGE, "%s:%d: pMaxTxParams is NULL", __func__, __LINE__);
-      return eSIR_FAILURE;
-   }
    pMaxTxParams->power = txPower;
    palCopyMemory( pMac->hHdd, pMaxTxParams->bssId, pSessionEntry->bssId, sizeof(tSirMacAddr) );
    palCopyMemory( pMac->hHdd, pMaxTxParams->selfStaMacAddr, pSessionEntry->selfMacAddr, sizeof(tSirMacAddr) );

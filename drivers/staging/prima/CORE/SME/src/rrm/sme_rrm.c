@@ -770,16 +770,8 @@ static void rrmCalculateNeighborAPRoamScore(tpAniSirGlobal pMac, tpRrmNeighborRe
     tpSirNeighborBssDescripton  pNeighborBssDesc;
     tANI_U32    roamScore = 0;
     
-    if (NULL == pNeighborReportDesc)
-    {
-        VOS_ASSERT(0);
-        return;
-    }
-    if (NULL == pNeighborReportDesc->pNeighborBssDescription)
-    {
-        VOS_ASSERT(0);
-        return;
-    }
+    VOS_ASSERT(pNeighborReportDesc != NULL);
+    VOS_ASSERT(pNeighborReportDesc->pNeighborBssDescription != NULL);
 
     pNeighborBssDesc = pNeighborReportDesc->pNeighborBssDescription;
 
@@ -843,16 +835,8 @@ void rrmStoreNeighborRptByRoamScore(tpAniSirGlobal pMac, tpRrmNeighborReportDesc
    tListElem       *pEntry;
    tRrmNeighborReportDesc  *pTempNeighborReportDesc;
 
-   if (NULL == pNeighborReportDesc)
-   {
-       VOS_ASSERT(0);
-       return;
-   }
-   if (NULL == pNeighborReportDesc->pNeighborBssDescription)
-   {
-       VOS_ASSERT(0);
-       return;
-   }
+   VOS_ASSERT(pNeighborReportDesc != NULL);
+   VOS_ASSERT(pNeighborReportDesc->pNeighborBssDescription != NULL);
 
    if (csrLLIsListEmpty(&pSmeRrmContext->neighborReportCache, LL_ACCESS_LOCK))
    {

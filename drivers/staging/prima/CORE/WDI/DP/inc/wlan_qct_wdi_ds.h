@@ -162,14 +162,6 @@ typedef struct
 
    wpt_uint32 rssi0;
    wpt_uint32 rssi1;
-
-#ifdef WLAN_FEATURE_11W
-   wpt_uint32 rmf:1;
-#endif
-#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
-   wpt_uint32 offloadScanLearn;
-   wpt_uint32 roamCandidateInd;
-#endif
 } WDI_DS_RxMetaInfoType;
 
 typedef struct sPktMetaInfo

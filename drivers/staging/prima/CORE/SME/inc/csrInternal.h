@@ -99,17 +99,6 @@
 ( \
    (((pMac)->roam.configParam.nRoamPrefer5GHz)?eANI_BOOLEAN_TRUE:eANI_BOOLEAN_FALSE) \
 )
-#define CSR_IS_ROAM_INTRA_BAND_ENABLED( pMac ) \
-( \
-   (((pMac)->roam.configParam.nRoamIntraBand)?eANI_BOOLEAN_TRUE:eANI_BOOLEAN_FALSE) \
-)
-#endif
-
-#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
-#define CSR_IS_ROAM_SCAN_OFFLOAD_ENABLED( pMac ) \
-( \
-   (((pMac)->roam.configParam.isRoamOffloadScanEnabled)?eANI_BOOLEAN_TRUE:eANI_BOOLEAN_FALSE) \
-)
 #endif
 
 //Support for "Fast roaming" (i.e., CCX, LFR, or 802.11r.)
@@ -173,8 +162,7 @@ typedef enum
     eCsrScanProbeBss, // directed probe on an entry from the candidate list - HO
     eCsrScanAbortBgScan,    //aborting a BG scan (meaning the scan is triggered by LIM timer)
     eCsrScanAbortNormalScan, //aborting a normal scan (the scan is trigger by eWNI_SME_SCAN_REQ)
-    eCsrScanP2PFindPeer,
-    eCsrScanGetLfrResult, // get the LFR candidates from PE scan cache
+    eCsrScanP2PFindPeer
 }eCsrScanReason;
 
 typedef enum
@@ -600,9 +588,6 @@ typedef struct tagCsrConfig
 
 #ifdef FEATURE_WLAN_LFR
     tANI_U8   isFastRoamIniFeatureEnabled;
-#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
-    tANI_U8   isRoamOffloadScanEnabled;
-#endif
 #endif
 
 #ifdef FEATURE_WLAN_CCX
@@ -610,13 +595,10 @@ typedef struct tagCsrConfig
 #endif
 
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
-    tANI_U8       isFastTransitionEnabled;
-    tANI_U8       RoamRssiDiff;
-    tANI_U8       nImmediateRoamRssiDiff;
-    tANI_BOOLEAN  nRoamPrefer5GHz;
-    tANI_BOOLEAN  nRoamIntraBand;
-    tANI_BOOLEAN  isWESModeEnabled;
-    tANI_BOOLEAN  nRoamScanControl;
+    tANI_U8   isFastTransitionEnabled;
+    tANI_U8   RoamRssiDiff;
+    tANI_U8   nImmediateRoamRssiDiff;
+    tANI_BOOLEAN nRoamPrefer5GHz;
 #endif
 
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING
@@ -750,6 +732,8 @@ typedef struct tagCsrScanStruct
     tDblLinkList scanCmdPendingList;
 #endif
     tCsrChannel occupiedChannels;   //This includes all channels on which candidate APs are found
+
+    tANI_BOOLEAN fIgnore_chan165;
 }tCsrScanStruct;
 
 #ifdef FEATURE_WLAN_TDLS_INTERNAL
@@ -971,8 +955,7 @@ typedef struct tagCsrRoamStruct
     tANI_U8   isCcxIniFeatureEnabled;
 #endif
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
-    tANI_U8        RoamRssiDiff;
-    tANI_BOOLEAN   isWESModeEnabled;
+    tANI_U8   RoamRssiDiff;
 #endif
 }tCsrRoamStruct;
 
@@ -1331,15 +1314,7 @@ void csrDisconnectAllActiveSessions(tpAniSirGlobal pMac);
 #ifdef FEATURE_WLAN_LFR
 //Returns whether "Legacy Fast Roaming" is enabled...or not
 tANI_BOOLEAN csrRoamIsFastRoamEnabled(tpAniSirGlobal pMac, tANI_U32 sessionId);
-#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
-tANI_BOOLEAN csrRoamIsRoamOffloadScanEnabled(tpAniSirGlobal pMac);
-#endif
 tANI_BOOLEAN csrIsChannelPresentInList( tANI_U8 *pChannelList, int  numChannels, tANI_U8   channel );
 VOS_STATUS csrAddToChannelListFront( tANI_U8 *pChannelList, int  numChannels, tANI_U8   channel );
-#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
-eHalStatus csrScanRequestLfrResult(tpAniSirGlobal pMac, tANI_U32 sessionId,
-                                   csrScanCompleteCallback callback, void *pContext);
-#endif
-tANI_BOOLEAN csrRoamIsStaMode(tpAniSirGlobal pMac, tANI_U32 sessionId);
 #endif
 

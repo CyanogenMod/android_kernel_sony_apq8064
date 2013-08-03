@@ -143,7 +143,7 @@ static int wlan_suspend(hdd_context_t* pHddCtx)
    */
    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "%s: Suspending Mc, Rx and Tx Threads",__func__);
 
-   init_completion(&pHddCtx->tx_sus_event_var);
+   INIT_COMPLETION(pHddCtx->tx_sus_event_var);
 
    /* Indicate Tx Thread to Suspend */
    set_bit(TX_SUSPEND_EVENT_MASK, &vosSchedContext->txEventFlag);
@@ -163,7 +163,7 @@ static int wlan_suspend(hdd_context_t* pHddCtx)
    /* Set the Tx Thread as Suspended */
    pHddCtx->isTxThreadSuspended = TRUE;
 
-   init_completion(&pHddCtx->rx_sus_event_var);
+   INIT_COMPLETION(pHddCtx->rx_sus_event_var);
 
    /* Indicate Rx Thread to Suspend */
    set_bit(RX_SUSPEND_EVENT_MASK, &vosSchedContext->rxEventFlag);
@@ -191,7 +191,7 @@ static int wlan_suspend(hdd_context_t* pHddCtx)
    /* Set the Rx Thread as Suspended */
    pHddCtx->isRxThreadSuspended = TRUE;
 
-   init_completion(&pHddCtx->mc_sus_event_var);
+   INIT_COMPLETION(pHddCtx->mc_sus_event_var);
 
    /* Indicate MC Thread to Suspend */
    set_bit(MC_SUSPEND_EVENT_MASK, &vosSchedContext->mcEventFlag);
@@ -462,8 +462,8 @@ void hddDevTmTxBlockTimeoutHandler(void *usrData)
 
    /* Resume TX flow */
     
-   netif_tx_wake_all_queues(staAdapater->dev);
-   pHddCtx->tmInfo.qBlocked = VOS_FALSE;
+   netif_tx_start_all_queues(staAdapater->dev);
+
    mutex_unlock(&pHddCtx->tmInfo.tmOperationLock);
 
    return;
@@ -575,7 +575,7 @@ VOS_STATUS hddDevTmRegisterNotifyCallback(hdd_context_t *pHddCtx)
    mutex_init(&pHddCtx->tmInfo.tmOperationLock);
    pHddCtx->tmInfo.txFrameCount = 0;
    pHddCtx->tmInfo.blockedQueue = NULL;
-   pHddCtx->tmInfo.qBlocked     = VOS_FALSE;
+
    return VOS_STATUS_SUCCESS;
 }
 

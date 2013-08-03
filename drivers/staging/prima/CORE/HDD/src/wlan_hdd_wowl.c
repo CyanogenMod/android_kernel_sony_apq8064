@@ -71,7 +71,7 @@
 
 char *g_hdd_wowl_ptrns[WOWL_MAX_PTRNS_ALLOWED]; //Patterns 0-7 
 
-int hdd_parse_hex(unsigned char c)
+static int parse_hex(unsigned char c)
 {
   if (c >= '0' && c <= '9')
     return c-'0';
@@ -190,11 +190,11 @@ v_BOOL_t hdd_add_wowl_ptrn (hdd_adapter_t *pAdapter, const char * ptrn)
 
     // Extract the pattern size
     localPattern.ucPatternSize = 
-      ( hdd_parse_hex( ptrn[0] ) * 0x10 ) + hdd_parse_hex( ptrn[1] );
+      ( parse_hex( ptrn[0] ) * 0x10 ) + parse_hex( ptrn[1] );
 
     // Extract the pattern mask size
     localPattern.ucPatternMaskSize = 
-      ( hdd_parse_hex( ptrn[3] ) * 0x10 ) + hdd_parse_hex( ptrn[4] );
+      ( parse_hex( ptrn[3] ) * 0x10 ) + parse_hex( ptrn[4] );
 
     if(localPattern.ucPatternSize > WOWL_PTRN_MAX_SIZE ||
        localPattern.ucPatternMaskSize > WOWL_PTRN_MASK_MAX_SIZE)
@@ -234,7 +234,7 @@ v_BOOL_t hdd_add_wowl_ptrn (hdd_adapter_t *pAdapter, const char * ptrn)
     for(i=0; i < localPattern.ucPatternSize; i++)
     {
       localPattern.ucPattern[i] = 
-        (hdd_parse_hex( ptrn[0] ) * 0x10 ) + hdd_parse_hex( ptrn[1] );
+        (parse_hex( ptrn[0] ) * 0x10 ) + parse_hex( ptrn[1] );
       ptrn += 2; //skip to next byte
     }
 
@@ -244,7 +244,7 @@ v_BOOL_t hdd_add_wowl_ptrn (hdd_adapter_t *pAdapter, const char * ptrn)
     for(i=0; i < localPattern.ucPatternMaskSize; i++)
     {
       localPattern.ucPatternMask[i] = 
-        (hdd_parse_hex( ptrn[0] ) * 0x10 ) + hdd_parse_hex( ptrn[1] );
+        (parse_hex( ptrn[0] ) * 0x10 ) + parse_hex( ptrn[1] );
       ptrn += 2; //skip to next byte
     }
 
