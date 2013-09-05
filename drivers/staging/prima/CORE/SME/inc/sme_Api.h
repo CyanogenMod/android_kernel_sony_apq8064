@@ -2807,4 +2807,9 @@ eHalStatus sme_SetPhyMode(tHalHandle hHal, eCsrPhyMode phyMode);
   -------------------------------------------------------------------------------*/
 eCsrPhyMode sme_GetPhyMode(tHalHandle hHal);
 
+/*
+ * sme API to find if any infra station or P2P-Client is connected
+ * return status
+*/
+VOS_STATUS sme_isSta_p2p_clientConnected(tHalHandle hHal);
 #endif //#if !defined( __SME_API_H )

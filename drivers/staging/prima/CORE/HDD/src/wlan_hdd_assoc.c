@@ -805,9 +805,8 @@ static eHalStatus hdd_DisConnectHandler( hdd_adapter_t *pAdapter, tCsrRoamInfo *
             //Enable BMPS
 
             // In case of JB, as Change-Iface may or maynot be called for p2p0
-            // Enable BMPS/IMPS in case P2P_CLIENT disconnected   
-            if(((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) ||
-                (WLAN_HDD_P2P_CLIENT == pAdapter->device_mode)))
+            // Enable BMPS/IMPS in case P2P_CLIENT disconnected
+            if(VOS_STATUS_SUCCESS == hdd_issta_p2p_clientconnected(pHddCtx))
             {
                //Enable BMPS only of other Session is P2P Client
                hdd_context_t *pHddCtx = NULL;
