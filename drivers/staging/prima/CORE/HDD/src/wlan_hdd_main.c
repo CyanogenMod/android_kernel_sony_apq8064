@@ -5455,6 +5455,8 @@ int hdd_wlan_startup(struct device *dev )
    init_completion(&pHddCtx->scan_info.scan_req_completion_event);
    init_completion(&pHddCtx->scan_info.abortscan_event_var);
 
+   spin_lock_init(&pHddCtx->schedScan_lock);
+
    hdd_list_init( &pHddCtx->hddAdapters, MAX_NUMBER_OF_ADAPTERS );
 
    // Load all config first as TL config is needed during vos_open

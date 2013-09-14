@@ -997,6 +997,17 @@ struct hdd_context_s
 #endif
 
     hdd_traffic_monitor_t traffic_monitor;
+
+    /* Use below lock to protect access to isSchedScanUpdatePending
+     * since it will be accessed in two different contexts.
+     */
+    spinlock_t schedScan_lock;
+
+    // Flag keeps track of wiphy suspend/resume
+    v_BOOL_t isWiphySuspended;
+
+    // Indicates about pending sched_scan results
+    v_BOOL_t isSchedScanUpdatePending;
 };
 
 
