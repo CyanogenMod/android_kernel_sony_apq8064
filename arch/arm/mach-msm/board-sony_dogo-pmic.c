@@ -486,9 +486,6 @@ apq8064_pm8921_bms_pdata __devinitdata = {
 #ifndef CONFIG_PM8921_SONY_BMS_CHARGER
 	.low_voltage_detect		= 1,
 	.vbatt_cutoff_retries		= 5,
-	.high_ocv_correction_limit_uv	= 50,
-	.low_ocv_correction_limit_uv	= 100,
-	.hold_soc_est			= 3,
 #endif
 };
 

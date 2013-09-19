@@ -100,6 +100,8 @@ static int mipi_dsi_off(struct platform_device *pdev)
 		mipi_dsi_cmd_mdp_busy();
 	}
 
+	ret = panel_next_off(pdev);
+
 	/*
 	 * Desctiption: change to DSI_CMD_MODE since it needed to
 	 * tx DCS dsiplay off comamnd to panel
@@ -115,8 +117,6 @@ static int mipi_dsi_off(struct platform_device *pdev)
 			mipi_dsi_set_tear_off(mfd);
 		}
 	}
-
-	ret = panel_next_off(pdev);
 
 	spin_lock_bh(&dsi_clk_lock);
 
