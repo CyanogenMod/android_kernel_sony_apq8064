@@ -3597,9 +3597,6 @@ typedef struct
   /* Beacon Early Termination Interval */
   tANI_U32 uBETInterval; 
 
-  /* MAX LI for modulated DTIM */
-  tANI_U32 uMaxLIModulatedDTIM;
-
 }tSirSetPowerParamsReq, *tpSirSetPowerParamsReq;
 
 typedef struct sSirTxPerTrackingParam
