@@ -9771,7 +9771,7 @@ void WDA_GtkOffloadGetInfoRespCallback( WDI_GtkOffloadGetInfoRspParams *pwdiGtkO
 
    /* Message Header */
    pGtkOffloadGetInfoRsp->mesgType = eWNI_PMC_GTK_OFFLOAD_GETINFO_RSP;
-   pGtkOffloadGetInfoRsp->mesgLen = sizeof(tpSirGtkOffloadGetInfoRspParams);
+   pGtkOffloadGetInfoRsp->mesgLen = sizeof(tSirGtkOffloadGetInfoRspParams);
 
    pGtkOffloadGetInfoRsp->ulStatus            = pwdiGtkOffloadGetInfoRsparams->ulStatus;
    pGtkOffloadGetInfoRsp->ullKeyReplayCounter = pwdiGtkOffloadGetInfoRsparams->ullKeyReplayCounter;
@@ -13274,8 +13274,6 @@ VOS_STATUS WDA_ProcessSetPowerParamsReq(tWDA_CbContext *pWDA,
       pPowerParams->uEnableBET;
    pwdiSetPowerParamsReqInfo->wdiSetPowerParamsInfo.uBETInterval      = 
       pPowerParams->uBETInterval; 
-   pwdiSetPowerParamsReqInfo->wdiSetPowerParamsInfo.uMaxLIModulatedDTIM =
-      pPowerParams->uMaxLIModulatedDTIM;
    pwdiSetPowerParamsReqInfo->wdiReqStatusCB = WDA_SetPowerParamsReqCallback;
    pwdiSetPowerParamsReqInfo->pUserData = pWdaParams;
 

@@ -1641,6 +1641,8 @@ limPopulateOwnRateSet(tpAniSirGlobal pMac,
     if ( (selfStaDot11Mode == WNI_CFG_DOT11_MODE_ALL) ||
          (selfStaDot11Mode == WNI_CFG_DOT11_MODE_11A) ||
          (selfStaDot11Mode == WNI_CFG_DOT11_MODE_11AC) ||
+         (selfStaDot11Mode == WNI_CFG_DOT11_MODE_11N) ||
+         (selfStaDot11Mode == WNI_CFG_DOT11_MODE_11G) ||
          (selfStaDot11Mode == WNI_CFG_DOT11_MODE_11B) )
     {
         val = WNI_CFG_SUPPORTED_RATES_11B_LEN;
@@ -3378,8 +3380,7 @@ tSirRetStatus limStaSendAddBss( tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
         pAddBssParams->staContext.p2pCapableSta = 1;       
     }
 
-    pAddBssParams->bSpectrumMgtEnabled = psessionEntry->spectrumMgtEnabled || 
-        limIsconnectedOnDFSChannel(bssDescription->channelId);
+    pAddBssParams->bSpectrumMgtEnabled = psessionEntry->spectrumMgtEnabled;
 
 #if defined WLAN_FEATURE_VOWIFI_11R
     pAddBssParams->extSetStaKeyParamValid = 0;
@@ -3662,8 +3663,7 @@ tSirRetStatus limStaSendAddBssPreAssoc( tpAniSirGlobal pMac, tANI_U8 updateEntry
     
     pAddBssParams->halPersona = (tANI_U8)psessionEntry->pePersona; //update persona
 
-    pAddBssParams->bSpectrumMgtEnabled = psessionEntry->spectrumMgtEnabled || 
-        limIsconnectedOnDFSChannel(bssDescription->channelId);
+    pAddBssParams->bSpectrumMgtEnabled = psessionEntry->spectrumMgtEnabled;
 
 #if defined WLAN_FEATURE_VOWIFI_11R
     pAddBssParams->extSetStaKeyParamValid = 0;

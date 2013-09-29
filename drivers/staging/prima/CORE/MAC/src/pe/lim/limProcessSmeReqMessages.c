@@ -1065,7 +1065,6 @@ void limGetRandomBssid(tpAniSirGlobal pMac, tANI_U8 *data)
      palCopyMemory(pMac->hHdd, data, (tANI_U8*)random, sizeof(tSirMacAddr));
 }
 
-
 /**
  * __limProcessSmeScanReq()
  *

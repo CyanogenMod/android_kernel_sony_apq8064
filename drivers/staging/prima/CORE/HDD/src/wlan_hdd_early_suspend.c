@@ -1104,7 +1104,6 @@ void hdd_resume_wlan(void)
 
          powerRequest.uIgnoreDTIM = pHddCtx->hdd_actual_ignore_DTIM_value;
          powerRequest.uListenInterval = pHddCtx->hdd_actual_LI_value;
-         powerRequest.uMaxLIModulatedDTIM = pHddCtx->cfg_ini->fMaxLIModulatedDTIM;
 
          /*Disabled ModulatedDTIM if enabled on suspend*/
          if(pHddCtx->cfg_ini->enableModulatedDTIM)

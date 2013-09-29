@@ -200,7 +200,7 @@ static const tANI_U8 csrStartIbssChannels24[ CSR_NUM_IBSS_START_CHANNELS_24 ] = 
 static void initConfigParam(tpAniSirGlobal pMac);
 static tANI_BOOLEAN csrRoamProcessResults( tpAniSirGlobal pMac, tSmeCmd *pCommand,
                                        eCsrRoamCompleteResult Result, void *Context );
-static eHalStatus csrRoamStartIbss( tpAniSirGlobal pMac, tANI_U32 sessionId, 
+static eHalStatus csrRoamStartIbss( tpAniSirGlobal pMac, tANI_U32 sessionId,
                                     tCsrRoamProfile *pProfile, 
                                     tANI_BOOLEAN *pfSameIbss );
 static void csrRoamUpdateConnectedProfileFromNewBss( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirSmeNewBssInfo *pNewBss );
@@ -439,7 +439,6 @@ eHalStatus csrClose(tpAniSirGlobal pMac)
 {
     eHalStatus status = eHAL_STATUS_SUCCESS;
 
-    csrStop(pMac);
     csrRoamClose(pMac);
     csrScanClose(pMac);
     csrLLClose(&pMac->roam.statsClientReqList);
@@ -13228,7 +13227,7 @@ eHalStatus csrIssueAddStaForSessionReq(tpAniSirGlobal pMac, tANI_U32 sessionId, 
 }
 eHalStatus csrProcessAddStaSessionCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand )
 {
-   return csrSendMBAddSelfStaReqMsg( pMac, 
+   return csrSendMBAddSelfStaReqMsg( pMac,
          pCommand->u.addStaSessionCmd.selfMacAddr );
 }
 eHalStatus csrRoamOpenSession( tpAniSirGlobal pMac, csrRoamCompleteCallback callback, void *pContext,
