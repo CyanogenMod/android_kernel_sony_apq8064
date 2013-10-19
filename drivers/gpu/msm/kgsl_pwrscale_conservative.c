@@ -158,7 +158,7 @@ static ssize_t conservative_stats_store(
     return count;
 }
 
-PWRSCALE_POLICY_ATTR(print_stats, 0666, conservative_stats_show, conservative_stats_store);
+PWRSCALE_POLICY_ATTR(print_stats, 0664, conservative_stats_show, conservative_stats_store);
 
 static ssize_t conservative_polling_interval_show(
                     struct kgsl_device *device,
@@ -200,7 +200,7 @@ static ssize_t conservative_polling_interval_store(
     return count;
 }
 
-PWRSCALE_POLICY_ATTR(polling_interval, 0666, conservative_polling_interval_show, conservative_polling_interval_store);
+PWRSCALE_POLICY_ATTR(polling_interval, 0664, conservative_polling_interval_show, conservative_polling_interval_store);
 
 static struct attribute *conservative_attrs[] = {
     &policy_attr_print_stats.attr,
