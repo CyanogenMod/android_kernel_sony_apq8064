@@ -346,7 +346,7 @@ eHalStatus csrOpen(tpAniSirGlobal pMac)
         }
         smsLog( pMac, LOG1, FL(" country Code from nvRam %.2s"), pMac->scan.countryCodeDefault );
         csrGetRegulatoryDomainForCountry(pMac, pMac->scan.countryCodeDefault, &regId);
-        WDA_SetRegDomain(pMac, regId);
+        WDA_SetRegDomain(pMac, regId, eSIR_TRUE);
         pMac->scan.domainIdDefault = regId;
         pMac->scan.domainIdCurrent = pMac->scan.domainIdDefault;
         status = palCopyMemory(pMac->hHdd, pMac->scan.countryCodeCurrent, 
@@ -388,7 +388,7 @@ eHalStatus csrSetRegInfo(tHalHandle hHal,  tANI_U8 *apCntryCode)
         smsLog( pMac, LOGE, FL("  fail to get regId for country Code %.2s"), apCntryCode );
         return status;
     }
-    status = WDA_SetRegDomain(hHal, regId);
+    status = WDA_SetRegDomain(hHal, regId, eSIR_TRUE);
     if (status != eHAL_STATUS_SUCCESS)
     {
         smsLog( pMac, LOGE, FL("  fail to get regId for country Code %.2s"), apCntryCode );
@@ -1597,6 +1597,7 @@ eHalStatus csrChangeDefaultConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pPa
         pMac->roam.configParam.nVhtChannelWidth = pParam->nVhtChannelWidth;
         pMac->roam.configParam.txBFEnable= pParam->enableTxBF;
         pMac->roam.configParam.txBFCsnValue = pParam->txBFCsnValue;
+        pMac->roam.configParam.enableVhtFor24GHz = pParam->enableVhtFor24GHz;
 #endif
         pMac->roam.configParam.txLdpcEnable = pParam->enableTxLdpc;
     }
@@ -8601,7 +8602,6 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
             }
             break;
         case eWNI_SME_DISASSOC_IND:
-            smsLog( pMac, LOGE, FL("DISASSOCIATION Indication from MAC"));
             // Check if AP dis-associated us because of MIC failure. If so,
             // then we need to take action immediately and not wait till the
             // the WmStatusChange requests is pushed and processed
@@ -8609,6 +8609,11 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
             status = csrRoamGetSessionIdFromBSSID( pMac, (tCsrBssid *)pDisassocInd->bssId, &sessionId );
             if( HAL_STATUS_SUCCESS( status ) )
             {
+                smsLog( pMac, LOGE, FL("DISASSOCIATION Indication from MAC for session %d "), sessionId);
+                smsLog( pMac, LOGE, FL("DISASSOCIATION from peer =" MAC_ADDRESS_STR " "
+                                       " reason = %d status = %d "),
+                                       MAC_ADDR_ARRAY(pDisassocInd->peerMacAddr),
+                                       pDisassocInd->reasonCode, pDisassocInd->statusCode);
                 // If we are in neighbor preauth done state then on receiving
                 // disassoc or deauth we dont roam instead we just disassoc
                 // from current ap and then go to disconnected state 
@@ -8673,6 +8678,11 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                     vos_mem_copy(pCommand.u.roamCmd.peerMac, pDisassocInd->peerMacAddr, sizeof(tSirMacAddr));
                     csrRoamRemoveDuplicateCommand(pMac, sessionId, &pCommand, eCsrForcedDeauthSta);
                 }
+            }
+            else
+            {
+                smsLog(pMac, LOGE, FL(" Session Id not found for BSSID " MAC_ADDRESS_STR),
+                                        MAC_ADDR_ARRAY(pDisassocInd->bssId));
             }
             break;
         case eWNI_SME_DEAUTH_IND:
@@ -11644,6 +11654,7 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
     tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
     tANI_U32 dwTmp;
     tANI_U8 wpaRsnIE[DOT11F_IE_RSN_MAX_LEN];    //RSN MAX is bigger than WPA MAX
+    tANI_U32 ucDot11Mode = 0;
 
     if(!pSession)
     {
@@ -11708,7 +11719,15 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
         palCopyMemory( pMac->hHdd, pBuf, &dwTmp, sizeof(tSirBssType) );
         pBuf += sizeof(tSirBssType);
         // dot11mode
-        *pBuf = (tANI_U8)csrTranslateToWNICfgDot11Mode( pMac, pSession->bssParams.uCfgDot11Mode );
+        ucDot11Mode = csrTranslateToWNICfgDot11Mode( pMac, pSession->bssParams.uCfgDot11Mode );
+        if (pBssDescription->channelId <= 14 &&
+            FALSE == pMac->roam.configParam.enableVhtFor24GHz &&
+            WNI_CFG_DOT11_MODE_11AC == ucDot11Mode)
+        {
+            //Need to disable VHT operation in 2.4 GHz band
+            ucDot11Mode = WNI_CFG_DOT11_MODE_11N;
+        }
+        *pBuf = (tANI_U8)ucDot11Mode;
         pBuf++;
         //Persona
         *pBuf = (tANI_U8)pProfile->csrPersona;

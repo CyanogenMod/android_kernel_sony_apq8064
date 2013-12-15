@@ -92,6 +92,8 @@
 
 #define SME_INVALID_COUNTRY_CODE "XX"
 
+//Macro to disable split scan
+#define SME_DISABLE_SPLIT_SCAN   255
 /*-------------------------------------------------------------------------- 
   Type declarations
   ------------------------------------------------------------------------*/
@@ -1398,6 +1400,8 @@ typedef void ( *tSmeChangeCountryCallback)(void *pContext);
 
     \param pCountry New Country Code String
 
+    \param sendRegHint If we want to send reg hint to nl80211
+
     \return eHalStatus  SUCCESS.
 
                          FAILURE or RESOURCES  The API finished and failed.
@@ -1407,7 +1411,8 @@ eHalStatus sme_ChangeCountryCode( tHalHandle hHal,
                                   tSmeChangeCountryCallback callback,
                                   tANI_U8 *pCountry,
                                   void *pContext,
-                                  void* pVosContext );
+                                  void* pVosContext,
+                                  tAniBool sendRegHint);
 
 
 /* ---------------------------------------------------------------------------
@@ -2807,9 +2812,27 @@ eHalStatus sme_SetPhyMode(tHalHandle hHal, eCsrPhyMode phyMode);
   -------------------------------------------------------------------------------*/
 eCsrPhyMode sme_GetPhyMode(tHalHandle hHal);
 
-/*
- * sme API to find if any infra station or P2P-Client is connected
- * return status
-*/
+/*--------------------------------------------------------------------------
+  \brief sme_isSta_p2p_clientConnected() - a wrapper function to check if there
+                                           is any connected session .
+  This is a synchronous call
+  \param hHal - The handle returned by macOpen
+  \return VOS_STATUS - SME passed the request to CSR successfully.
+          Other status means SME is failed to send the request.
+  \sa
+  --------------------------------------------------------------------------*/
 VOS_STATUS sme_isSta_p2p_clientConnected(tHalHandle hHal);
+
+/*--------------------------------------------------------------------------
+  \brief sme_enable_disable_split_scan() - a wrapper function to set the split
+                                          scan parameter.
+  This is a synchronous call
+  \param hHal - The handle returned by macOpen
+  \return None.
+  \sa
+  --------------------------------------------------------------------------*/
+void sme_enable_disable_split_scan (tHalHandle hHal, tANI_U8 nNumStaChan,
+                                    tANI_U8 nNumP2PChan);
+
+void smeGetCommandQStatus( tHalHandle hHal );
 #endif //#if !defined( __SME_API_H )

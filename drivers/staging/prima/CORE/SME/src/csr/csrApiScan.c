@@ -67,6 +67,9 @@
 #include "wlan_qct_wda.h"
 
 #define CSR_VALIDATE_LIST  //This portion of code need to be removed once the issue is resolved.
+#define MIN_CHN_TIME_TO_FIND_GO 100
+#define MAX_CHN_TIME_TO_FIND_GO 100
+#define DIRECT_SSID_LEN 7
 
 #ifdef CSR_VALIDATE_LIST
 tDblLinkList *g_pchannelPowerInfoList24 = NULL, * g_pchannelPowerInfoList5 = NULL;
@@ -574,7 +577,8 @@ eHalStatus csrQueueScanRequest( tpAniSirGlobal pMac, tSmeCmd *pScanCmd )
 
             scanReq.BSSType = eCSR_BSS_TYPE_ANY;
             //Modify callers parameters in case of concurrency
-            scanReq.scanType = eSIR_ACTIVE_SCAN;
+            if (!pScanCmd->u.scanCmd.u.scanRequest.bcnRptReqScan)
+                scanReq.scanType = eSIR_ACTIVE_SCAN;
             //Use concurrency values for min/maxChnTime.
             //We know csrIsAnySessionConnected(pMac) returns TRUE here
             csrSetDefaultScanTiming(pMac, scanReq.scanType, &scanReq);
@@ -606,7 +610,8 @@ eHalStatus csrQueueScanRequest( tpAniSirGlobal pMac, tSmeCmd *pScanCmd )
             pSendScanCmd = pScanCmd;
             pSendScanCmd->u.scanCmd.u.scanRequest.ChannelInfo.numOfChannels = nNumChanCombinedConc;
             pSendScanCmd->u.scanCmd.u.scanRequest.BSSType = eCSR_BSS_TYPE_ANY;
-            pSendScanCmd->u.scanCmd.u.scanRequest.scanType = eSIR_ACTIVE_SCAN;
+            if (!pSendScanCmd->u.scanCmd.u.scanRequest.bcnRptReqScan)
+                pSendScanCmd->u.scanCmd.u.scanRequest.scanType = eSIR_ACTIVE_SCAN;
             //Use concurrency values for min/maxChnTime.
             //We know csrIsAnySessionConnected(pMac) returns TRUE here
             csrSetDefaultScanTiming(pMac, pSendScanCmd->u.scanCmd.u.scanRequest.scanType, &pSendScanCmd->u.scanCmd.u.scanRequest);
@@ -614,7 +619,8 @@ eHalStatus csrQueueScanRequest( tpAniSirGlobal pMac, tSmeCmd *pScanCmd )
         } else {
             pSendScanCmd = pScanCmd;
             pSendScanCmd->u.scanCmd.u.scanRequest.BSSType = eCSR_BSS_TYPE_ANY;
-            pSendScanCmd->u.scanCmd.u.scanRequest.scanType = eSIR_ACTIVE_SCAN;
+            if (!pSendScanCmd->u.scanCmd.u.scanRequest.bcnRptReqScan)
+                pSendScanCmd->u.scanCmd.u.scanRequest.scanType = eSIR_ACTIVE_SCAN;
             //Use concurrency values for min/maxChnTime.
             //We know csrIsAnySessionConnected(pMac) returns TRUE here
             csrSetDefaultScanTiming(pMac, pSendScanCmd->u.scanCmd.u.scanRequest.scanType, &pSendScanCmd->u.scanCmd.u.scanRequest);
@@ -718,6 +724,23 @@ eHalStatus csrScanRequest(tpAniSirGlobal pMac, tANI_U16 sessionId,
     {
         smsLog( pMac, LOGE, FL(" pScanRequest is NULL"));
         VOS_ASSERT(0);
+    }
+
+    /* During group formation, the P2P client scans for GO with the specific SSID.
+     * There will be chances of GO switching to other channels because of scan or
+     * to STA channel in case of STA+GO MCC scenario. So to increase the possibility
+     * of client to find the GO, the dwell time of scan is increased to 100ms.
+     */
+    if(pScanRequest->p2pSearch)
+    {
+        //If the scan request is for specific SSId the length of SSID will be
+        //greater than 7 as SSID for p2p search contains "DIRECT-")
+        if(pScanRequest->SSIDs.SSIDList->SSID.length > DIRECT_SSID_LEN)
+        {
+            smsLog( pMac, LOG1, FL(" Increase the Dwell time to 100ms."));
+            pScanRequest->maxChnTime = MAX_CHN_TIME_TO_FIND_GO;
+            pScanRequest->minChnTime = MIN_CHN_TIME_TO_FIND_GO;
+        }
     }
 
     do
@@ -847,7 +870,13 @@ eHalStatus csrScanRequest(tpAniSirGlobal pMac, tANI_U16 sessionId,
 
                         if ( csrIs11dSupported(pMac) )
                         {
-                            scanReq.scanType = eSIR_PASSIVE_SCAN;
+                            scanReq.bcnRptReqScan = pScanRequest->bcnRptReqScan;
+                            if (pScanRequest->bcnRptReqScan)
+                                scanReq.scanType = pScanRequest->scanType ?
+                                                   eSIR_PASSIVE_SCAN :
+                                                   pScanRequest->scanType;
+                            else
+                                scanReq.scanType = eSIR_PASSIVE_SCAN;
                             scanReq.requestType = eCSR_SCAN_REQUEST_11D_SCAN;
                             p11dScanCmd->u.scanCmd.reason = eCsrScan11d1;
                             scanReq.maxChnTime = pMac->roam.configParam.nPassiveMaxChnTime;
@@ -855,14 +884,18 @@ eHalStatus csrScanRequest(tpAniSirGlobal pMac, tANI_U16 sessionId,
                         }
                         else
                         {
-                            scanReq.scanType = eSIR_ACTIVE_SCAN;
+                            scanReq.bcnRptReqScan = pScanRequest->bcnRptReqScan;
+                            if (pScanRequest->bcnRptReqScan)
+                                scanReq.scanType = pScanRequest->scanType;
+                            else
+                                scanReq.scanType = eSIR_ACTIVE_SCAN;
                             scanReq.requestType = eCSR_SCAN_IDLE_MODE_SCAN;
                             p11dScanCmd->u.scanCmd.reason = eCsrScanIdleScan;
                             scanReq.maxChnTime = pMac->roam.configParam.nActiveMaxChnTime;
                             scanReq.minChnTime = pMac->roam.configParam.nActiveMinChnTime;
 
-			    scanReq.maxChnTimeBtc = pMac->roam.configParam.nActiveMaxChnTimeBtc;
-			    scanReq.minChnTimeBtc = pMac->roam.configParam.nActiveMinChnTimeBtc;
+                            scanReq.maxChnTimeBtc = pMac->roam.configParam.nActiveMaxChnTimeBtc;
+                            scanReq.minChnTimeBtc = pMac->roam.configParam.nActiveMinChnTimeBtc;
                         }
 
                         status = csrScanCopyRequest(pMac, &p11dScanCmd->u.scanCmd.u.scanRequest, &scanReq);
@@ -3537,14 +3570,15 @@ void csrApplyCountryInformation( tpAniSirGlobal pMac, tANI_BOOLEAN fForce )
                 {
                    smsLog(pMac, LOGW, FL("Domain Changed Old %d, new %d"),
                                       pMac->scan.domainIdCurrent, domainId);
-                   status = WDA_SetRegDomain(pMac, domainId);
+                   status = WDA_SetRegDomain(pMac, domainId, eSIR_TRUE);
                 }
                 if (status != eHAL_STATUS_SUCCESS)
                 {
                     smsLog( pMac, LOGE, FL("  fail to set regId %d"), domainId );
                 }
                 pMac->scan.domainIdCurrent = domainId;
-                csrApplyChannelPowerCountryInfo( pMac, &pMac->scan.channels11d, pMac->scan.countryCode11d, eANI_BOOLEAN_TRUE );
+                csrApplyChannelPowerCountryInfo( pMac, &pMac->scan.base20MHzChannels,
+                                  pMac->scan.countryCodeCurrent, eANI_BOOLEAN_TRUE );
                 // switch to active scans using this new channel list
                 pMac->scan.curScanType = eSIR_ACTIVE_SCAN;
                 pMac->scan.f11dInfoApplied = eANI_BOOLEAN_TRUE;
@@ -3926,7 +3960,7 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
                                       pMac->scan.countryCodeCurrent,
                                       WNI_CFG_COUNTRY_CODE_LEN);
             /* Set Current RegDomain */
-            status = WDA_SetRegDomain(pMac, domainId);
+            status = WDA_SetRegDomain(pMac, domainId, eSIR_TRUE);
             if ( status != eHAL_STATUS_SUCCESS )
             {
                 smsLog( pMac, LOGE, FL("  fail to Set regId %d"), domainId );
@@ -3976,13 +4010,6 @@ static void csrSaveScanResults( tpAniSirGlobal pMac, tANI_U8 reason )
     pMac->scan.fCurrent11dInfoMatch = eANI_BOOLEAN_FALSE;
     // move the scan results from interim list to the main scan list
     csrMoveTempScanResultsToMainList( pMac, reason );
-
-    // Now check if we gathered any domain/country specific information
-    // If so, we should update channel list and apply Tx power settings
-    if( csrIs11dSupported(pMac) )
-    {
-        csrApplyCountryInformation( pMac, FALSE );
-    }
 }
 
 
