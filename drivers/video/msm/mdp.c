@@ -48,7 +48,7 @@
 #include <linux/msm_mdp.h>
 
 uint32 mdp4_extn_disp;
-
+u32 mdp_iommu_max_map_size;
 static struct clk *mdp_clk;
 static struct clk *mdp_pclk;
 static struct clk *mdp_lut_clk;
@@ -2429,6 +2429,8 @@ static int mdp_on(struct platform_device *pdev)
 	pr_debug("%s:+\n", __func__);
 
 	mdp_clk_ctrl(1);
+	if(mfd->index == 0)
+		mdp_iommu_max_map_size = mfd->max_map_size;
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
 	ret = panel_next_on(pdev);
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
@@ -3358,7 +3360,7 @@ void mdp_footswitch_ctrl(boolean on)
 	if (dsi_pll_vdda)
 		regulator_enable(dsi_pll_vdda);
 
-	mipi_dsi_prepare_clocks();
+	mipi_dsi_prepare_ahb_clocks();
 	mipi_dsi_ahb_ctrl(1);
 	mipi_dsi_phy_ctrl(1);
 	mipi_dsi_clk_enable();
@@ -3374,9 +3376,10 @@ void mdp_footswitch_ctrl(boolean on)
 	}
 
 	mipi_dsi_clk_disable();
+	mipi_dsi_unprepare_clocks();
 	mipi_dsi_phy_ctrl(0);
 	mipi_dsi_ahb_ctrl(0);
-	mipi_dsi_unprepare_clocks();
+	mipi_dsi_unprepare_ahb_clocks();
 
 	if (dsi_pll_vdda)
 		regulator_disable(dsi_pll_vdda);

@@ -216,6 +216,7 @@ static int msm_camera_v4l2_reqbufs(struct file *f, void *pctx,
 		pmctl = msm_cam_server_get_mctl(pcam->mctl_handle);
 		if (pmctl == NULL) {
 			pr_err("%s Invalid mctl ptr", __func__);
+			mutex_unlock(&pcam_inst->inst_lock);
 			return -EINVAL;
 		}
 		pmctl->mctl_vbqueue_init(pcam_inst, &pcam_inst->vid_bufq,
@@ -363,7 +364,11 @@ static int msm_camera_v4l2_dqbuf(struct file *f, void *pctx,
 		return -EACCES;
 	}
 	rc = vb2_dqbuf(&pcam_inst->vid_bufq, pb,  f->f_flags & O_NONBLOCK);
-	D("%s, videobuf_dqbuf returns %d\n", __func__, rc);
+	if (rc < 0) {
+		pr_err("%s, videobuf_dqbuf returns %d\n", __func__, rc);
+		mutex_unlock(&pcam_inst->inst_lock);
+		return rc;
+	}
 
 	if (pb->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		/* Reject the buffer if planes array was not allocated */
@@ -459,7 +464,7 @@ static int msm_camera_v4l2_streamoff(struct file *f, void *pctx,
 		pr_err("%s: hw failed to stop streaming\n", __func__);
 
 	/* stop buffer streaming */
-	rc = vb2_streamoff(&pcam_inst->vid_bufq, buf_type);
+	vb2_streamoff(&pcam_inst->vid_bufq, buf_type);
 	D("%s, videobuf_streamoff returns %d\n", __func__, rc);
 
 	mutex_unlock(&pcam_inst->inst_lock);
@@ -762,7 +767,7 @@ static int msm_camera_v4l2_subscribe_event(struct v4l2_fh *fh,
 		return -EINVAL;
 	if (sub->type == V4L2_EVENT_ALL)
 		sub->type = V4L2_EVENT_PRIVATE_START+MSM_CAM_APP_NOTIFY_EVENT;
-	rc = v4l2_event_subscribe(fh, sub, 30);
+	rc = v4l2_event_subscribe(fh, sub, 100);
 	if (rc < 0)
 		D("%s: failed for evtType = 0x%x, rc = %d\n",
 						__func__, sub->type, rc);
@@ -826,7 +831,7 @@ static long msm_camera_v4l2_private_ioctl(struct file *file, void *fh,
 			mutex_unlock(&pcam->event_lock);
 			break;
 		}
-		if (ioctl_ptr->len > 0) {
+		if (ioctl_ptr->len > 0 && ioctl_ptr->len <= MAX_SERVER_PAYLOAD_LENGTH) {
 			if (copy_to_user(ioctl_ptr->ioctl_ptr, payload,
 				 ioctl_ptr->len)) {
 				pr_err("%s Copy to user failed for cmd %d",
@@ -945,8 +950,10 @@ static int msm_open(struct file *f)
 	D("%s Inst %p use_count %d\n", __func__, pcam_inst, pcam->use_count);
 	if (pcam->use_count == 1) {
 		server_q_idx = msm_find_free_queue();
-		if (server_q_idx < 0)
-			return server_q_idx;
+		if (server_q_idx < 0) {
+			pr_err("%s No free queue available ", __func__);
+			goto msm_cam_server_begin_session_failed;
+		}
 		rc = msm_server_begin_session(pcam, server_q_idx);
 		if (rc < 0) {
 			pr_err("%s error starting server session ", __func__);
@@ -955,7 +962,7 @@ static int msm_open(struct file *f)
 		pmctl = msm_cam_server_get_mctl(pcam->mctl_handle);
 		if (!pmctl) {
 			pr_err("%s mctl ptr is null ", __func__);
-			goto msm_cam_server_begin_session_failed;
+			goto msm_cam_server_get_mctl_failed;
 		}
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
 		if (!pmctl->client) {
@@ -988,6 +995,7 @@ static int msm_open(struct file *f)
 	}
 	pcam_inst->vbqueue_initialized = 0;
 	pcam_inst->sequence = 0;
+	pcam_inst->avtimerOn = 0;
 	rc = 0;
 
 	f->private_data = &pcam_inst->eventHandle;
@@ -1016,17 +1024,16 @@ msm_send_open_server_failed:
 		pmctl->mctl_release = NULL;
 	}
 mctl_open_failed:
-	if (pcam->use_count == 1) {
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-		if (ion_client_created) {
-			D("%s: destroy ion client", __func__);
-			kref_put(&pmctl->refcount, msm_release_ion_client);
-		}
-#endif
-		if (msm_server_end_session(pcam) < 0)
-			pr_err("%s: msm_server_end_session failed\n",
-				__func__);
+	if (ion_client_created) {
+		D("%s: destroy ion client", __func__);
+		kref_put(&pmctl->refcount, msm_release_ion_client);
 	}
+#endif
+msm_cam_server_get_mctl_failed:
+	if (msm_server_end_session(pcam) < 0)
+		pr_err("%s: msm_server_end_session failed\n",
+			__func__);
 msm_cam_server_begin_session_failed:
 	if (pcam->use_count == 1) {
 		pcam->dev_inst[i] = NULL;
@@ -1149,6 +1156,7 @@ static int msm_close(struct file *f)
 	}
 
 	pcam_inst->streamon = 0;
+	pcam_inst->avtimerOn = 0;
 	pcam->use_count--;
 	pcam->dev_inst_map[pcam_inst->image_mode] = NULL;
 	if (pcam_inst->vbqueue_initialized)
@@ -1286,6 +1294,7 @@ copy_from_user_failed:
 payload_alloc_fail:
 	kfree(event_qcmd);
 event_qcmd_alloc_fail:
+	mutex_unlock(&pcam->event_lock);
 	return rc;
 }
 

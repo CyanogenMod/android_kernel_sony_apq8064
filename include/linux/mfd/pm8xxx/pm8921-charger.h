@@ -199,6 +199,7 @@ struct pm8921_charger_platform_data {
 	unsigned int			safety_time;
 	bool				disable_chg_rmvl_wrkarnd;
 	int				soc_scaling;
+	bool				enable_tcxo_warmup_delay;
 };
 
 enum pm8921_charger_source {

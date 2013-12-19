@@ -81,8 +81,8 @@ struct external_common_state_type {
 	uint8 pt_scan_info;
 	uint8 it_scan_info;
 	uint8 ce_scan_info;
-	uint8 spd_vendor_name[8];
-	uint8 spd_product_description[16];
+	uint8 spd_vendor_name[9];
+	uint8 spd_product_description[17];
 	boolean present_3d;
 	boolean present_hdcp;
 	uint8 audio_data_block[MAX_AUDIO_DATA_BLOCK_SIZE];
@@ -111,7 +111,7 @@ const struct msm_hdmi_mode_timing_info *hdmi_mhl_get_supported_mode(
 	uint32 mode);
 void hdmi_common_init_panel_info(struct msm_panel_info *pinfo);
 
-ssize_t video_3d_format_2string(uint32 format, char *buf);
+ssize_t video_3d_format_2string(uint32 format, char *buf, u32 size);
 #endif
 
 int external_common_state_create(struct platform_device *pdev);

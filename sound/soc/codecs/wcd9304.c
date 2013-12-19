@@ -69,6 +69,8 @@
 
 #define VDDIO_MICBIAS_MV 1800
 
+#define SITAR_MUX_SWITCH_READY_WAIT_MS 50
+
 struct sitar_codec_dai_data {
 	u32 rate;
 	u32 *ch_num;
@@ -97,7 +99,7 @@ struct sitar_codec_dai_data {
 #define SITAR_HS_DETECT_PLUG_INERVAL_MS 100
 #define NUM_ATTEMPTS_TO_REPORT 5
 #define SITAR_MBHC_STATUS_REL_DETECTION 0x0C
-#define SITAR_MBHC_GPIO_REL_DEBOUNCE_TIME_MS 200
+#define SITAR_MBHC_GPIO_REL_DEBOUNCE_TIME_MS 50
 #define SITAR_MBHC_GND_MIC_SWAP_THRESHOLD 2
 #define SITAR_MIC_GND_SWAP_DELAY_US 5000
 #define SITAR_USLEEP_RANGE_TOLERANCE 100
@@ -4024,11 +4026,11 @@ static u16 sitar_codec_v_sta_dce(struct snd_soc_codec *codec, bool dce,
 	return (u16) (in / mb_mv) + zero;
 }
 
-static s32 sitar_codec_sta_dce_v(struct snd_soc_codec *codec, s8 dce,
-				 u16 bias_value)
+static s32 __sitar_codec_sta_dce_v(struct snd_soc_codec *codec, s8 dce,
+				 u16 bias_value, s16 z)
 {
 	struct sitar_priv *sitar;
-	s16 value, z, mb;
+	s16 value, mb;
 	s32 mv;
 
 	sitar = snd_soc_codec_get_drvdata(codec);
@@ -4045,6 +4047,16 @@ static s32 sitar_codec_sta_dce_v(struct snd_soc_codec *codec, s8 dce,
 	}
 
 	return mv;
+}
+
+static s32 sitar_codec_sta_dce_v(struct snd_soc_codec *codec, s8 dce,
+				 u16 bias_value)
+{
+	s16 z;
+	struct sitar_priv *sitar;
+	sitar = snd_soc_codec_get_drvdata(codec);
+	z = dce ? (s16)sitar->mbhc_data.dce_z : (s16)sitar->mbhc_data.sta_z;
+	return __sitar_codec_sta_dce_v(sitar->codec, dce, bias_value, z);
 }
 
 static void btn_lpress_fn(struct work_struct *work)
@@ -4115,8 +4127,8 @@ void sitar_mbhc_cal(struct snd_soc_codec *codec)
 	dce_wait = (1000 * 512 * 60 * (nmeas + 1)) / (mclk_rate / 1000);
 	sta_wait = (1000 * 128 * (navg + 1)) / (mclk_rate / 1000);
 
-	sitar->mbhc_data.t_dce = DEFAULT_DCE_WAIT;
-	sitar->mbhc_data.t_sta = DEFAULT_STA_WAIT;
+	sitar->mbhc_data.t_dce = dce_wait;
+	sitar->mbhc_data.t_sta = sta_wait;
 
 	/* LDOH and CFILT are already configured during pdata handling.
 	 * Only need to make sure CFILT and bandgap are in Fast mode.
@@ -4142,7 +4154,11 @@ void sitar_mbhc_cal(struct snd_soc_codec *codec)
 	snd_soc_write(codec, SITAR_A_CDC_MBHC_EN_CTL, 0x04);
 	snd_soc_write(codec, SITAR_A_CDC_MBHC_CLK_CTL, 0x02);
 	snd_soc_write(codec, SITAR_A_MBHC_SCALING_MUX_1, 0x81);
-	usleep_range(100, 100);
+	/*
+	* Hardware that has external cap can delay mic bias ramping down up
+	* to 50ms.
+	*/
+	msleep(SITAR_MUX_SWITCH_READY_WAIT_MS);
 	snd_soc_write(codec, SITAR_A_CDC_MBHC_EN_CTL, 0x04);
 	usleep_range(sitar->mbhc_data.t_dce, sitar->mbhc_data.t_dce);
 	sitar->mbhc_data.dce_z = sitar_codec_read_dce_result(codec);
@@ -4151,7 +4167,11 @@ void sitar_mbhc_cal(struct snd_soc_codec *codec)
 	snd_soc_write(codec, SITAR_A_CDC_MBHC_CLK_CTL, 0x0A);
 	snd_soc_write(codec, SITAR_A_CDC_MBHC_CLK_CTL, 0x02);
 	snd_soc_write(codec, SITAR_A_MBHC_SCALING_MUX_1, 0x82);
-	usleep_range(100, 100);
+	/*
+	* Hardware that has external cap can delay mic bias ramping down up
+	* to 50ms.
+	*/
+	msleep(SITAR_MUX_SWITCH_READY_WAIT_MS);
 	snd_soc_write(codec, SITAR_A_CDC_MBHC_EN_CTL, 0x04);
 	usleep_range(sitar->mbhc_data.t_dce, sitar->mbhc_data.t_dce);
 	sitar->mbhc_data.dce_mb = sitar_codec_read_dce_result(codec);
@@ -4161,14 +4181,22 @@ void sitar_mbhc_cal(struct snd_soc_codec *codec)
 	snd_soc_write(codec, SITAR_A_CDC_MBHC_EN_CTL, 0x02);
 	snd_soc_write(codec, SITAR_A_CDC_MBHC_CLK_CTL, 0x02);
 	snd_soc_write(codec, SITAR_A_MBHC_SCALING_MUX_1, 0x81);
-	usleep_range(100, 100);
+	/*
+	* Hardware that has external cap can delay mic bias ramping down up
+	* to 50ms.
+	*/
+	msleep(SITAR_MUX_SWITCH_READY_WAIT_MS);
 	snd_soc_write(codec, SITAR_A_CDC_MBHC_EN_CTL, 0x02);
 	usleep_range(sitar->mbhc_data.t_sta, sitar->mbhc_data.t_sta);
 	sitar->mbhc_data.sta_z = sitar_codec_read_sta_result(codec);
 
 	/* STA Measurement for MB Voltage */
 	snd_soc_write(codec, SITAR_A_MBHC_SCALING_MUX_1, 0x82);
-	usleep_range(100, 100);
+	/*
+	* Hardware that has external cap can delay mic bias ramping down up
+	* to 50ms.
+	*/
+	msleep(SITAR_MUX_SWITCH_READY_WAIT_MS);
 	snd_soc_write(codec, SITAR_A_CDC_MBHC_EN_CTL, 0x02);
 	usleep_range(sitar->mbhc_data.t_sta, sitar->mbhc_data.t_sta);
 	sitar->mbhc_data.sta_mb = sitar_codec_read_sta_result(codec);
@@ -4181,7 +4209,6 @@ void sitar_mbhc_cal(struct snd_soc_codec *codec)
 
 	snd_soc_write(codec, SITAR_A_MBHC_SCALING_MUX_1, 0x84);
 	usleep_range(100, 100);
-
 	wcd9xxx_enable_irq(codec->control_data, SITAR_IRQ_MBHC_POTENTIAL);
 	sitar_turn_onoff_rel_detection(codec, true);
 }
@@ -4220,9 +4247,9 @@ static s16 sitar_scale_v_micb_vddio(struct sitar_priv *sitar, int volt_val,
 	mb_k = sitar_find_k_value(sitar->pdata->micbias.ldoh_v,
 				  sitar->mbhc_data.micb_mv);
 	if (tovddio)
-		k_val_ratio = volt_val * vddio_k / mb_k;
+		k_val_ratio = volt_val * (vddio_k + 4) / (mb_k + 4);
 	else
-		k_val_ratio = volt_val * mb_k / vddio_k;
+		k_val_ratio = volt_val * (mb_k + 4) / (vddio_k + 4);
 	return k_val_ratio;
 }
 
@@ -5173,22 +5200,42 @@ static int sitar_get_button_mask(const int btn)
 	return mask;
 }
 
+void sitar_get_z(struct snd_soc_codec *codec , s16 *dce_z, s16 *sta_z)
+{
+	s16 reg0, reg1;
+	/* Connect micbias to ground and disconnect vddio switch */
+	reg0 = snd_soc_read(codec, SITAR_A_MBHC_SCALING_MUX_1);
+	snd_soc_write(codec, SITAR_A_MBHC_SCALING_MUX_1, 0x81);
+	reg1 = snd_soc_read(codec, SITAR_A_MICB_2_MBHC);
+	snd_soc_update_bits(codec, SITAR_A_MICB_2_MBHC, 1 << 7, 0);
+
+	/* delay 1ms for discharge mic voltage */
+	usleep_range(1000, 1000 + 1000);
+	*sta_z = sitar_codec_sta_dce(codec, 0, false);
+	*dce_z = sitar_codec_sta_dce(codec, 1, false);
+
+	/* Restore defaults */
+	snd_soc_write(codec, SITAR_A_MBHC_SCALING_MUX_1, reg0);
+	snd_soc_write(codec, SITAR_A_MICB_2_MBHC, reg1);
+}
 
 static irqreturn_t sitar_dce_handler(int irq, void *data)
 {
 	int i, mask;
-	short dce, sta, bias_value_dce;
-	s32 mv, stamv, bias_mv_dce;
 	int btn = -1, meas = 0;
 	struct sitar_priv *priv = data;
 	const struct sitar_mbhc_btn_detect_cfg *d =
 	    SITAR_MBHC_CAL_BTN_DET_PTR(priv->mbhc_cfg.calibration);
 	short btnmeas[d->n_btn_meas + 1];
+	short dce[d->n_btn_meas + 1], sta;
+	s32 mv[d->n_btn_meas + 1], mv_s[d->n_btn_meas + 1];
+	s32 stamv, stamv_s;
 	struct snd_soc_codec *codec = priv->codec;
 	struct wcd9xxx *core = dev_get_drvdata(priv->codec->dev->parent);
 	int n_btn_meas = d->n_btn_meas;
 	u8 mbhc_status = snd_soc_read(codec, SITAR_A_CDC_MBHC_B1_STATUS) & 0x3E;
-
+	bool vddio;
+	s16 dce_z, sta_z;
 	pr_debug("%s: enter\n", __func__);
 
 	SITAR_ACQUIRE_LOCK(priv->codec_resource_lock);
@@ -5206,9 +5253,6 @@ static irqreturn_t sitar_dce_handler(int irq, void *data)
 		goto done;
 	}
 
-	dce = sitar_codec_read_dce_result(codec);
-	mv = sitar_codec_sta_dce_v(codec, 1, dce);
-
 	/* If GPIO interrupt already kicked in, ignore button press */
 	if (priv->in_gpio_handler) {
 		pr_debug("%s: GPIO State Changed, ignore button press\n",
@@ -5216,6 +5260,12 @@ static irqreturn_t sitar_dce_handler(int irq, void *data)
 		btn = -1;
 		goto done;
 	}
+
+	vddio = (priv->mbhc_data.micb_mv != VDDIO_MICBIAS_MV &&
+		 priv->mbhc_micbias_switched);
+
+	dce[0] = sitar_codec_read_dce_result(codec);
+	sta = sitar_codec_read_sta_result(codec);
 
 	if (mbhc_status != SITAR_MBHC_STATUS_REL_DETECTION) {
 		if (priv->mbhc_last_resume &&
@@ -5226,28 +5276,59 @@ static irqreturn_t sitar_dce_handler(int irq, void *data)
 		} else {
 			pr_debug("%s: Button is already released without "
 				 "resume", __func__);
-			sta = sitar_codec_read_sta_result(codec);
-			stamv = sitar_codec_sta_dce_v(codec, 0, sta);
-			btn = sitar_determine_button(priv, mv);
+			sitar_get_z(codec, &dce_z, &sta_z);
+			stamv = __sitar_codec_sta_dce_v(codec, 0, sta, sta_z);
+			if (vddio)
+				stamv_s = sitar_scale_v_micb_vddio(priv, stamv,
+								   false);
+			else
+				stamv_s = stamv;
+			mv[0] = __sitar_codec_sta_dce_v(codec, 1, dce[0],
+							dce_z);
+			mv_s[0] = vddio ? sitar_scale_v_micb_vddio(priv, mv[0],
+								   false) :
+								   mv[0];
+			btn = sitar_determine_button(priv, mv_s[0]);
 			if (btn != sitar_determine_button(priv, stamv))
 				btn = -1;
 			goto done;
 		}
 	}
 
+	for (meas = 1; ((d->n_btn_meas) && (meas < (d->n_btn_meas + 1)));
+	meas++)
+		dce[meas] = sitar_codec_sta_dce(codec, 1, false);
+
+	sitar_get_z(codec, &dce_z, &sta_z);
+
+	stamv = __sitar_codec_sta_dce_v(codec, 0, sta, sta_z);
+	if (vddio)
+		stamv_s = sitar_scale_v_micb_vddio(priv, stamv, false);
+	else
+		stamv_s = stamv;
+
+	pr_debug("%s: Meas HW - STA 0x%x,%d,%d\n", __func__,
+		sta & 0xFFFF, stamv, stamv_s);
+	pr_info("%s: dce_z after recalibration: %x and sta_z: %x\n", __func__,
+		dce_z, sta_z);
 	/* determine pressed button */
-	btnmeas[meas++] = sitar_determine_button(priv, mv);
-	pr_debug("%s: meas %d - DCE %d,%d, button %d\n", __func__,
-		 meas - 1, dce, mv, btnmeas[meas - 1]);
+	mv[0] = __sitar_codec_sta_dce_v(codec, 1, dce[0], dce_z);
+	mv_s[0] = vddio ? sitar_scale_v_micb_vddio(priv, mv[0], false) : mv[0];
+	btnmeas[0] = sitar_determine_button(priv, mv_s[0]);
+	pr_debug("%s: Meas HW - DCE 0x%x,%d,%d button %d\n", __func__,
+		 dce[0] & 0xFFFF, mv[0], mv_s[0], btnmeas[0]);
 	if (n_btn_meas == 0)
 		btn = btnmeas[0];
-	for (; ((d->n_btn_meas) && (meas < (d->n_btn_meas + 1))); meas++) {
-		bias_value_dce = sitar_codec_sta_dce(codec, 1, false);
-		bias_mv_dce = sitar_codec_sta_dce_v(codec, 1, bias_value_dce);
-		btnmeas[meas] = sitar_determine_button(priv, bias_mv_dce);
-		pr_debug("%s: meas %d - DCE %d,%d, button %d\n",
-			 __func__, meas, bias_value_dce, bias_mv_dce,
-			 btnmeas[meas]);
+	for (meas = 1; (n_btn_meas && d->n_btn_meas &&
+			(meas < (d->n_btn_meas + 1))); meas++) {
+		mv[meas] = __sitar_codec_sta_dce_v(codec, 1, dce[meas], dce_z);
+		mv_s[meas] = vddio ? sitar_scale_v_micb_vddio(priv, mv[meas],
+				     false) : mv[meas];
+
+		btnmeas[meas] = sitar_determine_button(priv, mv_s[meas]);
+		pr_debug("%s: meas %d - DCE 0x%x,%d,%d, button %d\n",
+			 __func__, meas, dce[meas] & 0xFFFF, mv[meas],
+			 mv_s[meas], btnmeas[meas]);
 		/* if large enough measurements are collected,
 		 * start to check if last all n_btn_con measurements were
 		 * in same button low/high range */
@@ -5825,6 +5906,9 @@ static const struct sitar_reg_mask_val sitar_codec_reg_init_val[] = {
 	{SITAR_A_CDC_DMIC_CLK1_MODE, 0x07, 0x04},
 	{SITAR_A_PIN_CTL_OE0, 0x90, 0x90},
 	{SITAR_A_PIN_CTL_DATA0, 0x90, 0x90},
+
+	/*disabling the cp static overide gain*/
+	{SITAR_A_CP_STATIC, 0x10, 0x00},
 };
 
 static void sitar_i2c_codec_init_reg(struct snd_soc_codec *codec)

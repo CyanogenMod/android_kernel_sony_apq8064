@@ -436,6 +436,10 @@ static struct pm8921_bms_platform_data pm8921_bms_pdata __devinitdata = {
 	.low_voltage_calc_ms		= 1000,
 	.alarm_low_mv			= 3400,
 	.alarm_high_mv			= 4000,
+	.enable_fcc_learning		= 1,
+	.min_fcc_learning_soc		= 20,
+	.min_fcc_ocv_pc			= 30,
+	.min_fcc_learning_samples	= 5,
 };
 
 #define	PM8921_LC_LED_MAX_CURRENT	4	/* I = 4mA */

@@ -39,6 +39,12 @@ struct pm8xxx_bms_core_data {
  *			is considered empty(mV)
  * @enable_fcc_learning:	if set the driver will learn full charge
  *				capacity of the battery upon end of charge
+ * @min_fcc_learning_soc:	minimum SOC as which CC counting for FCC
+ *				learning can start
+ * @min_fcc_ocv_pc:		minimum PC (lookup(OCV)) at which CC counting
+ *				for FCC learning can start
+ * @min_fcc_learning_samples:	Minimum number of FCC measurement cycles to be
+ *				used for FCC update
  * @normal_voltage_calc_ms:	The period of soc calculation in ms when battery
  *				voltage higher than cutoff voltage
  * @low_voltage_calc_ms:	The period of soc calculation in ms when battery
@@ -63,6 +69,9 @@ struct pm8921_bms_platform_data {
 	unsigned int			alarm_low_mv;
 	unsigned int			alarm_high_mv;
 	int				enable_fcc_learning;
+	int				min_fcc_learning_soc;
+	int				min_fcc_ocv_pc;
+	int				min_fcc_learning_samples;
 	int				shutdown_soc_valid_limit;
 	int				ignore_shutdown_soc;
 	int				adjust_soc_low_threshold;

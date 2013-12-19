@@ -378,7 +378,7 @@ static struct wled_config_data wled_cfg = {
 	.cs_out_en = true,
 	.ctrl_delay_us = 0,
 	.op_fdbck = true,
-	.ovp_val = WLED_OVP_32V,
+	.ovp_val = WLED_OVP_35V,
 	.boost_curr_lim = WLED_CURR_LIMIT_525mA,
 	.num_strings = 1,
 };
@@ -461,7 +461,7 @@ static struct pm8xxx_misc_platform_data pm8xxx_misc_pdata = {
 
 static struct pm8xxx_spk_platform_data pm8xxx_spk_pdata = {
 	.spk_add_enable		= false,
-	.cd_ng_threshold	= 0x6,
+	.cd_ng_threshold	= 0x0,
 	.cd_nf_preamp_bias	= 0x1,
 	.cd_ng_hold		= 0x6,
 	.cd_ng_max_atten	= 0x0,
@@ -484,6 +484,10 @@ static struct pm8921_bms_platform_data pm8921_bms_pdata __devinitdata = {
 	.low_voltage_calc_ms		= 1000,
 	.alarm_low_mv			= 3400,
 	.alarm_high_mv			= 4000,
+	.enable_fcc_learning		= 1,
+	.min_fcc_learning_soc		= 20,
+	.min_fcc_ocv_pc			= 30,
+	.min_fcc_learning_samples	= 5,
 };
 
 static struct pm8038_platform_data pm8038_platform_data __devinitdata = {
@@ -589,13 +593,16 @@ void __init msm8930_init_pmic(void)
 					&msm8930_ssbi_pm8038_pdata;
 		pm8038_platform_data.num_regulators
 			= msm8930_pm8038_regulator_pdata_len;
-		if (machine_is_msm8930_mtp())
+		if (machine_is_msm8930_mtp() || machine_is_msm8930_evt())
 			pm8921_bms_pdata.battery_type = BATT_PALLADIUM;
 		else if (machine_is_msm8930_cdp())
 			pm8921_chg_pdata.has_dc_supply = true;
-		if (machine_is_msm8930_evt())
+		if (machine_is_msm8930_evt()) {
 			pm8038_platform_data.vibrator_pdata =
 				&pm8038_vib_pdata;
+			pm8038_platform_data.leds_pdata->configs[0]
+					.wled_cfg->comp_res_val = 80;
+		}
 	} else {
 		/* PM8917 configuration */
 		pmic_reset_irq = PM8917_IRQ_BASE + PM8921_RESOUT_IRQ;
@@ -609,6 +616,6 @@ void __init msm8930_init_pmic(void)
 			pm8921_chg_pdata.has_dc_supply = true;
 	}
 
-	if (!machine_is_msm8930_mtp())
+	if (!machine_is_msm8930_mtp() && !machine_is_msm8930_evt())
 		pm8921_chg_pdata.battery_less_hardware = 1;
 }

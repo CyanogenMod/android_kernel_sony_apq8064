@@ -109,7 +109,7 @@ static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info);
 static unsigned int dbs_enable;	/* number of CPUs using this policy */
 
 /*
- * dbs_mutex protects dbs_enable in governor start/stop.
+ * dbs_mutex protects dbs_enable and dbs_info during start/stop.
  */
 static DEFINE_MUTEX(dbs_mutex);
 
@@ -565,6 +565,10 @@ static ssize_t store_powersave_bias(struct kobject *a, struct attribute *b,
 				POWERSAVE_BIAS_MINLEVEL));
 
 	dbs_tuners_ins.powersave_bias = input;
+
+	mutex_lock(&dbs_mutex);
+	get_online_cpus();
+
 	if (!bypass) {
 		if (reenable_timer) {
 			/* reinstate dbs timer */
@@ -617,20 +621,23 @@ skip_this_cpu:
 
 			if (dbs_info->cur_policy) {
 				/* cpu using ondemand, cancel dbs timer */
-				mutex_lock(&dbs_info->timer_mutex);
 				dbs_timer_exit(dbs_info);
 
+				mutex_lock(&dbs_info->timer_mutex);
 				ondemand_powersave_bias_setspeed(
 					dbs_info->cur_policy,
 					NULL,
 					input);
-
 				mutex_unlock(&dbs_info->timer_mutex);
+
 			}
 skip_this_cpu_bypass:
 			unlock_policy_rwsem_write(cpu);
 		}
 	}
+
+	put_online_cpus();
+	mutex_unlock(&dbs_mutex);
 
 	return count;
 }
@@ -1043,20 +1050,24 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		dbs_timer_exit(this_dbs_info);
 
 		mutex_lock(&dbs_mutex);
-		mutex_destroy(&this_dbs_info->timer_mutex);
 		dbs_enable--;
 		/* If device is being removed, policy is no longer
 		 * valid. */
 		this_dbs_info->cur_policy = NULL;
-		mutex_unlock(&dbs_mutex);
 		if (!dbs_enable)
 			sysfs_remove_group(cpufreq_global_kobject,
 					   &dbs_attr_group);
+		mutex_unlock(&dbs_mutex);
 
 		break;
 
 	case CPUFREQ_GOV_LIMITS:
 		mutex_lock(&this_dbs_info->timer_mutex);
+		if (!this_dbs_info->cur_policy) {
+			pr_err("Dbs policy is NULL\n");
+			mutex_unlock(&this_dbs_info->timer_mutex);
+			return -EINVAL;
+		}
 		if (policy->max < this_dbs_info->cur_policy->cur)
 			__cpufreq_driver_target(this_dbs_info->cur_policy,
 				policy->max, CPUFREQ_RELATION_H);
@@ -1110,7 +1121,14 @@ static int __init cpufreq_gov_dbs_init(void)
 
 static void __exit cpufreq_gov_dbs_exit(void)
 {
+	unsigned int i;
+
 	cpufreq_unregister_governor(&cpufreq_gov_ondemand);
+	for_each_possible_cpu(i) {
+		struct cpu_dbs_info_s *this_dbs_info =
+			&per_cpu(od_cpu_dbs_info, i);
+		mutex_destroy(&this_dbs_info->timer_mutex);
+	}
 }
 
 

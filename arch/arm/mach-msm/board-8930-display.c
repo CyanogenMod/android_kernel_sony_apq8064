@@ -462,7 +462,7 @@ static struct msm_panel_common_pdata mdp_pdata = {
 	.mdp_max_clk = 200000000,
 	.mdp_max_bw = 2000000000,
 	.mdp_bw_ab_factor = 115,
-	.mdp_bw_ib_factor = 125,
+	.mdp_bw_ib_factor = 150,
 #ifdef CONFIG_MSM_BUS_SCALING
 	.mdp_bus_scale_table = &mdp_bus_scale_pdata,
 #endif
@@ -484,6 +484,9 @@ void __init msm8930_mdp_writeback(struct memtype_reserve* reserve_table)
 		mdp_pdata.ov0_wb_size;
 	reserve_table[mdp_pdata.mem_hid].size +=
 		mdp_pdata.ov1_wb_size;
+
+	pr_info("mem_map: mdp reserved with size 0x%lx in pool\n",
+			mdp_pdata.ov0_wb_size + mdp_pdata.ov1_wb_size);
 #endif
 }
 
