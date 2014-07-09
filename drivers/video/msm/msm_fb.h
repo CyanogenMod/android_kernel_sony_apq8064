@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2014, The Linux Foundation. All rights reserved.
  * Copyright (C) 2012-2013 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -197,6 +197,7 @@ struct msm_fb_data_type {
 	u32 mdp_rev;
 	u32 writeback_state;
 	bool writeback_active_cnt;
+	bool writeback_initialized;
 	int cont_splash_done;
 	void *cpu_pm_hdl;
 	u32 acq_fen_cnt;

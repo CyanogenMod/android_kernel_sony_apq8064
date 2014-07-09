@@ -4,7 +4,7 @@
  * Core MSM framebuffer driver.
  *
  * Copyright (C) 2007 Google Incorporated
- * Copyright (c) 2008-2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2008-2014, The Linux Foundation. All rights reserved.
  * Copyright (C) 2012-2013 Sony Mobile Communications AB.
  *
  * This software is licensed under the terms of the GNU General Public
@@ -103,6 +103,7 @@ extern unsigned long mdp_timer_duration;
 static int msm_fb_register(struct msm_fb_data_type *mfd);
 static int msm_fb_open(struct fb_info *info, int user);
 static int msm_fb_release(struct fb_info *info, int user);
+static int msm_fb_release_all(struct fb_info *info, boolean is_all);
 static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 			      struct fb_info *info);
 static int msm_fb_stop_sw_refresher(struct msm_fb_data_type *mfd);
@@ -382,6 +383,17 @@ static void msm_fb_remove_sysfs(struct platform_device *pdev)
 
 static void bl_workqueue_handler(struct work_struct *work);
 
+static void msm_fb_shutdown(struct platform_device *pdev)
+{
+       struct msm_fb_data_type *mfd = platform_get_drvdata(pdev);
+       if (IS_ERR_OR_NULL(mfd)) {
+               pr_err("MFD is Null");
+               return;
+       }
+       lock_fb_info(mfd->fbi);
+       msm_fb_release_all(mfd->fbi, true);
+       unlock_fb_info(mfd->fbi);
+}
 static int msm_fb_probe(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
@@ -589,28 +601,6 @@ static int msm_fb_suspend(struct platform_device *pdev, pm_message_t state)
 #else
 #define msm_fb_suspend NULL
 #endif
-
-static void msm_fb_shutdown(struct platform_device *pdev)
-{
-	struct msm_fb_data_type *mfd;
-	int ret = 0;
-	MSM_FB_DEBUG("msm_fb_shutdown\n");
-
-	mfd = (struct msm_fb_data_type *)platform_get_drvdata(pdev);
-	if (mfd) {
-		if (mfd->op_enable) {
-			ret = msm_fb_blank_sub(FB_BLANK_POWERDOWN, mfd->fbi,
-					     mfd->op_enable);
-		}
-
-		if (ret)
-			MSM_FB_INFO
-				("msm_fb_shutdown: can't turn off display!\n");
-
-		mfd->op_enable = FALSE;
-		mdp_pipe_ctrl(MDP_MASTER_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-	}
-}
 
 static int msm_fb_suspend_sub(struct msm_fb_data_type *mfd)
 {
@@ -1839,24 +1829,6 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	return ret;
 }
 
-static void msm_fb_client_counter(struct fb_info *info, int user, bool open)
-{
-	static int cnt;
-	int idx;
-
-	if (user != 1)
-		return;
-
-	if (open)
-		cnt++;
-	else
-		cnt--;
-
-	if (!cnt)
-		for (idx = 2; idx <= 4; idx++)
-			mdp4_overlay_unset(info, idx);
-}
-
 static int msm_fb_open(struct fb_info *info, int user)
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
@@ -1870,7 +1842,8 @@ static int msm_fb_open(struct fb_info *info, int user)
 	}
 
 	if (info->node == 0 && !(mfd->cont_splash_done)) {	/* primary */
-			msm_fb_client_counter(info, user, true);
+			if(!mfd->ref_cnt)
+				mdp_set_dma_pan_info(info, NULL, TRUE);
 			mfd->ref_cnt++;
 			return 0;
 	}
@@ -1902,7 +1875,6 @@ static int msm_fb_open(struct fb_info *info, int user)
 		}
 	}
 
-	msm_fb_client_counter(info, user, true);
 	mfd->ref_cnt++;
 	return 0;
 }
@@ -1912,7 +1884,7 @@ static void msm_fb_free_base_pipe(struct msm_fb_data_type *mfd)
 	return 	mdp4_overlay_free_base_pipe(mfd);
 }
 
-static int msm_fb_release(struct fb_info *info, int user)
+static int msm_fb_release_all(struct fb_info *info, boolean is_all)
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
 	int ret = 0, bl_level = 0;
@@ -1924,8 +1896,10 @@ static int msm_fb_release(struct fb_info *info, int user)
 	}
 	msm_fb_pan_idle(mfd);
 
-	msm_fb_client_counter(info, user, false);
-	mfd->ref_cnt--;
+	do {
+	        mfd->ref_cnt--;
+		pm_runtime_put(info->dev);
+	} while (is_all && mfd->ref_cnt);
 
 	if (!mfd->ref_cnt) {
 		if (mfd->op_enable) {
@@ -1947,8 +1921,11 @@ static int msm_fb_release(struct fb_info *info, int user)
 		}
 	}
 
-	pm_runtime_put(info->dev);
 	return ret;
+}
+static int msm_fb_release(struct fb_info *info, int user)
+{
+        return msm_fb_release_all(info, false);
 }
 
 void msm_fb_wait_for_fence(struct msm_fb_data_type *mfd)

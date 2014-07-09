@@ -2748,6 +2748,11 @@ static int mdp4_overlay_req2pipe(struct mdp_overlay *req, int mixer,
 
 	pipe->transp = req->transp_mask;
 
+	if ((pipe->flags & MDP_SECURE_OVERLAY_SESSION) &&
+		(!(req->flags & MDP_SECURE_OVERLAY_SESSION))) {
+		pr_err("%s Switch secure %d", __func__, pipe->pipe_ndx);
+		mfd->sec_active = FALSE;
+	}
 	pipe->flags = req->flags;
 
 	*ppipe = pipe;
@@ -2836,16 +2841,13 @@ static int mdp4_calc_req_mdp_clk(struct msm_fb_data_type *mfd,
 	pr_debug("%s: the right %d shifted xscale is %d.\n",
 		 __func__, shift, xscale);
 
-	if (src_h > dst_h) {
-		yscale = src_h;
-		yscale <<= shift;
-		yscale /= dst_h;
-	} else {		/* upscale */
-		yscale = dst_h;
-		yscale <<= shift;
-		yscale /= src_h;
-	}
+	if (src_h > dst_h)
+	        yscale = src_h;
+	else
+                yscale = dst_h;
 
+        yscale <<= shift;
+        yscale /= dst_h;
 	yscale *= src_w;
 	yscale /= hsync;
 

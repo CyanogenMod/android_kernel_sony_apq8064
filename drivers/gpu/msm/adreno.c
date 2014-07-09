@@ -1,4 +1,4 @@
-/* Copyright (c) 2002,2007-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2002,2007-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -292,7 +292,7 @@ static void adreno_perfcounter_start(struct adreno_device *adreno_dev)
  */
 
 int adreno_perfcounter_read_group(struct adreno_device *adreno_dev,
-	struct kgsl_perfcounter_read_group *reads, unsigned int count)
+	struct kgsl_perfcounter_read_group __user *reads, unsigned int count)
 {
 	struct adreno_perfcounters *counters = adreno_dev->gpudev->perfcounters;
 	struct adreno_perfcount_group *group;
@@ -312,12 +312,6 @@ int adreno_perfcounter_read_group(struct adreno_device *adreno_dev,
 	if (reads == NULL || count == 0 || count > 100)
 		return -EINVAL;
 
-	/* verify valid inputs group ids and countables */
-	for (i = 0; i < count; i++) {
-		if (reads[i].groupid >= counters->group_count)
-			return -EINVAL;
-	}
-
 	list = kmalloc(sizeof(struct kgsl_perfcounter_read_group) * count,
 			GFP_KERNEL);
 	if (!list)
@@ -331,7 +325,14 @@ int adreno_perfcounter_read_group(struct adreno_device *adreno_dev,
 
 	/* list iterator */
 	for (j = 0; j < count; j++) {
+
 		list[j].value = 0;
+
+		/* Verify that the group ID is within range */
+		if (list[j].groupid >= counters->group_count) {
+			ret = -EINVAL;
+			goto done;
+		}
 
 		group = &(counters->groups[list[j].groupid]);
 
@@ -645,9 +646,7 @@ static void adreno_iommu_setstate(struct kgsl_device *device,
 					uint32_t flags)
 {
 	unsigned int pt_val, reg_pt_val;
-	unsigned int link[250];
-	unsigned int *cmds = &link[0];
-	int sizedwords = 0;
+	unsigned int *link = NULL, *cmds;
 	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
 	int num_iommu_units, i;
 	struct kgsl_context *context;
@@ -668,6 +667,12 @@ static void adreno_iommu_setstate(struct kgsl_device *device,
 	if (context == NULL)
 		return;
 	adreno_ctx = context->devctxt;
+
+	link = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (link == NULL)
+		goto done;
+
+	cmds = link;
 
 	if (kgsl_mmu_enable_clk(&device->mmu,
 				KGSL_IOMMU_CONTEXT_USER))
@@ -770,26 +775,25 @@ static void adreno_iommu_setstate(struct kgsl_device *device,
 
 	cmds += adreno_add_idle_cmds(adreno_dev, cmds);
 
-	sizedwords += (cmds - &link[0]);
-	if (sizedwords) {
+	if ((unsigned int) (cmds - link)) {
 		/* invalidate all base pointers */
 		*cmds++ = cp_type3_packet(CP_INVALIDATE_STATE, 1);
 		*cmds++ = 0x7fff;
-		sizedwords += 2;
 		/* This returns the per context timestamp but we need to
 		 * use the global timestamp for iommu clock disablement */
 		adreno_ringbuffer_issuecmds(device, adreno_ctx,
 			KGSL_CMD_FLAGS_PMODE,
-			&link[0], sizedwords);
+			link, (unsigned int)(cmds - link));
 		kgsl_mmu_disable_clk_on_ts(&device->mmu,
 				adreno_dev->ringbuffer.global_ts, true);
 	}
 
-	if (sizedwords > (sizeof(link)/sizeof(unsigned int))) {
+	if ((unsigned int) (cmds - link) > (PAGE_SIZE / sizeof(unsigned int))) {
 		KGSL_DRV_ERR(device, "Temp command buffer overflow\n");
 		BUG();
 	}
 done:
+	kfree(link);
 	kgsl_context_put(context);
 }
 
