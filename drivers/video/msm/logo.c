@@ -167,7 +167,7 @@ static void __init draw_logo(void)
 			printk(KERN_ERR"%s failed for kmalloc\n", __func__);
 		} else {
 			INIT_DELAYED_WORK(fb_work, close_fb_work);
-			schedule_delayed_work(fb_work, HZ*5);
+			schedule_delayed_work(fb_work, HZ*15);
 		}
 	}
 }
