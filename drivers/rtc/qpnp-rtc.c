@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -44,6 +44,11 @@
 
 #define TO_SECS(arr)		(arr[0] | (arr[1] << 8) | (arr[2] << 16) | \
 							(arr[3] << 24))
+/* Module parameter to control power-on-alarm */
+bool poweron_alarm;
+module_param(poweron_alarm, bool, 0644);
+MODULE_PARM_DESC(poweron_alarm, "Enable/Disable power-on alarm");
+EXPORT_SYMBOL(poweron_alarm);
 
 /* rtc driver internal structure */
 struct qpnp_rtc {
