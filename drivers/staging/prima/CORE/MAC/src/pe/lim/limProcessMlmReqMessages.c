@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -331,7 +331,24 @@ limResumeLink(tpAniSirGlobal pMac, SUSPEND_RESUME_LINK_CALLBACK callback, tANI_U
 
    pMac->lim.gpLimResumeCallback = callback;
    pMac->lim.gpLimResumeData = data;
-   limSendHalFinishScanReq(pMac, eLIM_HAL_RESUME_LINK_WAIT_STATE );
+
+   /* eLIM_HAL_IDLE_SCAN_STATE state indicate limSendHalInitScanReq failed.
+    * In case limSendHalInitScanReq is success, Scanstate would be
+    * eLIM_HAL_SUSPEND_LINK_STATE
+    */
+   if( eLIM_HAL_IDLE_SCAN_STATE != pMac->lim.gLimHalScanState )
+   {
+      limSendHalFinishScanReq(pMac, eLIM_HAL_RESUME_LINK_WAIT_STATE );
+   }
+   else
+   {
+      limLog(pMac, LOGW, FL("Init Scan failed, we will not call finish scan."
+                   " calling the callback with failure status"));
+      pMac->lim.gpLimResumeCallback( pMac, eSIR_FAILURE, pMac->lim.gpLimResumeData);
+      pMac->lim.gpLimResumeCallback = NULL;
+      pMac->lim.gpLimResumeData = NULL;
+      pMac->lim.gLimSystemInScanLearnMode = 0;
+   }
 
    if(limIsInMCC(pMac))
    {
@@ -2868,10 +2885,27 @@ limProcessMlmDisassocReqNtf(tpAniSirGlobal pMac, eHalStatus suspendStatus, tANI_
          */
         pStaDs->mlmStaContext.mlmState   = eLIM_MLM_WT_DEL_STA_RSP_STATE;
 
-        limSendDisassocMgmtFrame(pMac,
+        /* If the reason for disassociation is inactivity of STA, then
+           dont wait for acknowledgement */
+        if ((pMlmDisassocReq->reasonCode == eSIR_MAC_DISASSOC_DUE_TO_INACTIVITY_REASON) &&
+            (psessionEntry->limSystemRole == eLIM_AP_ROLE))
+        {
+
+             limSendDisassocMgmtFrame(pMac,
+                                 pMlmDisassocReq->reasonCode,
+                                 pMlmDisassocReq->peerMacAddr,
+                                 psessionEntry, FALSE);
+
+             /* Send Disassoc CNF and receive path cleanup */
+             limSendDisassocCnf(pMac);
+        }
+        else
+        {
+             limSendDisassocMgmtFrame(pMac,
                                  pMlmDisassocReq->reasonCode,
                                  pMlmDisassocReq->peerMacAddr,
                                  psessionEntry, TRUE);
+        }
     }
     else
     {
@@ -3239,6 +3273,16 @@ limProcessMlmDeauthReqNtf(tpAniSirGlobal pMac, eHalStatus suspendStatus, tANI_U3
     pStaDs->mlmStaContext.cleanupTrigger = pMlmDeauthReq->deauthTrigger;
 
     pMac->lim.limDisassocDeauthCnfReq.pMlmDeauthReq = pMlmDeauthReq;
+
+    /* Set state to mlm State to eLIM_MLM_WT_DEL_STA_RSP_STATE
+     * This is to address the issue of race condition between
+     * disconnect request from the HDD and disassoc from
+     * inactivity timer. This will make sure that we will not
+     * process disassoc if deauth is in progress for the station
+     * and thus mlmStaContext.cleanupTrigger will not be overwritten.
+    */
+    pStaDs->mlmStaContext.mlmState   = eLIM_MLM_WT_DEL_STA_RSP_STATE;
+
     /// Send Deauthentication frame to peer entity
     limSendDeauthMgmtFrame(pMac, pMlmDeauthReq->reasonCode,
                            pMlmDeauthReq->peerMacAddr,

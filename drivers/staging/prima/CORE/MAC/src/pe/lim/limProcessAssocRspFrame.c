@@ -159,11 +159,11 @@ void limUpdateAssocStaDatas(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpSirAsso
        {
            pStaDs->mlmStaContext.vhtCapability = pAssocRsp->VHTCaps.present;
        }
-       if (limPopulateOwnRateSet(pMac, &pStaDs->supportedRates, 
+       if (limPopulatePeerRateSet(pMac, &pStaDs->supportedRates,
                                 pAssocRsp->HTCaps.supportedMCSSet,
-                                false,psessionEntry , &pAssocRsp->VHTCaps) != eSIR_SUCCESS) 
+                                false,psessionEntry , &pAssocRsp->VHTCaps) != eSIR_SUCCESS)
 #else
-       if (limPopulateOwnRateSet(pMac, &pStaDs->supportedRates, pAssocRsp->HTCaps.supportedMCSSet, false,psessionEntry) != eSIR_SUCCESS) 
+       if (limPopulatePeerRateSet(pMac, &pStaDs->supportedRates, pAssocRsp->HTCaps.supportedMCSSet, false,psessionEntry) != eSIR_SUCCESS)
 #endif
        {
            limLog(pMac, LOGP, FL("could not get rateset and extended rate set"));
@@ -371,9 +371,17 @@ limProcessAssocRspFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tANI_U8 sub
         // Log error
         if (!pHdr->fc.retry)
         {
-            limLog(pMac, LOGE,
-               FL("received Re/Assoc rsp frame in unexpected state"));
-            limPrintMlmState(pMac, LOGE, psessionEntry->limMlmState);
+            if ( !(pMac->lim.retryPacketCnt & 0xf))
+            {
+                limLog(pMac, LOGE,
+                   FL("received Re/Assoc rsp frame is not a retry frame, "
+                     "frame count %d"), ++pMac->lim.retryPacketCnt);
+                limPrintMlmState(pMac, LOGE, psessionEntry->limMlmState);
+            }
+            else
+            {
+                pMac->lim.retryPacketCnt++;
+            }
         }
         palFreeMemory(pMac->hHdd, pBeaconStruct);
         return;

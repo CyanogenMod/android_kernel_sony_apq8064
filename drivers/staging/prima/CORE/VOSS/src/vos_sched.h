@@ -174,6 +174,9 @@ typedef struct _VosSchedContext
    /* TL Message queue on the Tx thread */
    VosMqType           tlTxMq;
 
+   /* TL Message queue on the Rx thread */
+   VosMqType           tlRxMq;
+
    /* SYS Message queue on the Tx thread */
    VosMqType           sysTxMq;
 
@@ -269,6 +272,8 @@ typedef struct _VosWatchdogContext
 
    v_BOOL_t resetInProgress;
 
+   v_BOOL_t isFatalError;
+
    vos_chip_reset_reason_type reason;
 
    /* Lock for preventing multiple reset being triggered simultaneously */
@@ -340,6 +345,9 @@ typedef struct _VosContextType
    v_VOID_t            *pWDAContext;
 
    volatile v_U8_t    isLoadUnloadInProgress;
+
+   /* SSR re-init in progress */
+   volatile v_U8_t     isReInitInProgress;
 
 } VosContextType, *pVosContextType;
 
@@ -504,5 +512,9 @@ void clearWlanResetReason(void);
 void vos_timer_module_init( void );
 VOS_STATUS vos_watchdog_wlan_shutdown(void);
 VOS_STATUS vos_watchdog_wlan_re_init(void);
+int isWDresetInProgress(void);
+v_BOOL_t isSsrPanicOnFailure(void);
+void vos_ssr_protect(const char *caller_func);
+void vos_ssr_unprotect(const char *caller_func);
 
 #endif // #if !defined __VOSS_SCHED_H
