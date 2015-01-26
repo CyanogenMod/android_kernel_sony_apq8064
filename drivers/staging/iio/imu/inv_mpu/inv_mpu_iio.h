@@ -401,6 +401,7 @@ struct inv_mpu_slave {
 	int (*get_mode)(void);
 	int (*set_lpf)(struct inv_mpu_iio_s *, int rate);
 	int (*set_fs)(struct inv_mpu_iio_s *, int fs);
+	int (*config)(struct inv_mpu_iio_s *st);
 };
 
 /* AKM definitions */

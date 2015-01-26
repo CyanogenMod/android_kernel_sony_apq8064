@@ -1,5 +1,6 @@
 /*
 * Copyright (C) 2012 Invensense, Inc.
+* Copyright (C) 2013 Sony Mobile Communications AB.
 *
 * This software is licensed under the terms of the GNU General Public
 * License version 2, as published by the Free Software Foundation, and
@@ -10,6 +11,8 @@
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU General Public License for more details.
 *
+* NOTE: This file has been modified by Sony Mobile Communications AB.
+* Modifications are licensed under the License.
 */
 
 /**
@@ -2176,6 +2179,8 @@ static int inv_mpu_power_supply(struct inv_mpu_iio_s *st, bool power_on)
 			return result;
 		st->power_supply_on = 1;
 		inv_mpu_restore_regs(st);
+		if (st->mpu_slave)
+			st->mpu_slave->config(st);
 	} else if (!power_on && st->power_supply_on) {
 		result = !st->plat_data.power_supply ? 0 :
 			st->plat_data.power_supply(&st->client->dev, 0);

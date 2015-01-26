@@ -128,6 +128,7 @@ static int bma250_set_bandwidth(struct inv_mpu_iio_s *st, u8 bw)
 	data &= BMA250_BW_REG_MASK;
 	data |= bandwidth;
 	res = inv_secondary_write(BMA250_BW_SEL_REG, data);
+	bma_static_property.bandwidth = bw;
 	return res;
 }
 
@@ -308,6 +309,22 @@ static int set_fs_bma250(struct inv_mpu_iio_s *st, int fs)
 	return result ? (-EINVAL) : 0;
 }
 
+static int config_bma250(struct inv_mpu_iio_s *st)
+{
+	int result;
+	result = set_3050_bypass(st, true);
+	if (result)
+		return result;
+	result = bma250_set_bandwidth(st,
+			(u8) bma_static_property.bandwidth);
+	result |= bma250_set_range(st,
+			(u8) bma_static_property.range);
+	result |= set_3050_bypass(st, false);
+
+	return result ? (-EINVAL) : 0;
+}
+
+
 static struct inv_mpu_slave slave_bma250 = {
 	.suspend = suspend_slave_bma250,
 	.resume  = resume_slave_bma250,
@@ -315,7 +332,8 @@ static struct inv_mpu_slave slave_bma250 = {
 	.combine_data = combine_data_slave_bma250,
 	.get_mode = get_mode_slave_bma250,
 	.set_lpf = set_lpf_bma250,
-	.set_fs  = set_fs_bma250
+	.set_fs  = set_fs_bma250,
+	.config = config_bma250
 };
 
 int inv_register_mpu3050_slave(struct inv_mpu_iio_s *st)

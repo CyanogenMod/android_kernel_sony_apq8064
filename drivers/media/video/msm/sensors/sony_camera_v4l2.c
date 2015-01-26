@@ -48,6 +48,7 @@
 #endif
 
 #define I2C_MAX_DATA_LEN	256
+#define I2C_MAX_RETRY_COUNT	5
 #define SENSOR_NAME_LEN		8
 #define EEPROM_MAX_DATA_LEN	2048
 #define SENSOR_MCLK_DEFAULT	8000000
@@ -262,6 +263,7 @@ static int sony_cam_i2c_read(struct msm_sensor_ctrl_t *s_ctrl,
 	};
 	struct i2c_msg *pmsg = msgs;
 	uint8_t msglen = 2;
+	int retry_count = 0;
 
 	LOGV("slave:0x%04x addr:0x%04x, type:0x%02x, len:0x%02x\n",
 			slave_addr, addr, type, len);
@@ -296,14 +298,22 @@ static int sony_cam_i2c_read(struct msm_sensor_ctrl_t *s_ctrl,
 		goto exit;
 	}
 
+retry:
 	rc = i2c_transfer(s_ctrl->sensor_i2c_client->client->adapter,
 				pmsg, msglen);
 	if (rc < 0 || rc != msglen) {
 		LOGE("slave:0x%04x, addr:0x%04x, type:0x%02x, len:0x%02x\n",
 				slave_addr, addr, type, len);
-		LOGE("i2c transfer failed (%d)\n", rc);
-		rc = -EIO;
-		goto exit;
+		retry_count++;
+		if (retry_count > I2C_MAX_RETRY_COUNT) {
+			LOGE("i2c transfer failed (%d)\n", rc);
+			rc = -EIO;
+			goto exit;
+		}
+		LOGE("\ni2c transfer failed (%d), but retry %d\n",
+			rc, retry_count);
+		usleep_range(10000, 10000);
+		goto retry;
 	}
 	memcpy(data, camera_data[id].buf, len);
 	rc = 0;
@@ -319,6 +329,7 @@ static int sony_cam_i2c_write(struct msm_sensor_ctrl_t *s_ctrl,
 	int rc;
 	uint16_t i;
 	uint16_t id = sony_util_get_context(s_ctrl);
+	int retry_count = 0;
 
 	struct i2c_msg msgs[] = {
 		{
@@ -360,6 +371,8 @@ static int sony_cam_i2c_write(struct msm_sensor_ctrl_t *s_ctrl,
 	}
 
 	memcpy(camera_data[id].buf + type, data, len);
+
+retry:
 	rc = i2c_transfer(s_ctrl->sensor_i2c_client->client->adapter,
 			pmsg, msglen);
 	if (rc < 0 || rc != msglen) {
@@ -367,9 +380,16 @@ static int sony_cam_i2c_write(struct msm_sensor_ctrl_t *s_ctrl,
 				slave_addr, addr, type, len);
 		for (i = 0; i < len; i++)
 			LOGE("0x%02x ", *(data + i));
-		LOGE("\ni2c transfer failed (%d)\n", rc);
-		rc = -EIO;
-		goto exit;
+		retry_count++;
+		if (retry_count > I2C_MAX_RETRY_COUNT) {
+			LOGE("\ni2c transfer failed (%d)\n", rc);
+			rc = -EIO;
+			goto exit;
+		}
+		LOGE("\ni2c transfer failed (%d), but retry %d\n",
+			rc, retry_count);
+		usleep_range(10000, 10000);
+		goto retry;
 	}
 	rc = 0;
 
