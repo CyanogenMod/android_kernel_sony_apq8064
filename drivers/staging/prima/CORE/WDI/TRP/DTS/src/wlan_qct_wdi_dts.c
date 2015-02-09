@@ -63,10 +63,6 @@
 #include "wlan_qct_wdi_dp.h"
 #include "wlan_qct_wdi_sta.h"
 
-#ifdef DEBUG_ROAM_DELAY
-#include "vos_utils.h"
-#endif
-
 static WDTS_TransportDriverTrype gTransportDriver = {
   WLANDXE_Open, 
   WLANDXE_Start, 
@@ -591,10 +587,9 @@ wpt_status WDTS_RxPacket (void *pContext, wpt_packet *pFrame, WDTS_ChannelType c
         ucMPDUHOffset = usMPDUDOffset;
       }
 
-      if(VPKT_SIZE_BUFFER_ALIGNED < (usMPDULen+ucMPDUHOffset)){
-        WPAL_TRACE(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
-                   "Invalid Frame size, might memory corrupted(%d+%d/%d)",
-                   usMPDULen, ucMPDUHOffset, VPKT_SIZE_BUFFER_ALIGNED);
+      if(VPKT_SIZE_BUFFER < (usMPDULen+ucMPDUHOffset)){
+        DTI_TRACE( DTI_TRACE_LEVEL_FATAL,
+                   "Invalid Frame size, might memory corrupted");
 
         /* Size of the packet tranferred by the DMA engine is
          * greater than the the memory allocated for the skb
@@ -709,16 +704,6 @@ wpt_status WDTS_RxPacket (void *pContext, wpt_packet *pFrame, WDTS_ChannelType c
       WPAL_PACKET_SET_BD_POINTER(pFrame, pBDHeader);
       WPAL_PACKET_SET_BD_LENGTH(pFrame, sizeof(WDI_RxBdType));
 
-#ifdef DEBUG_ROAM_DELAY
-      //Hack we need to send the frame type, so we are using bufflen as frametype
-      vos_record_roam_event(e_DXE_RX_PKT_TIME, (void *)pFrame, pRxMetadata->type);
-      //Should we use the below check to avoid funciton calls
-      /*
-      if(gRoamDelayMetaInfo.dxe_monitor_tx)
-      {
-      }
-      */
-#endif
       // Invoke Rx complete callback
       pClientData->receiveFrameCB(pClientData->pCallbackContext, pFrame);  
   }
@@ -912,16 +897,6 @@ wpt_status WDTS_TxPacket(void *pContext, wpt_packet *pFrame)
 #endif
   // Send packet to  Transport Driver. 
   status =  gTransportDriver.xmit(pDTDriverContext, pFrame, channel);
-#ifdef DEBUG_ROAM_DELAY
-   //Hack we need to send the frame type, so we are using bufflen as frametype
-   vos_record_roam_event(e_DXE_FIRST_XMIT_TIME, (void *)pFrame, pTxMetadata->frmType);
-   //Should we use the below check to avoid funciton calls
-   /*
-   if(gRoamDelayMetaInfo.dxe_monitor_tx)
-   {
-   }
-   */
-#endif
   return status;
 }
 

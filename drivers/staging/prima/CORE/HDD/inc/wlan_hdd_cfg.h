@@ -213,12 +213,6 @@
 #define CFG_ENABLE_IMPS_MAX                    ( 1 )
 #define CFG_ENABLE_IMPS_DEFAULT                ( 1 )
 
-//SSR = SubSytemRestart
-#define CFG_SSR_PANIC_ON_FAILURE_NAME          "gSsrPanicOnFailure"
-#define CFG_SSR_PANIC_ON_FAILURE_MIN           ( 0 )
-#define CFG_SSR_PANIC_ON_FAILURE_MAX           ( 1 )
-#define CFG_SSR_PANIC_ON_FAILURE_DEFAULT       ( 0 )
-
 #define CFG_IMPS_MINIMUM_SLEEP_TIME_NAME       "gImpsMinSleepTime" 
 #define CFG_IMPS_MINIMUM_SLEEP_TIME_MIN        ( 0 )
 #define CFG_IMPS_MINIMUM_SLEEP_TIME_MAX        ( 65535 )
@@ -1310,11 +1304,6 @@ typedef enum
 #define CFG_ENABLE_DFS_CHNL_SCAN_MAX               ( 1 )
 #define CFG_ENABLE_DFS_CHNL_SCAN_DEFAULT           ( 1 )
 
-#define CFG_ENABLE_DFS_PNO_CHNL_SCAN_NAME              "gEnableDFSPnoChnlScan"
-#define CFG_ENABLE_DFS_PNO_CHNL_SCAN_MIN               ( 0 )
-#define CFG_ENABLE_DFS_PNO_CHNL_SCAN_MAX               ( 1 )
-#define CFG_ENABLE_DFS_PNO_CHNL_SCAN_DEFAULT           ( 1 )
-
 typedef enum
 {
     eHDD_LINK_SPEED_REPORT_ACTUAL = 0,
@@ -1835,23 +1824,10 @@ typedef enum
 #define CFG_AMSDU_SUPPORT_IN_AMPDU_MAX                 (1)
 #define CFG_AMSDU_SUPPORT_IN_AMPDU_DEFAULT             (0) //disabled
 
-#define CFG_ROAMING_DFS_CHANNEL_NAME                "gAllowDFSChannelRoam"
-#define CFG_ROAMING_DFS_CHANNEL_MIN                 (0)
-#define CFG_ROAMING_DFS_CHANNEL_MAX                 (1)
-#define CFG_ROAMING_DFS_CHANNEL_DEFAULT             (0)
-
 #define CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_NAME                "gEnableStrictRegulatoryForFCC"
 #define CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_MIN                 ( 0 )
 #define CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_MAX                 ( 1 )
 #define CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_DEFAULT             ( 0 )
-
-/*
- * SCAN Offload
- */
-#define CFG_SCAN_OFFLOAD_NAME                     "gEnableDirectedScanOffload"
-#define CFG_SCAN_OFFLOAD_DISABLE                  ( 0 )
-#define CFG_SCAN_OFFLOAD_ENABLE                   ( 1 )
-#define CFG_SCAN_OFFLOAD_DEFAULT                  ( CFG_SCAN_OFFLOAD_DISABLE )
 
 /*---------------------------------------------------------------------------
   Type declarations
@@ -1891,7 +1867,6 @@ typedef struct
    v_U8_t        nEnableSuspend;
    v_U8_t        nEnableDriverStop;
    v_BOOL_t      fIsImpsEnabled;
-   v_BOOL_t      fIsSsrPanicOnFailure;
    v_BOOL_t      fIsLogpEnabled;
    v_U8_t        btcExecutionMode;
    v_U8_t        btcConsBtSlotsToBlockDuringDhcp;
@@ -2157,7 +2132,6 @@ sme_QosWmmDirType            InfraDirAcVi;
    v_U32_t                     enableCloseLoop;
    v_U8_t                      enableBypass11d;
    v_U8_t                      enableDFSChnlScan;
-   v_U8_t                      enableDFSPnoChnlScan;
    v_U8_t                      enableDynamicDTIM;
    v_U8_t                      enableAutomaticTxPowerControl;
    v_U8_t                      ShortGI40MhzEnable;
@@ -2245,9 +2219,7 @@ v_U16_t                     configMccParam;
    v_U32_t                     trafficMntrTmrForSplitScan;
    v_BOOL_t                    debugP2pRemainOnChannel;
    v_U8_t                      isAmsduSupportInAMPDU;
-   v_U8_t                      allowDFSChannelRoam;
    v_BOOL_t                    gEnableStrictRegulatoryForFCC;
-   v_U8_t                      fScanOffload;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
