@@ -87,9 +87,7 @@
 
 #include "sapApi.h"
 
-#ifdef DEBUG_ROAM_DELAY
-#include "vos_utils.h"
-#endif
+
 
 extern tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 
@@ -162,48 +160,29 @@ static eHalStatus initSmeCmdList(tpAniSirGlobal pMac)
 {
     eHalStatus status;
     tSmeCmd *pCmd;
-    tANI_U32 cmd_idx;
 
     pMac->sme.totalSmeCmd = SME_TOTAL_COMMAND;
-    if (!HAL_STATUS_SUCCESS(status = csrLLOpen(pMac->hHdd,
-                           &pMac->sme.smeCmdActiveList)))
-       goto end;
-
-    if (!HAL_STATUS_SUCCESS(status = csrLLOpen(pMac->hHdd,
-                           &pMac->sme.smeCmdPendingList)))
-       goto end;
-
-    if (!HAL_STATUS_SUCCESS(status = csrLLOpen(pMac->hHdd,
-                           &pMac->sme.smeScanCmdActiveList)))
-       goto end;
-
-    if (!HAL_STATUS_SUCCESS(status = csrLLOpen(pMac->hHdd,
-                                            &pMac->sme.smeScanCmdPendingList)))
-       goto end;
-
-    if (!HAL_STATUS_SUCCESS(status = csrLLOpen(pMac->hHdd,
-                                             &pMac->sme.smeCmdFreeList)))
-       goto end;
-
-    status = palAllocateMemory(pMac->hHdd,
-                               (void **)&pCmd,
-                               sizeof(tSmeCmd) * pMac->sme.totalSmeCmd);
-    if (!HAL_STATUS_SUCCESS(status))
-       goto end;
-
-    palZeroMemory(pMac->hHdd, pCmd,
-                  sizeof(tSmeCmd) * pMac->sme.totalSmeCmd);
-    pMac->sme.pSmeCmdBufAddr = pCmd;
-    for (cmd_idx = 0; cmd_idx < pMac->sme.totalSmeCmd; cmd_idx++)
+    if(HAL_STATUS_SUCCESS(status = csrLLOpen(pMac->hHdd, &pMac->sme.smeCmdActiveList)))
     {
-        csrLLInsertTail(&pMac->sme.smeCmdFreeList,
-                        &pCmd[cmd_idx].Link, LL_ACCESS_LOCK);
-    }
+        if(HAL_STATUS_SUCCESS(status = csrLLOpen(pMac->hHdd, &pMac->sme.smeCmdPendingList)))
+        {
+            if(HAL_STATUS_SUCCESS(status = csrLLOpen(pMac->hHdd, &pMac->sme.smeCmdFreeList)))
+            {
+                status = palAllocateMemory(pMac->hHdd, (void **)&pCmd, sizeof(tSmeCmd) * pMac->sme.totalSmeCmd);
+                if(HAL_STATUS_SUCCESS(status))
+                {
+                    tANI_U32 c;
 
-end:
-    if (!HAL_STATUS_SUCCESS(status))
-       smsLog(pMac, LOGE, "failed to initialize sme command list:%d\n",
-              status);
+                    palZeroMemory(pMac->hHdd, pCmd, sizeof(tSmeCmd) * pMac->sme.totalSmeCmd);
+                    pMac->sme.pSmeCmdBufAddr = pCmd;
+                    for(c = 0; c < pMac->sme.totalSmeCmd; c++)
+                    {
+                        csrLLInsertTail(&pMac->sme.smeCmdFreeList, &pCmd[c].Link, LL_ACCESS_LOCK);
+                    }
+                }
+            }
+        }
+    }
 
     return (status);
 }
@@ -236,8 +215,6 @@ static void purgeSmeCmdList(tpAniSirGlobal pMac)
     //release any out standing commands back to free command list
     smeReleaseCmdList(pMac, &pMac->sme.smeCmdPendingList);
     smeReleaseCmdList(pMac, &pMac->sme.smeCmdActiveList);
-    smeReleaseCmdList(pMac, &pMac->sme.smeScanCmdPendingList);
-    smeReleaseCmdList(pMac, &pMac->sme.smeScanCmdActiveList);
 }
 
 void purgeSmeSessionCmdList(tpAniSirGlobal pMac, tANI_U32 sessionId)
@@ -289,8 +266,6 @@ static eHalStatus freeSmeCmdList(tpAniSirGlobal pMac)
     purgeSmeCmdList(pMac);
     csrLLClose(&pMac->sme.smeCmdPendingList);
     csrLLClose(&pMac->sme.smeCmdActiveList);
-    csrLLClose(&pMac->sme.smeScanCmdPendingList);
-    csrLLClose(&pMac->sme.smeScanCmdActiveList);
     csrLLClose(&pMac->sme.smeCmdFreeList);
 
     status = vos_lock_acquire(&pMac->sme.lkSmeGlobalLock);
@@ -353,7 +328,7 @@ tSmeCmd *smeGetCommandBuffer( tpAniSirGlobal pMac )
 {
     tSmeCmd *pRetCmd = NULL, *pTempCmd = NULL;
     tListElem *pEntry;
-    static int smeCommandQueueFull = 0;
+
     pEntry = csrLLRemoveHead( &pMac->sme.smeCmdFreeList, LL_ACCESS_LOCK );
 
     // If we can get another MS Msg buffer, then we are ok.  Just link
@@ -362,8 +337,6 @@ tSmeCmd *smeGetCommandBuffer( tpAniSirGlobal pMac )
     if ( pEntry )
     {
         pRetCmd = GET_BASE_ADDR( pEntry, tSmeCmd, Link );
-        /* reset when free list is available */
-            smeCommandQueueFull = 0;
     }
     else {
         int idx = 1;
@@ -388,14 +361,11 @@ tSmeCmd *smeGetCommandBuffer( tpAniSirGlobal pMac )
         //dump what is in the pending queue
         csrLLLock(&pMac->sme.smeCmdPendingList);
         pEntry = csrLLPeekHead( &pMac->sme.smeCmdPendingList, LL_ACCESS_NOLOCK );
-        while(pEntry && !smeCommandQueueFull)
+        while(pEntry)
         {
             pTempCmd = GET_BASE_ADDR( pEntry, tSmeCmd, Link );
-            /* Print only 1st five commands from pending queue. */
-            if (idx <= 5)
             smsLog( pMac, LOGE, "Out of command buffer.... SME pending command #%d (0x%X)",
-                    idx, pTempCmd->command );
-            idx++;
+                    idx++, pTempCmd->command );
             if( eSmeCsrCommandMask & pTempCmd->command )
             {
                 //CSR command is stuck. See what the reason code is for that command
@@ -403,8 +373,6 @@ tSmeCmd *smeGetCommandBuffer( tpAniSirGlobal pMac )
             }
             pEntry = csrLLNext( &pMac->sme.smeCmdPendingList, pEntry, LL_ACCESS_NOLOCK );
         }
-        /* Increament static variable so that it prints pending command only once*/
-        smeCommandQueueFull++;
         csrLLUnlock(&pMac->sme.smeCmdPendingList);
 
         //There may be some more command in CSR's own pending queue
@@ -419,13 +387,6 @@ tSmeCmd *smeGetCommandBuffer( tpAniSirGlobal pMac )
             pEntry = csrLLNext( &pMac->roam.roamCmdPendingList, pEntry, LL_ACCESS_NOLOCK );
         }
         csrLLUnlock(&pMac->roam.roamCmdPendingList);
-    }
-
-    if( pRetCmd )
-    {
-         vos_mem_set((tANI_U8 *)&pRetCmd->command, sizeof(pRetCmd->command), 0);
-         vos_mem_set((tANI_U8 *)&pRetCmd->sessionId, sizeof(pRetCmd->sessionId), 0);
-         vos_mem_set((tANI_U8 *)&pRetCmd->u, sizeof(pRetCmd->u), 0);
     }
 
     return( pRetCmd );
@@ -547,119 +508,7 @@ static void smeAbortCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand, tANI_BOOLEA
     }
 }
 
-tListElem *csrGetCmdToProcess(tpAniSirGlobal pMac, tDblLinkList *pList,
-                              tANI_U8 sessionId, tANI_BOOLEAN fInterlocked)
-{
-    tListElem *pCurEntry = NULL;
-    tSmeCmd *pCommand;
 
-    /* Go through the list and return the command whose session id is not
-     * matching with the current ongoing scan cmd sessionId */
-    pCurEntry = csrLLPeekHead( pList, LL_ACCESS_LOCK );
-    while (pCurEntry)
-    {
-        pCommand = GET_BASE_ADDR(pCurEntry, tSmeCmd, Link);
-        if (pCommand->sessionId != sessionId)
-        {
-            smsLog(pMac, LOG1, "selected the command with different sessionId");
-            return pCurEntry;
-        }
-
-        pCurEntry = csrLLNext(pList, pCurEntry, fInterlocked);
-    }
-
-    smsLog(pMac, LOG1, "No command pending with different sessionId");
-    return NULL;
-}
-
-tANI_BOOLEAN smeProcessScanQueue(tpAniSirGlobal pMac)
-{
-    tListElem *pEntry;
-    tSmeCmd *pCommand;
-    tListElem *pSmeEntry;
-    tSmeCmd *pSmeCommand;
-    tANI_BOOLEAN status = eANI_BOOLEAN_TRUE;
-
-    csrLLLock( &pMac->sme.smeScanCmdActiveList );
-    if (csrLLIsListEmpty( &pMac->sme.smeScanCmdActiveList,
-                LL_ACCESS_NOLOCK ))
-    {
-        if (!csrLLIsListEmpty(&pMac->sme.smeScanCmdPendingList,
-                    LL_ACCESS_LOCK))
-        {
-            pEntry = csrLLPeekHead( &pMac->sme.smeScanCmdPendingList,
-                    LL_ACCESS_LOCK );
-            if (pEntry)
-            {
-                pCommand = GET_BASE_ADDR( pEntry, tSmeCmd, Link );
-                //We cannot execute any command in wait-for-key state until setKey is through.
-                if (CSR_IS_WAIT_FOR_KEY( pMac, pCommand->sessionId))
-                {
-                    if (!CSR_IS_SET_KEY_COMMAND(pCommand))
-                    {
-                        smsLog(pMac, LOGE,
-                                "  Cannot process command(%d) while waiting for key",
-                                pCommand->command);
-                        status = eANI_BOOLEAN_FALSE;
-                        goto end;
-                    }
-                }
-
-                if ((!csrLLIsListEmpty(&pMac->sme.smeCmdActiveList,
-                                       LL_ACCESS_LOCK )))
-                {
-                    pSmeEntry = csrLLPeekHead(&pMac->sme.smeCmdActiveList,
-                                              LL_ACCESS_LOCK);
-                    if (pEntry)
-                    {
-                       pSmeCommand = GET_BASE_ADDR(pEntry, tSmeCmd,
-                                                   Link) ;
-
-                       /* if scan is running on one interface and SME recei
-                          ves the next command on the same interface then
-                          dont the allow the command to be queued to
-                          smeCmdPendingList. If next scan is allowed on
-                          the same interface the CSR state machine will
-                          get screwed up. */
-                          if (pSmeCommand->sessionId == pCommand->sessionId)
-                          {
-                              status = eANI_BOOLEAN_FALSE;
-                              goto end;
-                          }
-                    }
-                }
-                if ( csrLLRemoveEntry( &pMac->sme.smeScanCmdPendingList,
-                            pEntry, LL_ACCESS_LOCK ) )
-                {
-                    csrLLInsertHead( &pMac->sme.smeScanCmdActiveList,
-                            &pCommand->Link, LL_ACCESS_NOLOCK );
-
-                    switch (pCommand->command)
-                    {
-                        case eSmeCommandScan:
-                            smsLog(pMac, LOG1,
-                                    " Processing scan offload command ");
-                            csrProcessScanCommand( pMac, pCommand );
-                            break;
-                        default:
-                            smsLog(pMac, LOGE,
-                                    " Something wrong, wrong command enqueued"
-                                    " to smeScanCmdPendingList");
-                            pEntry = csrLLRemoveHead(
-                                    &pMac->sme.smeScanCmdActiveList,
-                                    LL_ACCESS_NOLOCK );
-                            pCommand = GET_BASE_ADDR( pEntry, tSmeCmd, Link );
-                            smeReleaseCommand( pMac, pCommand );
-                            break;
-                    }
-                }
-            }
-        }
-    }
-end:
-    csrLLUnlock(&pMac->sme.smeScanCmdActiveList);
-    return status;
-}
 
 tANI_BOOLEAN smeProcessCommand( tpAniSirGlobal pMac )
 {
@@ -667,8 +516,6 @@ tANI_BOOLEAN smeProcessCommand( tpAniSirGlobal pMac )
     eHalStatus status = eHAL_STATUS_SUCCESS;
     tListElem *pEntry;
     tSmeCmd *pCommand;
-    tListElem *pSmeEntry;
-    tSmeCmd *pSmeCommand;
     eSmeCommandType pmcCommand = eSmeNoCommand;
 
     // if the ActiveList is empty, then nothing is active so we can process a
@@ -679,50 +526,19 @@ tANI_BOOLEAN smeProcessCommand( tpAniSirGlobal pMac )
     {
         if(!csrLLIsListEmpty(&pMac->sme.smeCmdPendingList, LL_ACCESS_LOCK))
         {
-            /* If scan command is pending in the smeScanCmdActive list
-             * then pick the command from smeCmdPendingList which is
-             * not matching with the scan command session id.
-             * At any point of time only one command will be allowed
-             * on a single session. */
-            if ((pMac->fScanOffload) &&
-                    (!csrLLIsListEmpty(&pMac->sme.smeScanCmdActiveList,
-                                       LL_ACCESS_LOCK)))
-            {
-                pSmeEntry = csrLLPeekHead(&pMac->sme.smeScanCmdActiveList,
-                        LL_ACCESS_LOCK);
-                if (pSmeEntry)
-                {
-                    pSmeCommand = GET_BASE_ADDR(pSmeEntry, tSmeCmd, Link);
-
-                    pEntry = csrGetCmdToProcess(pMac,
-                            &pMac->sme.smeCmdPendingList,
-                            pSmeCommand->sessionId,
-                            LL_ACCESS_LOCK);
-                    goto sme_process_cmd;
-                }
-            }
-
             //Peek the command
             pEntry = csrLLPeekHead( &pMac->sme.smeCmdPendingList, LL_ACCESS_LOCK );
-sme_process_cmd:
             if( pEntry )
             {
                 pCommand = GET_BASE_ADDR( pEntry, tSmeCmd, Link );
-
-                /* Allow only disconnect command
-                 * in wait-for-key state until setKey is through.
-                 */
-                if( CSR_IS_WAIT_FOR_KEY( pMac, pCommand->sessionId ) &&
-                    !CSR_IS_DISCONNECT_COMMAND( pCommand ) )
+                //We cannot execute any command in wait-for-key state until setKey is through.
+                if( CSR_IS_WAIT_FOR_KEY( pMac, pCommand->sessionId ) )
                 {
                     if( !CSR_IS_SET_KEY_COMMAND( pCommand ) )
                     {
                         csrLLUnlock( &pMac->sme.smeCmdActiveList );
-                        smsLog(pMac, LOGE, FL("SessionId %d:  Cannot process "
-                               "command(%d) while waiting for key"),
-                               pCommand->sessionId, pCommand->command);
-                        fContinue = eANI_BOOLEAN_FALSE;
-                        goto sme_process_scan_queue;
+                        smsLog(pMac, LOGE, "  Cannot process command(%d) while waiting for key", pCommand->command);
+                        return ( eANI_BOOLEAN_FALSE );
                     }
                 }
                 pmcCommand = smeIsFullPowerNeeded( pMac, pCommand );
@@ -735,8 +551,7 @@ sme_process_cmd:
                     }
                     csrLLUnlock( &pMac->sme.smeCmdActiveList );
                     //tell caller to continue
-                    fContinue = eANI_BOOLEAN_TRUE;
-                    goto sme_process_scan_queue;
+                    return (eANI_BOOLEAN_TRUE);
                 }
                 else if( eSmeNoCommand != pmcCommand )
                 {
@@ -775,7 +590,7 @@ sme_process_cmd:
                         //Let it retry
                         fContinue = eANI_BOOLEAN_TRUE;
                     }
-                    goto sme_process_scan_queue;
+                    return fContinue;
                 }
                 if ( csrLLRemoveEntry( &pMac->sme.smeCmdPendingList, pEntry, LL_ACCESS_LOCK ) )
                 {
@@ -1037,10 +852,6 @@ sme_process_cmd:
     else {
         csrLLUnlock( &pMac->sme.smeCmdActiveList );
     }
-
-sme_process_scan_queue:
-    if (pMac->fScanOffload && !(smeProcessScanQueue(pMac)))
-        fContinue = eANI_BOOLEAN_FALSE;
 
     return ( fContinue );
 }
@@ -1366,9 +1177,6 @@ eHalStatus sme_UpdateConfig(tHalHandle hHal, tpSmeConfigParams pSmeConfigParams)
    {
        csrSetGlobalCfgs(pMac);
    }
-
-   /* update the directed scan offload setting */
-   pMac->fScanOffload = pSmeConfigParams->fScanOffload;
 
    return status;
 }
@@ -2535,11 +2343,6 @@ eHalStatus sme_RoamConnect(tHalHandle hHal, tANI_U8 sessionId, tCsrRoamProfile *
     eHalStatus status = eHAL_STATUS_FAILURE;
     tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
 
-    if (!pMac)
-    {
-        return eHAL_STATUS_FAILURE;
-    }
-
     MTRACE(vos_trace(VOS_MODULE_ID_SME,
                    TRACE_CODE_SME_RX_HDD_MSG_CONNECT, sessionId, 0));
     smsLog(pMac, LOG2, FL("enter"));
@@ -3305,6 +3108,45 @@ eHalStatus sme_CfgSetStr(tHalHandle hHal, tANI_U32 cfgId, tANI_U8 *pStr,
                          eAniBoolean toBeSaved)
 {
    return(ccmCfgSetStr(hHal, cfgId, pStr, length, callback, toBeSaved));
+}
+
+/* ---------------------------------------------------------------------------
+    \fn sme_GetModifyProfileFields
+    \brief HDD or SME - QOS calls this function to get the current values of
+    connected profile fields, changing which can cause reassoc.
+    This function must be called after CFG is downloaded and STA is in connected
+    state. Also, make sure to call this function to get the current profile
+    fields before calling the reassoc. So that pModifyProfileFields will have
+    all the latest values plus the one(s) has been updated as part of reassoc
+    request.
+    \param pModifyProfileFields - pointer to the connected profile fields
+    changing which can cause reassoc
+
+    \return eHalStatus
+  -------------------------------------------------------------------------------*/
+eHalStatus sme_GetModifyProfileFields(tHalHandle hHal, tANI_U8 sessionId,
+                                     tCsrRoamModifyProfileFields * pModifyProfileFields)
+{
+   eHalStatus status = eHAL_STATUS_FAILURE;
+   tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+
+   MTRACE(vos_trace(VOS_MODULE_ID_SME,
+              TRACE_CODE_SME_RX_HDD_GET_MODPROFFIELDS, sessionId, 0));
+   status = sme_AcquireGlobalLock( &pMac->sme );
+   if ( HAL_STATUS_SUCCESS( status ) )
+   {
+       if( CSR_IS_SESSION_VALID( pMac, sessionId ) )
+       {
+          status = csrGetModifyProfileFields(pMac, sessionId, pModifyProfileFields);
+       }
+       else
+       {
+          status = eHAL_STATUS_INVALID_PARAMETER;
+       }
+       sme_ReleaseGlobalLock( &pMac->sme );
+   }
+
+   return (status);
 }
 
 /*--------------------------------------------------------------------------
@@ -4094,21 +3936,6 @@ eHalStatus sme_RoamSetKey(tHalHandle hHal, tANI_U8 sessionId, tCsrRoamSetKey *pS
       status = csrRoamSetKey ( pMac, sessionId, pSetKey, roamId );
       sme_ReleaseGlobalLock( &pMac->sme );
    }
-#ifdef DEBUG_ROAM_DELAY
-   //Store sent PTK key time
-   if(pSetKey->keyDirection == eSIR_TX_RX)
-   {
-      vos_record_roam_event(e_HDD_SET_PTK_REQ, NULL, 0);
-   }
-   else if(pSetKey->keyDirection == eSIR_RX_ONLY)
-   {
-      vos_record_roam_event(e_HDD_SET_GTK_REQ, NULL, 0);
-   }
-   else
-   {
-      return (status);
-   }
-#endif
 
    return (status);
 }

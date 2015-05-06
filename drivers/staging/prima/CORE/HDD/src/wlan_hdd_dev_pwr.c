@@ -155,27 +155,11 @@ static int wlan_suspend(hdd_context_t* pHddCtx)
 
    if(!rc)
    {
-      VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
-           "%s: TX Thread: timeout while suspending %ld"
-           , __func__, rc);
-      /* There is a race condition here, where the TX Thread can process the
-       * SUSPEND_EVENT even after the wait_for_completion has timed out.
-       * Check the SUSPEND_EVENT_MASK, if it is already cleared by the TX
-       * Thread then it means it is going to suspend, so do not return failure
-       * from here.
-       */
-      if (!test_and_clear_bit(TX_SUSPEND_EVENT_MASK,
-                              &vosSchedContext->txEventFlag))
-      {
-         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                   "%s: TX Thread: will still suspend", __func__);
-         goto tx_suspend;
-      }
+      VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL, "%s: Not able to suspend TX thread timeout happened", __func__);
+      clear_bit(TX_SUSPEND_EVENT_MASK, &vosSchedContext->txEventFlag);
 
       return -ETIME;
    }
-
-tx_suspend:
    /* Set the Tx Thread as Suspended */
    pHddCtx->isTxThreadSuspended = TRUE;
 
@@ -191,21 +175,9 @@ tx_suspend:
 
    if(!rc)
    {
-       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
-            "%s: RX Thread: timeout while suspending %ld", __func__, rc);
-       /* There is a race condition here, where the RX Thread can process the
-        * SUSPEND_EVENT even after the wait_for_completion has timed out.
-        * Check the SUSPEND_EVENT_MASK, if it is already cleared by the RX
-        * Thread then it means it is going to suspend, so do not return failure
-        * from here.
-        */
-       if (!test_and_clear_bit(RX_SUSPEND_EVENT_MASK,
-                               &vosSchedContext->rxEventFlag))
-       {
-           VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                     "%s: RX Thread: will still suspend", __func__);
-           goto rx_suspend;
-       }
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL, "%s: Not able to suspend Rx thread timeout happened", __func__);
+
+       clear_bit(RX_SUSPEND_EVENT_MASK, &vosSchedContext->rxEventFlag);
 
        /* Indicate Tx Thread to Resume */
        complete(&vosSchedContext->ResumeTxEvent);
@@ -216,7 +188,6 @@ tx_suspend:
        return -ETIME;
    }
 
-rx_suspend:
    /* Set the Rx Thread as Suspended */
    pHddCtx->isRxThreadSuspended = TRUE;
 
@@ -232,22 +203,9 @@ rx_suspend:
 
    if(!rc)
    {
-       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
-            "%s: MC Thread: timeout while suspending %ld",
-            __func__, rc);
-       /* There is a race condition here, where the MC Thread can process the
-        * SUSPEND_EVENT even after the wait_for_completion has timed out.
-        * Check the SUSPEND_EVENT_MASK, if it is already cleared by the MC
-        * Thread then it means it is going to suspend, so do not return failure
-        * from here.
-        */
-       if (!test_and_clear_bit(MC_SUSPEND_EVENT_MASK,
-                               &vosSchedContext->mcEventFlag))
-       {
-           VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                     "%s: MC Thread: will still suspend", __func__);
-           goto mc_suspend;
-       }
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL, "%s: Not able to suspend MC thread timeout happened", __func__);
+
+       clear_bit(MC_SUSPEND_EVENT_MASK, &vosSchedContext->mcEventFlag);
 
        /* Indicate Rx Thread to Resume */
        complete(&vosSchedContext->ResumeRxEvent);
@@ -264,7 +222,6 @@ rx_suspend:
        return -ETIME;
    }
 
-mc_suspend:
    /* Set the Mc Thread as Suspended */
    pHddCtx->isMcThreadSuspended = TRUE;
    
@@ -433,6 +390,7 @@ static const struct dev_pm_ops pm_ops = {
 ----------------------------------------------------------------------------*/
 VOS_STATUS hddRegisterPmOps(hdd_context_t *pHddCtx)
 {
+    wcnss_wlan_set_drvdata(pHddCtx->parent_dev, pHddCtx);
 #ifndef FEATURE_R33D
     wcnss_wlan_register_pm_ops(pHddCtx->parent_dev, &pm_ops);
 #endif /* FEATURE_R33D */
