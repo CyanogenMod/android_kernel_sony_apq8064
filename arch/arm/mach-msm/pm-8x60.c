@@ -29,7 +29,6 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
-#include <linux/nmi.h>
 #include <linux/cpu.h>
 #include <mach/msm_iomap.h>
 #include <mach/socinfo.h>
@@ -60,7 +59,6 @@
 #include "pm-boot.h"
 #include <mach/event_timer.h>
 #include <linux/cpu_pm.h>
-#include <mach/power_debug.h>
 
 #define SCM_L2_RETENTION	(0x2)
 #define SCM_CMD_TERMINATE_PC	(0x2)
@@ -780,11 +778,9 @@ static int msm_pm_idle_prepare(struct cpuidle_device *dev,
 
 		switch (mode) {
 		case MSM_PM_SLEEP_MODE_POWER_COLLAPSE:
-			if (num_online_cpus() > 1 || cpu_maps_is_updating()) {
+			if (num_online_cpus() > 1 || cpu_maps_is_updating())
 				allow = false;
-				break;
-			}
-			/* fall through */
+			break;
 		case MSM_PM_SLEEP_MODE_RETENTION:
 			/*
 			 * The Krait BHS regulator doesn't have enough head
@@ -1221,7 +1217,7 @@ static struct platform_driver msm_cpu_status_driver = {
 	},
 };
 
-static int __devinit msm_pm_init(void)
+static int __init msm_pm_setup_saved_state(void)
 {
 	pgd_t *pc_pgd;
 	pmd_t *pmd;
@@ -1301,6 +1297,8 @@ static struct notifier_block setup_broadcast_notifier = {
 
 static int __init msm_pm_init(void)
 {
+	int rc;
+
 	enum msm_pm_time_stats_id enable_stats[] = {
 		MSM_PM_STAT_IDLE_WFI,
 		MSM_PM_STAT_RETENTION,
@@ -1329,6 +1327,7 @@ static int __init msm_pm_init(void)
 
 	return 0;
 }
+late_initcall(msm_pm_init);
 
 static void __devinit msm_pm_set_flush_fn(uint32_t pc_mode)
 {
@@ -1541,7 +1540,6 @@ static int __devinit msm_pm_8x60_probe(struct platform_device *pdev)
 	msm_pm_retention_calls_tz = pdata_local.retention_calls_tz;
 
 pm_8x60_probe_done:
-	msm_pm_init();
 	return ret;
 }
 
