@@ -110,8 +110,6 @@ err_vio:
 static void set_vreg_ids(void)
 {
 	if ((sony_hw() == HW_ODIN && sony_hw_rev() <= HW_REV_ODIN_AP1) ||
-		(sony_hw() == HW_POLLUX_MAKI &&
-			sony_hw_rev() < HW_REV_POLLUX_MAKI_SP1) ||
 		(sony_hw() == HW_POLLUX &&
 			sony_hw_rev() <= HW_REV_POLLUX_WINDY_DP2_DP3)) {
 		ir_vdd_id = "ir-vdd";

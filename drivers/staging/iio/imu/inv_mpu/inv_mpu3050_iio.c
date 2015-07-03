@@ -1,6 +1,6 @@
 /*
 * Copyright (C) 2012 Invensense, Inc.
-* Copyright (C) 2013 Sony Mobile Communications.
+* Copyright (C) 2013-2014 Sony Mobile Communications Inc.
 *
 * This software is licensed under the terms of the GNU General Public
 * License version 2, as published by the Free Software Foundation, and
@@ -11,6 +11,8 @@
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU General Public License for more details.
 *
+* NOTE: This file has been modified by Sony Mobile Communications AB.
+* Modifications are licensed under the License.
 */
 
 /**
@@ -102,7 +104,8 @@ int set_3050_bypass(struct inv_mpu_iio_s *st, bool enable)
 			st->plat_data.secondary_i2c_addr);
 		if (result)
 			return result;
-		result = inv_i2c_single_write(st, reg->user_ctrl, b);
+		result = inv_i2c_single_write(st, reg->user_ctrl,
+						b | BIT_3050_AUX_IF_RST);
 		if (result)
 			return result;
 		usleep_range(MPU3050_NACK_MIN_TIME, MPU3050_NACK_MAX_TIME);

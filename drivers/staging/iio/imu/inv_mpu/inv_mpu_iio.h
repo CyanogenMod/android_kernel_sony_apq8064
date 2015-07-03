@@ -1,5 +1,6 @@
 /*
 * Copyright (C) 2012 Invensense, Inc.
+* Copyright (C) 2014 Sony Mobile Communications Inc.
 *
 * This software is licensed under the terms of the GNU General Public
 * License version 2, as published by the Free Software Foundation, and
@@ -451,6 +452,7 @@ struct inv_mpu_slave {
 
 #define REG_3050_USER_CTRL       0x3D
 #define BIT_3050_AUX_IF_EN		0x20
+#define BIT_3050_AUX_IF_RST		0x08
 #define BIT_3050_FIFO_RST		0x02
 
 #define REG_3050_PWR_MGMT_1      0x3E

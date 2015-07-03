@@ -368,8 +368,7 @@ static int diag_dbgfs_read_mask_check_flag(void *data, u64 *val)
 
 static int diag_dbgfs_write_mask_check_flag(void *data, u64 val)
 {
-
-	if (val < 0 || val > 1)
+	if (val > 1)
 		return -EINVAL;
 
 	driver->mask_check = (int) val;

@@ -106,15 +106,6 @@
 #include <linux/apds9702.h>
 #endif
 #include <linux/console.h>
-#ifdef CONFIG_SONY_ONESEG_TUNER_PM
-#include "board-sony_yuga-oneseg.h"
-#ifdef CONFIG_MACH_SONY_GAGA_KDDI
-#include "board-sony_gaga-kddi-oneseg.h"
-#endif
-#endif
-#ifdef CONFIG_SOMC_ISDBT_TUNER
-#include "board-sony_fusion3-isdbt.h"
-#endif
 #include <mach/restart.h>
 #include <mach/msm_iomap.h>
 #ifdef CONFIG_MSM_GSBI7_UART
@@ -125,9 +116,6 @@
 #include <linux/lp855x.h>
 #endif
 
-#ifdef CONFIG_SONY_FELICA_SUPPORT
-#include "felica-fusion3.h"
-#endif
 #ifdef CONFIG_INPUT_BU52031NVX
 #include <linux/bu52031nvx.h>
 #endif
@@ -223,26 +211,14 @@
 
 #if defined(CONFIG_MACH_SONY_YUGA)
 #include "board-sony_fusion3_yuga.h"
-#elif defined(CONFIG_MACH_SONY_YUGA_DCM)
-#include "board-sony_fusion3_yuga.h"
 #elif defined(CONFIG_MACH_SONY_POLLUX)
 #include "board-sony_fusion3_pollux.h"
-#elif defined(CONFIG_MACH_SONY_POLLUX_CDB)
-#include "board-sony_fusion3_pollux.h"
-#elif defined(CONFIG_MACH_SONY_POLLUX_WINDY_CDB)
-#include "board-sony_fusion3_pollux.h"
 #elif defined(CONFIG_MACH_SONY_POLLUX_WINDY)
-#include "board-sony_fusion3_pollux.h"
-#elif defined(CONFIG_MACH_SONY_POLLUX_DCM)
 #include "board-sony_fusion3_pollux.h"
 #elif defined(CONFIG_MACH_SONY_ODIN)
 #include "board-sony_fusion3_odin.h"
 #elif defined(CONFIG_MACH_SONY_DOGO)
 #include "board-sony_fusion3_dogo.h"
-#elif defined(CONFIG_MACH_SONY_DOGO_DCM)
-#include "board-sony_fusion3_dogo.h"
-#elif defined(CONFIG_MACH_SONY_GAGA_KDDI)
-#include "board-sony_fusion3_gaga.h"
 #else
 #error "ERROR: Unknown machine!"
 #endif
@@ -4381,7 +4357,6 @@ static void __init register_i2c_devices(void)
 	if (machine_is_apq8064_cdp())
 		mach_mask = I2C_SURF;
 	else if (machine_is_apq8064_mtp() || machine_is_sony_fusion3() ||
-		machine_is_sony_pollux_windy_cdb() ||
 		machine_is_sony_pollux_windy())
 		mach_mask = I2C_FFA;
 	else if (machine_is_apq8064_liquid())
@@ -4406,23 +4381,6 @@ static void __init register_i2c_devices(void)
 			apq8064_camera_i2c_devices.info,
 			apq8064_camera_i2c_devices.len);
 #endif
-}
-
-static void __init isdb_tmm_vreg_low_power_mode(void)
-{
-	struct regulator *vreg_l15;
-	int rc;
-
-	vreg_l15 = regulator_get(NULL, "8921_l15");
-	if (IS_ERR(vreg_l15)) {
-		pr_err("%s: failed to get VREG_L15\n", __func__);
-		return;
-	}
-
-	rc = regulator_set_optimum_mode(vreg_l15, 1000);
-	if (rc < 0)
-		pr_err("%s: failed to change VREG_L15 to low power mode\n",
-			__func__);
 }
 
 static void __init nfc_vreg_low_power_mode(void)
@@ -4505,7 +4463,6 @@ static void __init apq8064_common_init(void)
 		msm_hsic_pdata.swfi_latency =
 			msm_rpmrs_levels[0].latency_us;
 	if ((machine_is_apq8064_mtp() || machine_is_sony_fusion3()) &&
-		!machine_is_sony_pollux_windy_cdb() &&
 		!machine_is_sony_pollux_windy()) {
 		msm_hsic_pdata.log2_irq_thresh = 5;
 		apq8064_device_hsic_host.dev.platform_data = &msm_hsic_pdata;
@@ -4515,7 +4472,6 @@ static void __init apq8064_common_init(void)
 	apq8064_init_mmc();
 
 	if ((machine_is_apq8064_mtp() || machine_is_sony_fusion3()) &&
-		!machine_is_sony_pollux_windy_cdb() &&
 		!machine_is_sony_pollux_windy()) {
 		mdm_8064_device.dev.platform_data = &amdm_platform_data;
 		platform_device_register(&mdm_8064_device);
@@ -4528,18 +4484,9 @@ static void __init apq8064_common_init(void)
 	BUG_ON(msm_pm_boot_init(&msm_pm_boot_pdata));
 
 	switch (sony_hw()) {
-	case HW_YUGA_MAKI:
-	case HW_POLLUX_MAKI:
-	case HW_DOGO_MAKI:
-	case HW_GAGA:
-		isdb_tmm_vreg_low_power_mode();
-	}
-
-	switch (sony_hw()) {
 	case HW_ODIN:
 	case HW_YUGA:
 	case HW_POLLUX:
-	case HW_POLLUX_MAKI:
 	case HW_DOGO:
 		nfc_vreg_low_power_mode();
 	}
@@ -4573,9 +4520,7 @@ static void __init sony_fusion3_very_early_init(void)
 	apq8064_early_reserve();
 }
 
-#if defined(CONFIG_MACH_SONY_POLLUX_WINDY_CDB)
-MACHINE_START(SONY_POLLUX_WINDY_CDB, "Sony Mobile fusion3")
-#elif defined(CONFIG_MACH_SONY_POLLUX_WINDY)
+#if defined(CONFIG_MACH_SONY_POLLUX_WINDY)
 MACHINE_START(SONY_POLLUX_WINDY, "Sony Mobile fusion3")
 #else
 MACHINE_START(SONY_FUSION3, "Sony Mobile fusion3")

@@ -141,3 +141,12 @@ config SECURITY_SELINUX_POLICYDB_VERSION_MAX_VALUE
 	  installed under /etc/selinux/$SELINUXTYPE/policy, where
 	  SELINUXTYPE is defined in your /etc/selinux/config.
 
+
+config SECURITY_SELINUX_TRAP
+	bool "SELinux error trap support"
+	depends on SECURITY_SELINUX
+	default n
+	help
+	  This option enables the trap feature for SELinux errors.
+	  User process will get SIGTERM so that system can generate core file
+	  for more further invesitaion of SELinux errors.

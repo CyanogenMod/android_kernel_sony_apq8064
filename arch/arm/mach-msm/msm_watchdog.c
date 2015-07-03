@@ -1,4 +1,5 @@
 /* Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -9,6 +10,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
+ * NOTE: This file has been modified by Sony Mobile Communications AB.
+ * Modifications are licensed under the License.
  */
 
 #include <linux/module.h>
@@ -112,10 +115,10 @@ unsigned scm_regsave_pa;
 
 static struct msm_watchdog_pdata __percpu **percpu_pdata;
 
-static void pet_watchdog_fn(unsigned long data);
+static void pet_watchdog_work(struct work_struct *work);
 static void init_watchdog_work(struct work_struct *work);
+static DECLARE_DELAYED_WORK(dogwork_struct, pet_watchdog_work);
 static DECLARE_WORK(init_dogwork_struct, init_watchdog_work);
-static struct timer_list wdog_timer;
 
 /* Called from the FIQ bark handler */
 void msm_wdog_bark_fin(void)
@@ -124,7 +127,6 @@ void msm_wdog_bark_fin(void)
 	pr_crit("\nApps Watchdog bark received - Calling Panic\n");
 	panic("Apps Watchdog Bark received\n");
 }
-
 
 static int msm_watchdog_suspend(struct device *dev)
 {
@@ -213,7 +215,7 @@ static void wdog_disable_work(struct work_struct *work)
 	enable = 0;
 	atomic_notifier_chain_unregister(&panic_notifier_list, &panic_blk);
 	unregister_reboot_notifier(&msm_reboot_notifier);
-	del_timer(&wdog_timer);
+	cancel_delayed_work(&dogwork_struct);
 	/* may be suspended after the first write above */
 	__raw_writel(0, msm_wdt_base + WDT_EN);
 	complete(&work_data->complete);
@@ -281,13 +283,12 @@ void pet_watchdog(void)
 	last_pet = time_ns;
 }
 
-static void pet_watchdog_fn(unsigned long data)
+static void pet_watchdog_work(struct work_struct *work)
 {
 	pet_watchdog();
-	if (enable) {
-		wdog_timer.expires += delay_time;
-		add_timer_on(&wdog_timer, 0);
-	}
+
+	if (enable)
+		schedule_delayed_work_on(0, &dogwork_struct, delay_time);
 }
 
 static int wdog_init_done;
@@ -424,10 +425,7 @@ static void init_watchdog_work(struct work_struct *work)
 	__raw_writel(timeout, msm_wdt_base + WDT_BARK_TIME);
 	__raw_writel(timeout + 3*WDT_HZ, msm_wdt_base + WDT_BITE_TIME);
 
-	init_timer(&wdog_timer);
-	wdog_timer.function = pet_watchdog_fn;
-	wdog_timer.expires = jiffies + delay_time;
-	add_timer_on(&wdog_timer, 0);
+	schedule_delayed_work_on(0, &dogwork_struct, delay_time);
 
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &panic_blk);

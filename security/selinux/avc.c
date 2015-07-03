@@ -8,7 +8,7 @@
  *	Replaced the avc_lock spinlock by RCU.
  *
  * Copyright (C) 2003 Red Hat, Inc., James Morris <jmorris@redhat.com>
- * Copyright (C) 2014 Sony Mobile Communications AB.
+ * Copyright (C) 2014 Sony Mobile Communications Inc.
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License version 2,
@@ -33,6 +33,10 @@
 #include "avc.h"
 #include "avc_ss.h"
 #include "classmap.h"
+#ifdef CONFIG_SECURITY_SELINUX_TRAP
+#include "trap.h"
+const int secclass_map_size = ARRAY_SIZE(secclass_map);
+#endif
 
 #define AVC_CACHE_SLOTS			512
 #define AVC_DEF_CACHE_THRESHOLD		512
@@ -494,6 +498,10 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 
 #ifdef CONFIG_SECURITY_SELINUX_AVC_EXTRA_INFO
 	avc_dump_extra_info(ab, ad);
+#endif
+#ifdef CONFIG_SECURITY_SELINUX_TRAP
+	if (ad->selinux_audit_data->slad->op_result)
+		trap_selinux_error(ad);
 #endif
 }
 

@@ -521,7 +521,11 @@ static int sd_set_bus_speed_mode(struct mmc_card *card, u8 *status)
 		break;
 	case UHS_DDR50_BUS_SPEED:
 		timing = MMC_TIMING_UHS_DDR50;
+#ifdef CONFIG_MMC_MSM_SDC3_POLLUX_DOWN_CLKRATE
+		card->sw_caps.uhs_max_dtr = UHS_DDR50_32M_MAX_DTR;
+#else /* CONFIG_MMC_MSM_SDC3_POLLUX_DOWN_CLKRATE */
 		card->sw_caps.uhs_max_dtr = UHS_DDR50_MAX_DTR;
+#endif /* CONFIG_MMC_MSM_SDC3_POLLUX_DOWN_CLKRATE */
 		break;
 	case UHS_SDR50_BUS_SPEED:
 		timing = MMC_TIMING_UHS_SDR50;
@@ -529,7 +533,11 @@ static int sd_set_bus_speed_mode(struct mmc_card *card, u8 *status)
 		break;
 	case UHS_SDR25_BUS_SPEED:
 		timing = MMC_TIMING_UHS_SDR25;
+#ifdef CONFIG_MMC_MSM_SDC3_POLLUX_DOWN_CLKRATE
+		card->sw_caps.uhs_max_dtr = UHS_SDR25_32M_MAX_DTR;
+#else /* CONFIG_MMC_MSM_SDC3_POLLUX_DOWN_CLKRATE */
 		card->sw_caps.uhs_max_dtr = UHS_SDR25_MAX_DTR;
+#endif /* CONFIG_MMC_MSM_SDC3_POLLUX_DOWN_CLKRATE */
 		break;
 	case UHS_SDR12_BUS_SPEED:
 		timing = MMC_TIMING_UHS_SDR12;

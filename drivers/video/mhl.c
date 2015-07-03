@@ -980,7 +980,7 @@ static int mhl_rap_send_msc_msg(
 	peer_features =
 		mhl_dev->state.peer_devcap[MHL_DEV_FEATURE_FLAG_OFFSET];
 	if ((peer_features & MHL_FEATURE_RAP_SUPPORT) == 0 ||
-		!mhl_dev->full_operation || mhl_dev->suspended ||
+		!mhl_dev->full_operation || !mhl_dev->screen_status ||
 		mhl_dev->mhl_online != MHL_ONLINE)
 		return -ENXIO;
 
@@ -1081,7 +1081,8 @@ static int mhl_rcp_recv(struct mhl_device *mhl_dev, u8 key_code)
 		MHL_MSC_MSG_RCPK,
 		key_code);
 
-	if (mhl_dev->full_operation && !mhl_dev->suspended && mhl_dev->input) {
+	if (mhl_dev->full_operation && mhl_dev->screen_status
+		&& mhl_dev->input) {
 
 		if (key_code & 0x80) {
 			/* Received proper key release for last received key pressed */
@@ -1135,20 +1136,18 @@ static int mhl_rap_action(struct mhl_device *mhl_dev, u8 action_code)
 			/* notify userspace */
 			mhl_notify_rap_recv(mhl_dev, action_code);
 		}
-		if (mhl_dev->suspended) {
-			mhl_dev->suspended = 0;
+
+		if (!mhl_dev->screen_status)
 			__mhl_input_send_powerkey(mhl_dev);
-		}
+
 		break;
 	case MHL_RAP_CONTENT_OFF:
-		if (mhl_dev->tmds_state && !mhl_dev->suspended) {
+		if (mhl_dev->tmds_state && mhl_dev->screen_status) {
 			mhl_dev->ops->hpd_control(FALSE);
 			mhl_dev->ops->tmds_control(FALSE);
 			mhl_dev->tmds_state = FALSE;
 			/* notify userspace */
 			mhl_notify_rap_recv(mhl_dev, action_code);
-			/* NACK any RAP call until we resumed */
-			mhl_dev->suspended = 1;
 			/* reserve power key transmission */
 			dev_info(&mhl_dev->dev, "set powerkey\n");
 			mod_timer(&mhl_dev->rap_powerkey_timer,
@@ -1204,7 +1203,7 @@ static int mhl_rap_recv(struct mhl_device *mhl_dev, u8 action_code)
 	case MHL_RAP_CONTENT_OFF:
 		if (mhl_dev->full_operation &&
 			(action_code == MHL_RAP_CONTENT_ON ||
-				!mhl_dev->suspended)) {
+				mhl_dev->screen_status)) {
 			mhl_rap_action(mhl_dev, action_code);
 			error_code = MHL_RAPK_NO_ERROR;
 #ifdef CONFIG_MHL_RAP
@@ -1604,9 +1603,6 @@ static void mhl_content_off_and_suspend(struct mhl_device *mhl_dev)
 #ifdef CONFIG_MHL_RAP
 	/* send CONTENT OFF for capable devices */
 	mhl_rap_send_msc_msg(mhl_dev, MHL_MSC_MSG_RAP, MHL_RAP_CONTENT_OFF);
-
-	/* NACK any RAP call until we resumed */
-	mhl_dev->suspended = 1;
 #endif
 }
 
@@ -1630,7 +1626,6 @@ static void mhl_early_suspend(struct early_suspend *handler)
 	if (mhl_dev->mhl_online != MHL_ONLINE || !mhl_dev->tmds_state
 			|| !mhl_dev->full_operation) {
 		mhl_stop_rcp_release_control(mhl_dev);
-		mhl_dev->suspended = 1;
 		return;
 	}
 
@@ -1649,8 +1644,6 @@ static void mhl_early_resume(struct early_suspend *handler)
 		container_of(handler, struct mhl_device, early_suspend);
 
 	dev_info(&mhl_dev->dev, "early resume\n");
-
-	mhl_dev->suspended = 0;
 
 	/* cancel power key transmission */
 	del_timer(&mhl_dev->rap_powerkey_timer);
@@ -1803,6 +1796,24 @@ void mhl_device_unregister(struct mhl_device *mhl_dev)
 }
 EXPORT_SYMBOL(mhl_device_unregister);
 
+static ssize_t mhl_sysfs_rta_screen_status(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct mhl_device *mhl_dev = to_mhl_device(dev);
+	pr_debug("%s: screen_status = %d\n", __func__, mhl_dev->screen_status);
+	return snprintf(buf, PAGE_SIZE, "%d", mhl_dev->screen_status);
+}
+
+static ssize_t mhl_sysfs_wta_screen_status(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct mhl_device *mhl_dev = to_mhl_device(dev);
+	sscanf(buf, "%d", &mhl_dev->screen_status);
+	pr_debug("%s: screen_status = %d\n", __func__, mhl_dev->screen_status);
+	return count;
+
+}
+
 static struct device_attribute mhl_class_attributes[] = {
 	__ATTR(discovery, 0440, mhl_show_discovery, NULL),
 	__ATTR(rcp, 0660, NULL, mhl_store_rcp),
@@ -1814,6 +1825,9 @@ static struct device_attribute mhl_class_attributes[] = {
 		mhl_store_mouse_move_distance_dx),
 	__ATTR(mouse_move_distance_dy, 0660, NULL,
 		mhl_store_mouse_move_distance_dy),
+	__ATTR(screen_status, 0660,
+		mhl_sysfs_rta_screen_status,
+		mhl_sysfs_wta_screen_status),
 	__ATTR_NULL,
 };
 

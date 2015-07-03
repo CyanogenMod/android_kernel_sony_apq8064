@@ -105,7 +105,6 @@ struct mhl_device {
 	const struct mhl_ops *ops;
 
 	int full_operation;
-	int suspended;
 
 	struct mhl_state state;
 	unsigned int mhl_online;
@@ -154,6 +153,8 @@ struct mhl_device {
 	struct input_dev *input;
 
 	struct early_suspend early_suspend;
+
+	int screen_status;
 };
 
 /********************************
