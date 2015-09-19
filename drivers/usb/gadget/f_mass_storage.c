@@ -5,7 +5,7 @@
  * Copyright (C) 2009 Samsung Electronics
  *                    Author: Michal Nazarewicz <mina86@mina86.com>
  * All rights reserved.
- * Copyright (C) 2012 Sony Mobile Communications AB.
+ * Copyright (C) 2012-2013 Sony Mobile Communications AB.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -332,6 +332,8 @@ static int csw_hack_sent;
  * (1 byte) - NUL byte(1byte) = 250 bytes
  */
 #define USB_SERIAL_NUMBER_MAX_LEN	250
+
+#define TOC_FORMAT2_SIZE		(11 * 3 + 4)
 
 /*-------------------------------------------------------------------------*/
 
@@ -941,7 +943,6 @@ static int do_write(struct fsg_common *common)
 
 #ifdef CONFIG_USB_MSC_PROFILING
 	ktime_t			start, diff;
-	unsigned int		record_time, r_count, wb_size;
 #endif
 	if (curlun->ro) {
 		curlun->sense_data = SS_WRITE_PROTECTED;
@@ -987,32 +988,16 @@ static int do_write(struct fsg_common *common)
 	amount_left_to_req = common->data_size_from_cmnd;
 	amount_left_to_write = common->data_size_from_cmnd;
 
-	if (curlun->random_write_count >=
-				curlun->random_write_count_to_be_flushed ||
-		curlun->writeback_size >=
-				curlun->writeback_size_to_be_flushued) {
-#ifdef CONFIG_USB_MSC_PROFILING
-		r_count = curlun->random_write_count;
-		wb_size = curlun->writeback_size;
-		start = ktime_get();
-#endif
+	if (curlun->random_write_count >= RANDOM_WRITE_COUNT_TO_BE_FLUSHED)
 		fsg_lun_fsync_sub(curlun);
-#ifdef CONFIG_USB_MSC_PROFILING
-		record_time = (unsigned int)
-			ktime_to_ms(ktime_sub(ktime_get(), start));
-		add_worst_record(curlun, record_time, r_count, wb_size);
-		/* fsync_sub(): [ms] [n] [Bytes] */
-		LDBG(curlun, "[PROF] vfs_fsync(): %5u %2d %9u\n",
-			record_time, r_count, wb_size);
-#endif
-	}
 
 	/* Detect non-sequential write */
 	if (curlun->last_offset != file_offset)
 		curlun->random_write_count++;
+	else if (curlun->random_write_count)
+		curlun->random_write_count--;
 
 	curlun->last_offset = file_offset + amount_left_to_write;
-	curlun->writeback_size += amount_left_to_write;
 
 	while (amount_left_to_write > 0) {
 
@@ -1120,11 +1105,6 @@ static int do_write(struct fsg_common *common)
 			curlun->perf.wbytes += nwritten;
 			curlun->perf.wtime =
 					ktime_add(curlun->perf.wtime, diff);
-			record_time = (unsigned int)ktime_to_ms(diff);
-			if (add_worst_record(curlun, record_time, 0, nwritten))
-				LDBG(curlun,
-					"[PROF] vfs_write(): %5u %2d %5u\n",
-					record_time, 0, nwritten);
 #endif
 			if (signal_pending(current))
 				return -EINTR;		/* Interrupted! */
@@ -1559,6 +1539,8 @@ static int do_read_toc(struct fsg_common *common, struct fsg_buffhd *bh)
 	int		msf = common->cmnd[1] & 0x02;
 	int		start_track = common->cmnd[6];
 	u8		*buf = (u8 *)bh->buf;
+	u8		format;
+	int		offset;
 
 	if ((common->cmnd[1] & ~0x02) != 0 ||	/* Mask away MSF */
 			start_track > 1) {
@@ -1566,18 +1548,55 @@ static int do_read_toc(struct fsg_common *common, struct fsg_buffhd *bh)
 		return -EINVAL;
 	}
 
-	memset(buf, 0, 20);
-	buf[1] = (20-2);		/* TOC data length */
-	buf[2] = 1;			/* First track number */
-	buf[3] = 1;			/* Last track number */
-	buf[5] = 0x16;			/* Data track, copying allowed */
-	buf[6] = 0x01;			/* Only track is number 1 */
-	store_cdrom_address(&buf[8], msf, 0);
+	format = common->cmnd[2] & 0x07;
+	/* SFF-8020i: When Format in Byte 2 is zero, then Byte 9 is used. */
+	if (format == 0)
+		format = (common->cmnd[9] >> 6) & 0x03;
 
-	buf[13] = 0x16;			/* Lead-out track is data */
-	buf[14] = 0xAA;			/* Lead-out track number */
-	store_cdrom_address(&buf[16], msf, curlun->num_sectors);
-	return 20;
+	if (format == 0) {
+		memset(buf, 0, 20);
+		buf[1] = (20-2);	/* TOC data length */
+		buf[2] = 1;		/* First track number */
+		buf[3] = 1;		/* Last track number */
+		buf[5] = 0x16;		/* Data track, copying allowed */
+		buf[6] = 0x01;		/* Only track is number 1 */
+		store_cdrom_address(&buf[8], msf, 0);
+
+		buf[13] = 0x16;		/* Lead-out track is data */
+		buf[14] = 0xAA;		/* Lead-out track number */
+		store_cdrom_address(&buf[16], msf, curlun->num_sectors);
+		return 20;
+	} else if (format == 0x02) {
+		memset(buf, 0, TOC_FORMAT2_SIZE);
+		buf[1] = (TOC_FORMAT2_SIZE-2);	/* TOC data length */
+		buf[2] = 1;			/* First Session Number */
+		buf[3] = 1;			/* Last Session Number */
+		offset = 4;
+
+		buf[offset] = 1;	/* Session Number */
+		buf[offset + 1] = 0x16;	/* Data track, copying allowed */
+		buf[offset + 2] = 0;	/* TNO */
+		buf[offset + 3] = 0xA0;	/* Point */
+		buf[offset + 8] = 1;	/* First track number */
+		buf[offset + 9] = 0;	/* Disc Type */
+		offset += 11;
+
+		buf[offset] = 1;	/* Session Number */
+		buf[offset + 1] = 0x16;	/* Data track, copying allowed */
+		buf[offset + 2] = 0;	/* TNO */
+		buf[offset + 3] = 0xA1;	/* Point */
+		buf[offset + 8] = 1;	/* Last track number */
+		offset += 11;
+
+		buf[offset] = 1;	/* Session Number */
+		buf[offset + 1] = 0x16;	/* Data track, copying allowed */
+		buf[offset + 2] = 0;	/* TNO */
+		buf[offset + 3] = 0xA2;	/* Point */
+		store_cdrom_address(&buf[offset + 7], msf, curlun->num_sectors);
+		return TOC_FORMAT2_SIZE;
+	}
+	curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
+	return -EINVAL;
 }
 
 static int do_mode_sense(struct fsg_common *common, struct fsg_buffhd *bh)
@@ -1738,6 +1757,8 @@ static int do_start_stop(struct fsg_common *common)
 		up_read(&common->filesem);
 		down_write(&common->filesem);
 		fsg_lun_close(curlun);
+		atomic_set(&curlun->wait_for_mount, 0);
+		curlun->unit_attention_data = SS_MEDIUM_NOT_PRESENT;
 		up_write(&common->filesem);
 		down_read(&common->filesem);
 	}
@@ -1748,6 +1769,7 @@ static int do_start_stop(struct fsg_common *common)
 		: 0;
 }
 
+#if !defined(CONFIG_USB_G_ANDROID)
 static int do_prevent_allow(struct fsg_common *common)
 {
 	struct fsg_lun	*curlun = common->curlun;
@@ -1770,6 +1792,7 @@ static int do_prevent_allow(struct fsg_common *common)
 	curlun->prevent_medium_removal = prevent;
 	return 0;
 }
+#endif
 
 static int do_read_format_capacities(struct fsg_common *common,
 			struct fsg_buffhd *bh)
@@ -2192,7 +2215,22 @@ static int check_command(struct fsg_common *common, int cmnd_size,
 	/* If the medium isn't mounted and the command needs to access
 	 * it, return an error. */
 	if (curlun && !fsg_lun_is_open(curlun) && needs_medium) {
-		curlun->sense_data = SS_MEDIUM_NOT_PRESENT;
+		if (atomic_read(&curlun->wait_for_mount)) {
+			if (curlun->wait_for_mount_count
+				< BECOMING_READY_COUNT) {
+				curlun->sense_data = SS_BECOMING_READY;
+			} else if (curlun->wait_for_mount_count
+				< NOT_READY_TO_READY_TRANSITION_COUNT) {
+				curlun->sense_data =
+					SS_NOT_READY_TO_READY_TRANSITION;
+			} else {
+				atomic_set(&curlun->wait_for_mount, 0);
+				curlun->sense_data = SS_MEDIUM_NOT_PRESENT;
+			}
+			curlun->wait_for_mount_count++;
+		} else {
+			curlun->sense_data = SS_MEDIUM_NOT_PRESENT;
+		}
 		return -EINVAL;
 	}
 
@@ -2281,6 +2319,7 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_mode_sense(common, bh);
 		break;
 
+#if !defined(CONFIG_USB_G_ANDROID)
 	case ALLOW_MEDIUM_REMOVAL:
 		common->data_size_from_cmnd = 0;
 		reply = check_command(common, 6, DATA_DIR_NONE,
@@ -2289,6 +2328,7 @@ static int do_scsi_command(struct fsg_common *common)
 		if (reply == 0)
 			reply = do_prevent_allow(common);
 		break;
+#endif
 
 	case READ_6:
 		i = common->cmnd[4];
@@ -2359,7 +2399,7 @@ static int do_scsi_command(struct fsg_common *common)
 		common->data_size_from_cmnd =
 			get_unaligned_be16(&common->cmnd[7]);
 		reply = check_command(common, 10, DATA_DIR_TO_HOST,
-				      (7<<6) | (1<<1), 1,
+				      (0x0f<<6) | (1<<1), 1,
 				      "READ TOC");
 		if (reply == 0)
 			reply = do_read_toc(common, bh);
@@ -2678,8 +2718,11 @@ reset:
 	}
 
 	common->running = 1;
-	for (i = 0; i < common->nluns; ++i)
+	for (i = 0; i < common->nluns; ++i) {
 		common->luns[i].unit_attention_data = SS_RESET_OCCURRED;
+		atomic_set(&common->luns[i].wait_for_mount, 1);
+		common->luns[i].wait_for_mount_count = 0;
+	}
 	return rc;
 }
 
@@ -2989,18 +3032,13 @@ static int fsg_main_thread(void *common_)
 
 
 /*************************** DEVICE ATTRIBUTES ***************************/
+
 /* Write permission is checked per LUN in store_*() functions. */
 static DEVICE_ATTR(ro, 0644, fsg_show_ro, fsg_store_ro);
 static DEVICE_ATTR(nofua, 0644, fsg_show_nofua, fsg_store_nofua);
 static DEVICE_ATTR(file, 0644, fsg_show_file, fsg_store_file);
 #ifdef CONFIG_USB_MSC_PROFILING
 static DEVICE_ATTR(perf, 0644, fsg_show_perf, fsg_store_perf);
-static DEVICE_ATTR(random_write_count_to_be_flushed, 0644, fsg_show_rndwcnt,
-							fsg_store_rndwcnt);
-static DEVICE_ATTR(writeback_size_to_be_flushued, 0644, fsg_show_wbsize,
-							fsg_store_wbsize);
-static DEVICE_ATTR(worst_record, 0644,	fsg_show_worstrecord,
-					fsg_store_worstrecord);
 #endif
 
 /****************************** FSG COMMON ******************************/
@@ -3108,11 +3146,6 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 		curlun->nofua = lcfg->nofua;
 		curlun->dev.release = fsg_lun_release;
 		curlun->dev.parent = &gadget->dev;
-		curlun->random_write_count_to_be_flushed =
-					RANDOM_WRITE_COUNT_TO_BE_FLUSHED;
-		curlun->writeback_size_to_be_flushued =
-					WRITEBACK_SIZE_TO_BE_FLUSHED;
-
 		/* curlun->dev.driver = &fsg_driver.driver; XXX */
 		dev_set_drvdata(&curlun->dev, &common->filesem);
 		dev_set_name(&curlun->dev,
@@ -3143,21 +3176,6 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 		if (rc)
 			dev_err(&gadget->dev, "failed to create sysfs entry:"
 				"(dev_attr_perf) error: %d\n", rc);
-		rc = device_create_file(&curlun->dev,
-				&dev_attr_random_write_count_to_be_flushed);
-		if (rc)
-			dev_err(&gadget->dev, "failed to create sysfs entry:"\
-				"(dev_attr_perf) error: %d\n", rc);
-		rc = device_create_file(&curlun->dev,
-				&dev_attr_writeback_size_to_be_flushued);
-		if (rc)
-			dev_err(&gadget->dev, "failed to create sysfs entry:"\
-				"(dev_attr_perf) error: %d\n", rc);
-		rc = device_create_file(&curlun->dev,
-				&dev_attr_worst_record);
-		if (rc)
-			dev_err(&gadget->dev, "failed to create sysfs entry:"\
-				"(dev_attr_worst_record) error: %d\n", rc);
 #endif
 		if (lcfg->filename) {
 			rc = fsg_lun_open(curlun, lcfg->filename);
@@ -3297,11 +3315,6 @@ static void fsg_common_release(struct kref *ref)
 		/* In error recovery common->nluns may be zero. */
 		for (; i; --i, ++lun) {
 #ifdef CONFIG_USB_MSC_PROFILING
-			device_remove_file(&lun->dev, &dev_attr_worst_record);
-			device_remove_file(&lun->dev,
-				&dev_attr_writeback_size_to_be_flushued);
-			device_remove_file(&lun->dev,
-				&dev_attr_random_write_count_to_be_flushed);
 			device_remove_file(&lun->dev, &dev_attr_perf);
 #endif
 			device_remove_file(&lun->dev, &dev_attr_nofua);

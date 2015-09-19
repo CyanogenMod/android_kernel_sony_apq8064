@@ -55,7 +55,6 @@ struct selinux_trap_process_list {
 void trap_selinux_error(struct common_audit_data *ad);
 extern int selinux_trap_enable;
 extern int selinux_trap_debug;
-extern bool selinux_trap_security_state;
 extern struct selinux_trap_list selinux_trap_list_head;
 extern struct selinux_trap_process_list selinux_trap_process_list_head;
 extern struct semaphore selinux_trap_list_sem;

@@ -42,6 +42,7 @@
 #include <linux/miscdevice.h>
 #include <linux/spinlock.h>
 #include <linux/pm_runtime.h>
+#include <linux/android_alarm.h>
 
 #include "inv_mpu_iio.h"
 #include "sysfs.h"
@@ -53,7 +54,7 @@ module_param(autosuspend_delay_ms, int, S_IRUGO);
 s64 get_time_ns(void)
 {
 	struct timespec ts;
-	ktime_get_ts(&ts);
+	ts = ktime_to_timespec(alarm_get_elapsed_realtime());
 	return timespec_to_ns(&ts);
 }
 

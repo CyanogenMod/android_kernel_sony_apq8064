@@ -35,6 +35,10 @@
 #ifndef DEBUG
 #define DEBUG 1
 #endif
+
+/* Wait time (ms) before sending CONFIGURED uevent */
+#define WAIT_TIME_BEFORE_SENDING_CONFIGURED		(50)
+
 /*
  * Kbuild is not very cooperative with respect to linking separately
  * compiled library objects into one module.  So for now we won't use

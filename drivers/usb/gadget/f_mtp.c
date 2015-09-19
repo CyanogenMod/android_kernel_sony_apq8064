@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2010 Google, Inc.
  * Author: Mike Lockwood <lockwood@android.com>
- * Copyright (C) 2012 Sony Mobile Communications AB.
+ * Copyright (C) 2012 Sony Mobile Communications Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -696,7 +696,10 @@ static void send_file_work(struct work_struct *data)
 		if (hdr_size) {
 			/* prepend MTP data header */
 			header = (struct mtp_data_header *)req->buf;
-			header->length = __cpu_to_le32(count);
+			if (count >= 0xFFFFFFFF)
+				header->length = __cpu_to_le32(0xFFFFFFFF);
+			else
+				header->length = __cpu_to_le32(count);
 			header->type = __cpu_to_le16(2); /* data packet */
 			header->command = __cpu_to_le16(dev->xfer_command);
 			header->transaction_id =
@@ -1098,6 +1101,12 @@ static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 			total = sizeof(*head) + (sizeof(*func) * func_num);
 
 			/* header section */
+			if (w_length < total &&
+				w_length >= (sizeof(*head) + sizeof(*func))) {
+				total = w_length;
+				func_num = (total - sizeof(*head)) /
+					sizeof(*func);
+			}
 			head->dwLength = total;
 			head->bcdVersion = __constant_cpu_to_le16(0x0100);
 			head->wIndex = __constant_cpu_to_le16(4);

@@ -1,5 +1,6 @@
 /*
 * Copyright (C) 2012 Invensense, Inc.
+* Copyright (C) 2014 Sony Mobile Communications AB.
 *
 * This software is licensed under the terms of the GNU General Public
 * License version 2, as published by the Free Software Foundation, and
@@ -10,6 +11,8 @@
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU General Public License for more details.
 *
+* NOTE: This file has been modified by Sony Mobile Communications AB.
+* Modifications are licensed under the License.
 */
 
 /**
@@ -626,8 +629,12 @@ irqreturn_t inv_read_fifo_mpu3050(int irq, void *dev_id)
 		fifo_count = be16_to_cpup((__be16 *)(&data[0]));
 		if (fifo_count < byte_read)
 			goto end_session;
+
+		/* Fix timestamp issue on CTS Verifier 5.1_r1 */
+		/*
 		if (fifo_count & 1)
 			goto flush_fifo;
+		*/
 		if (fifo_count > FIFO_THRESHOLD)
 			goto flush_fifo;
 		/* Timestamp mismatch. */

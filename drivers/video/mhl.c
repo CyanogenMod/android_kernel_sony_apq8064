@@ -74,6 +74,8 @@ static struct workqueue_struct *scratchpad_workqueue;
 
 static void (*notify_usb_online)(int online);
 
+static int screen_mode;
+
 /* RCP release control */
 static void mhl_init_rcp_release_control(struct mhl_device *mhl_dev);
 static void mhl_stop_rcp_release_control(struct mhl_device *mhl_dev);
@@ -1659,6 +1661,44 @@ static void mhl_early_resume(struct early_suspend *handler)
 }
 #endif
 
+void mhl_screen_notify(struct mhl_device *mhl_dev, int screen_mode)
+{
+	if (!mhl_dev) {
+		pr_err("%s: invalid input\n", __func__);
+		return;
+	}
+
+	if (screen_mode) {
+		mhl_dev->screen_status = true;
+		if (mhl_dev->mhl_online == MHL_ONLINE) {
+			/* enable TMDS output */
+			mhl_dev->ops->tmds_control(TRUE);
+			/* enable HPD routing */
+			mhl_dev->ops->hpd_control(TRUE);
+			mhl_rap_send_msc_msg(mhl_dev,
+					MHL_MSC_MSG_RAP, MHL_RAP_CONTENT_ON);
+		}
+
+	} else {
+		if (!mhl_dev->tmds_state || !mhl_dev->screen_status) {
+			mhl_dev->screen_status = false;
+			return;
+		}
+		if (mhl_dev->mhl_online == MHL_ONLINE) {
+			/* disable HPD routing (force HPD=LOW) */
+			mhl_dev->ops->hpd_control(FALSE);
+			/* disable TMDS output */
+			mhl_dev->ops->tmds_control(FALSE);
+			mhl_rap_send_msc_msg(mhl_dev,
+					MHL_MSC_MSG_RAP, MHL_RAP_CONTENT_OFF);
+		}
+
+		/* NACK any RAP call until change to screeon on */
+		mhl_dev->screen_status = false;
+
+	}
+}
+
 struct mhl_device *mhl_device_register(const char *name,
 	struct device *parent, void *drvdata, const struct mhl_ops *ops)
 {
@@ -1799,17 +1839,17 @@ EXPORT_SYMBOL(mhl_device_unregister);
 static ssize_t mhl_sysfs_rta_screen_status(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct mhl_device *mhl_dev = to_mhl_device(dev);
-	pr_debug("%s: screen_status = %d\n", __func__, mhl_dev->screen_status);
-	return snprintf(buf, PAGE_SIZE, "%d", mhl_dev->screen_status);
+	pr_debug("%s: screen_status = %d\n", __func__, screen_mode);
+	return snprintf(buf, PAGE_SIZE, "%d", screen_mode);
 }
 
 static ssize_t mhl_sysfs_wta_screen_status(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct mhl_device *mhl_dev = to_mhl_device(dev);
-	sscanf(buf, "%d", &mhl_dev->screen_status);
-	pr_debug("%s: screen_status = %d\n", __func__, mhl_dev->screen_status);
+	sscanf(buf, "%d", &screen_mode);
+	mhl_screen_notify(mhl_dev, screen_mode);
+	pr_debug("%s: screen_status = %d\n", __func__, screen_mode);
 	return count;
 
 }

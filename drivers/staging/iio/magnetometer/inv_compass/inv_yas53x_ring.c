@@ -35,6 +35,7 @@
 #include <linux/kfifo.h>
 #include <linux/poll.h>
 #include <linux/miscdevice.h>
+#include <linux/android_alarm.h>
 
 #include "iio.h"
 #include "kfifo_buf.h"
@@ -46,8 +47,7 @@
 static s64 get_time_ns(void)
 {
 	struct timespec ts;
-	ktime_get_ts(&ts);
-
+	ts = ktime_to_timespec(alarm_get_elapsed_realtime());
 	return timespec_to_ns(&ts);
 }
 

@@ -2350,17 +2350,15 @@ static int sel_fill_super(struct super_block *sb, void *data, int silent)
 		goto err;
 
 #ifdef CONFIG_SECURITY_SELINUX_TRAP
-	if (!selinux_trap_security_state) {
-		dentry = sel_make_dir(sb->s_root, "trap", &sel_last_ino);
-		if (IS_ERR(dentry)) {
-			ret = PTR_ERR(dentry);
-			goto err;
-		}
-
-		ret = sel_make_trap_files(dentry);
-		if (ret)
-			goto err;
+	dentry = sel_make_dir(sb->s_root, "trap", &sel_last_ino);
+	if (IS_ERR(dentry)) {
+		ret = PTR_ERR(dentry);
+		goto err;
 	}
+
+	ret = sel_make_trap_files(dentry);
+	if (ret)
+		goto err;
 #endif
 
 	dentry = sel_make_dir(sb->s_root, "initial_contexts", &sel_last_ino);
