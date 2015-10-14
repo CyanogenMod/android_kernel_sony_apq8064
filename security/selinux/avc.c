@@ -728,41 +728,6 @@ static void avc_audit_pre_callback(struct audit_buffer *ab, void *a)
 }
 
 /**
- * avc_dump_extra_info - add extra info about task and audit result
- * @ab: the audit buffer
- * @ad: audit_data
- */
-#ifdef CONFIG_SECURITY_SELINUX_AVC_EXTRA_INFO
-static void avc_dump_extra_info(struct audit_buffer *ab,
-		struct common_audit_data *ad)
-{
-	struct task_struct *tsk = current;
-
-	audit_log_format(ab, " op_res=%d",
-		ad->selinux_audit_data->slad->op_result);
-
-	if (ad->tsk)
-		tsk = ad->tsk;
-
-	if (tsk && tsk->pid) {
-		audit_log_format(ab, " ppid=%d pcomm=", tsk->parent->pid);
-		audit_log_untrustedstring(ab, tsk->parent->comm);
-
-		if (tsk->group_leader->pid != tsk->pid) {
-			audit_log_format(ab, " tgid=%d tgcomm=",
-					tsk->group_leader->pid);
-			audit_log_untrustedstring(ab,
-					tsk->group_leader->comm);
-		} else if (tsk->parent->group_leader->pid) {
-			audit_log_format(ab, " tgid=%d tgcomm=",
-					tsk->parent->group_leader->pid);
-			audit_log_untrustedstring(ab,
-					tsk->parent->group_leader->comm);
-		}
-	}
-}
-#endif
-/**
  * avc_audit_post_callback - SELinux specific information
  * will be called by generic audit code
  * @ab: the audit buffer
@@ -776,24 +741,17 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 			   ad->selinux_audit_data->slad->tsid,
 			   ad->selinux_audit_data->slad->tclass);
 
-#ifdef CONFIG_SECURITY_SELINUX_AVC_EXTRA_INFO
-	avc_dump_extra_info(ab, ad);
-#endif
 #ifdef CONFIG_SECURITY_SELINUX_TRAP
-	if (ad->selinux_audit_data->slad->op_result)
+	if (ad->selinux_audit_data->slad->result)
 		trap_selinux_error(ad);
 #endif
 }
 
 /* This is the slow part of avc audit with big stack footprint */
 static noinline int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
-		u32 requested, u32 audited, u32 denied,
+		u32 requested, u32 audited, u32 denied, int result,
 		struct common_audit_data *a,
-#ifdef CONFIG_SECURITY_SELINUX_AVC_EXTRA_INFO
-		unsigned flags, int result)
-#else
 		unsigned flags)
-#endif
 {
 	struct common_audit_data stack_data;
 	struct selinux_audit_data sad = {0,};
@@ -822,9 +780,8 @@ static noinline int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
 	slad.tsid = tsid;
 	slad.audited = audited;
 	slad.denied = denied;
-#ifdef CONFIG_SECURITY_SELINUX_AVC_EXTRA_INFO
-	slad.op_result = result;
-#endif
+	slad.result = result;
+
 	a->selinux_audit_data->slad = &slad;
 	common_lsm_audit(a, avc_audit_pre_callback, avc_audit_post_callback);
 	return 0;
@@ -902,12 +859,8 @@ inline int avc_audit(u32 ssid, u32 tsid,
 		return 0;
 
 	return slow_avc_audit(ssid, tsid, tclass,
-		requested, audited, denied,
-#ifdef CONFIG_SECURITY_SELINUX_AVC_EXTRA_INFO
-		a, flags, result);
-#else
+		requested, audited, denied, result,
 		a, flags);
-#endif
 }
 
 /**

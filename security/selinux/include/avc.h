@@ -65,9 +65,6 @@ struct selinux_late_audit_data {
 	u32 audited;
 	u32 denied;
 	int result;
-#ifdef CONFIG_SECURITY_SELINUX_AVC_EXTRA_INFO
-	int op_result;
-#endif
 };
 
 /*
