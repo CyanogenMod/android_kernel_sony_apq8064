@@ -1596,7 +1596,9 @@ static ssize_t mhl_store_mouse_move_distance_dy(struct device *dev,
 static void mhl_device_release(struct device *dev)
 {
 	struct mhl_device *mhl_dev = to_mhl_device(dev);
-	unregister_early_suspend(&mhl_dev->early_suspend);
+#ifdef CONFIG_FB
+	fb_unregister_client(&mhl_dev->fb_notif);
+#endif
 	kfree(mhl_dev);
 }
 
@@ -1614,13 +1616,10 @@ void mhl_device_shutdown(struct mhl_device *mhl_dev)
 }
 EXPORT_SYMBOL(mhl_device_shutdown);
 
-#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CONFIG_MHL_RAP)
-static void mhl_early_suspend(struct early_suspend *handler)
+#if defined(CONFIG_FB) && defined(CONFIG_MHL_RAP)
+static void mhl_suspend(struct mhl_device *mhl_dev)
 {
-	struct mhl_device *mhl_dev =
-		container_of(handler, struct mhl_device, early_suspend);
-
-	dev_info(&mhl_dev->dev, "early suspend\n");
+	dev_info(&mhl_dev->dev, "suspend\n");
 
 	/* cancel power key transmission */
 	del_timer(&mhl_dev->rap_powerkey_timer);
@@ -1640,12 +1639,9 @@ static void mhl_early_suspend(struct early_suspend *handler)
 	mhl_content_off_and_suspend(mhl_dev);
 }
 
-static void mhl_early_resume(struct early_suspend *handler)
+static void mhl_resume(struct mhl_device *mhl_dev)
 {
-	struct mhl_device *mhl_dev =
-		container_of(handler, struct mhl_device, early_suspend);
-
-	dev_info(&mhl_dev->dev, "early resume\n");
+	dev_info(&mhl_dev->dev, "resume\n");
 
 	/* cancel power key transmission */
 	del_timer(&mhl_dev->rap_powerkey_timer);
@@ -1658,6 +1654,26 @@ static void mhl_early_resume(struct early_suspend *handler)
 	mhl_dev->ops->hpd_control(TRUE);
 
 	mhl_rap_send_msc_msg(mhl_dev, MHL_MSC_MSG_RAP, MHL_RAP_CONTENT_ON);
+}
+
+static int fb_notifier_callback(struct notifier_block *self,
+				unsigned long event, void *data)
+{
+	struct fb_event *evdata = data;
+	int *blank;
+	struct mhl_device *mhl_dev = container_of(self, struct mhl_device, fb_notif);
+
+	if (evdata && evdata->data && mhl_dev) {
+		if (event == FB_EVENT_BLANK) {
+			blank = evdata->data;
+			if (*blank == FB_BLANK_UNBLANK)
+				mhl_resume(mhl_dev);
+			else if (*blank == FB_BLANK_POWERDOWN)
+				mhl_suspend(mhl_dev);
+		}
+	}
+
+	return 0;
 }
 #endif
 
@@ -1731,12 +1747,17 @@ struct mhl_device *mhl_device_register(const char *name,
 	dev_set_name(&mhl_dev->dev, name);
 	dev_set_drvdata(&mhl_dev->dev, drvdata);
 
-#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CONFIG_MHL_RAP)
-	mhl_dev->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
-	mhl_dev->early_suspend.suspend = mhl_early_suspend;
-	mhl_dev->early_suspend.resume = mhl_early_resume;
+#if defined(CONFIG_FB) && defined(CONFIG_MHL_RAP)
+	mhl_dev->fb_notif.notifier_call = fb_notifier_callback;
+	rc = fb_register_client(&mhl_dev->fb_notif);
+	if (rc) {
+		dev_err(&mhl_dev->dev, "%s: Failed to register fb_notifier\n",
+			__func__);
+		goto err_register;
+	}
+
+	dev_dbg(&mhl_dev->dev, "%s: Registered fb_notifier\n", __func__);
 #endif
-	register_early_suspend(&mhl_dev->early_suspend);
 
 	rc = device_register(&mhl_dev->dev);
 	if (rc) {
@@ -1804,7 +1825,9 @@ err_input_register:
 err_input_alloc:
 	mhl_device_unregister(mhl_dev);
 err_register:
-	unregister_early_suspend(&mhl_dev->early_suspend);
+#ifdef CONFIG_FB
+	fb_unregister_client(&mhl_dev->fb_notif);
+#endif
 	kfree(mhl_dev);
 err:
 	return ERR_PTR(rc);
@@ -1831,7 +1854,9 @@ void mhl_device_unregister(struct mhl_device *mhl_dev)
 	}
 	mhl_dev->ops = NULL;
 	mutex_unlock(&mhl_dev->ops_mutex);
-	unregister_early_suspend(&mhl_dev->early_suspend);
+#ifdef CONFIG_FB
+	fb_unregister_client(&mhl_dev->fb_notif);
+#endif
 	device_unregister(&mhl_dev->dev);
 }
 EXPORT_SYMBOL(mhl_device_unregister);

@@ -23,7 +23,10 @@
 #include <linux/input.h>
 #include <linux/mutex.h>
 #include <linux/mhl_defs.h>
-#include <linux/earlysuspend.h>
+#ifdef CONFIG_FB
+#include <linux/notifier.h>
+#include <linux/fb.h>
+#endif
 
 #define TRUE 1
 #define FALSE 0
@@ -151,9 +154,9 @@ struct mhl_device {
 	int mouse_move_distance_dx;
 	int mouse_move_distance_dy;
 	struct input_dev *input;
-
-	struct early_suspend early_suspend;
-
+#ifdef CONFIG_FB
+	struct notifier_block fb_notif;
+#endif
 	int screen_status;
 };
 
