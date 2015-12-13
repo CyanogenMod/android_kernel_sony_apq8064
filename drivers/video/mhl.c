@@ -1619,7 +1619,11 @@ EXPORT_SYMBOL(mhl_device_shutdown);
 #if defined(CONFIG_FB) && defined(CONFIG_MHL_RAP)
 static void mhl_suspend(struct mhl_device *mhl_dev)
 {
-	dev_info(&mhl_dev->dev, "suspend\n");
+	if (mhl_dev->fb_suspended)
+		return;
+
+	dev_info(&mhl_dev->dev, "%s\n", __func__);
+	mhl_dev->fb_suspended = true;
 
 	/* cancel power key transmission */
 	del_timer(&mhl_dev->rap_powerkey_timer);
@@ -1641,7 +1645,11 @@ static void mhl_suspend(struct mhl_device *mhl_dev)
 
 static void mhl_resume(struct mhl_device *mhl_dev)
 {
-	dev_info(&mhl_dev->dev, "resume\n");
+	if (!mhl_dev->fb_suspended)
+		return;
+
+	dev_info(&mhl_dev->dev, "%s\n", __func__);
+	mhl_dev->fb_suspended = false;
 
 	/* cancel power key transmission */
 	del_timer(&mhl_dev->rap_powerkey_timer);
@@ -1748,6 +1756,7 @@ struct mhl_device *mhl_device_register(const char *name,
 	dev_set_drvdata(&mhl_dev->dev, drvdata);
 
 #if defined(CONFIG_FB) && defined(CONFIG_MHL_RAP)
+	mhl_dev->fb_suspended = false;
 	mhl_dev->fb_notif.notifier_call = fb_notifier_callback;
 	rc = fb_register_client(&mhl_dev->fb_notif);
 	if (rc) {
