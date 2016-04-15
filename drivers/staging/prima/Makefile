@@ -5,7 +5,7 @@ WLAN_ROOT := drivers/staging/prima
 # Feature flags which are not (currently) configurable via Kconfig
 
 #Whether to build debug version
-BUILD_DEBUG_VERSION := 1
+BUILD_DEBUG_VERSION := 0
 
 #Enable this flag to build driver in diag version
 BUILD_DIAG_VERSION := 0
@@ -16,6 +16,8 @@ PANIC_ON_BUG := 0
 #Re-enable wifi on WDI timeout
 RE_ENABLE_WIFI_ON_WDI_TIMEOUT := 0
 
+#Measure Roam Delay
+MEASURE_ROAM_TIME_DELAY := 0
 
 ifeq ($(CONFIG_CFG80211),y)
 HAVE_CFG80211 := 1
@@ -552,6 +554,10 @@ ifeq ($(BUILD_DIAG_VERSION),1)
 CDEFINES += -DFEATURE_WLAN_DIAG_SUPPORT
 CDEFINES += -DFEATURE_WLAN_DIAG_SUPPORT_CSR
 CDEFINES += -DFEATURE_WLAN_DIAG_SUPPORT_LIM
+endif
+
+ifeq ($(MEASURE_ROAM_TIME_DELAY),1)
+CDEFINES += -DDEBUG_ROAM_DELAY
 endif
 
 # enable the MAC Address auto-generation feature
