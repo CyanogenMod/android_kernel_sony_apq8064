@@ -302,6 +302,11 @@ enum snd_soc_pcm_subclass {
 	SND_SOC_PCM_CLASS_BE	= 1,
 };
 
+enum snd_soc_card_subclass {
+	SND_SOC_CARD_CLASS_INIT	= 0,
+	SND_SOC_CARD_CLASS_PCM	= 1,
+};
+
 /*
  * Dynamic PCM DAI link states.
  */
@@ -860,7 +865,6 @@ struct snd_soc_card {
 	struct list_head list;
 	struct mutex mutex;
 	struct mutex dpcm_mutex;
-
 	struct mutex dapm_mutex;
 	struct mutex dapm_power_mutex;
 	struct mutex dsp_mutex;

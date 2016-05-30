@@ -59,7 +59,7 @@ struct dpm_watchdog {
 	struct device		*dev;
 	struct task_struct	*tsk;
 	struct timer_list	timer;
- };
+};
 
 static int async_error;
 
@@ -1169,6 +1169,7 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 	}
 
 	device_unlock(dev);
+
 	dpm_wd_clear(&wd);
 
  Complete:

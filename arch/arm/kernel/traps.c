@@ -35,8 +35,6 @@
 #include <asm/tls.h>
 #include <asm/system_misc.h>
 
-#include "signal.h"
-
 #include <trace/events/exception.h>
 
 static const char *handler[]= {
