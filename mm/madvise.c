@@ -11,7 +11,6 @@
 #include <linux/mempolicy.h>
 #include <linux/page-isolation.h>
 #include <linux/hugetlb.h>
-#include <linux/falloc.h>
 #include <linux/sched.h>
 #include <linux/ksm.h>
 #include <linux/file.h>
