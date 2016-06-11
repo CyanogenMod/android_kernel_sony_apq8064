@@ -27,7 +27,7 @@
 #define LGE_RAM_CONSOLE_SIZE	(124*SZ_1K * 2)
 #endif
 
-#ifdef CONFIG_LGE_CRASH_HANDLER
+#ifdef CONFIG_LGE_HANDLE_PANIC
 #define LGE_CRASH_LOG_SIZE	(4*SZ_1K + SZ_1K)
 #endif
 
@@ -97,10 +97,10 @@ static inline void __init lge_add_ramconsole_devices(void)
 }
 #endif
 
-#ifdef CONFIG_LGE_CRASH_HANDLER
+#ifdef CONFIG_LGE_HANDLE_PANIC
 void __init lge_add_panic_handler_devices(void);
-int get_ssr_magic_number(void);
-void set_ssr_magic_number(const char *subsys_name);
+int lge_get_magic_for_subsystem(void);
+void lge_set_magic_for_subsystem(const char *subsys_name);
 #else
 static inline void __init lge_add_panic_handler_devices(void)
 {

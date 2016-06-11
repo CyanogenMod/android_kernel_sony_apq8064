@@ -52,13 +52,6 @@
 
 #define SCM_IO_DISABLE_PMIC_ARBITER	1
 
-#ifdef CONFIG_LGE_CRASH_HANDLER
-#define LGE_ERROR_HANDLER_MAGIC_NUM	0xA97F2C46
-#define LGE_ERROR_HANDLER_MAGIC_ADDR	0x18
-void *lge_error_handler_cookie_addr;
-static int ssr_magic_number = 0;
-#endif
-
 static int restart_mode;
 void *restart_reason;
 
@@ -80,10 +73,6 @@ static void set_dload_mode(int on)
 		__raw_writel(on ? 0xE47B337D : 0, dload_mode_addr);
 		__raw_writel(on ? 0xCE14091A : 0,
 		       dload_mode_addr + sizeof(unsigned int));
-#ifdef CONFIG_LGE_CRASH_HANDLER
-		__raw_writel(on ? LGE_ERROR_HANDLER_MAGIC_NUM : 0,
-				lge_error_handler_cookie_addr);
-#endif
 		mb();
 	}
 }
@@ -105,9 +94,6 @@ static int dload_set(const char *val, struct kernel_param *kp)
 	}
 
 	set_dload_mode(download_mode);
-#ifdef CONFIG_LGE_CRASH_HANDLER
-	ssr_magic_number = 0;
-#endif
 
 	return 0;
 }
@@ -151,10 +137,6 @@ static struct notifier_block panic_blk = {
 void msm_set_restart_mode(int mode)
 {
 	restart_mode = mode;
-#ifdef CONFIG_LGE_CRASH_HANDLER
-	if (download_mode == 1 && (mode & 0xFFFF0000) == 0x6D630000)
-		panic("LGE crash handler detected panic");
-#endif
 }
 EXPORT_SYMBOL(msm_set_restart_mode);
 
@@ -221,43 +203,6 @@ static irqreturn_t resout_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_LGE_CRASH_HANDLER
-#define SUBSYS_NAME_MAX_LENGTH	40
-
-int get_ssr_magic_number(void)
-{
-	return ssr_magic_number;
-}
-
-void set_ssr_magic_number(const char* subsys_name)
-{
-	int i;
-	const char *subsys_list[] = {
-		"modem", "riva", "dsps", "lpass",
-		"external_modem", "gss",
-	};
-
-	ssr_magic_number = (0x6d630000 | 0x0000f000);
-
-	for (i=0; i < ARRAY_SIZE(subsys_list); i++) {
-		if (!strncmp(subsys_list[i], subsys_name,
-					SUBSYS_NAME_MAX_LENGTH)) {
-			ssr_magic_number = (0x6d630000 | ((i+1)<<12));
-			break;
-		}
-	}
-}
-
-void set_kernel_crash_magic_number(void)
-{
-	pet_watchdog();
-	if (ssr_magic_number == 0)
-		__raw_writel(0x6d630100, restart_reason);
-	else
-		__raw_writel(restart_mode, restart_reason);
-}
-#endif /* CONFIG_LGE_CRASH_HANDLER */
-
 void msm_restart(char mode, const char *cmd)
 {
 
@@ -272,10 +217,6 @@ void msm_restart(char mode, const char *cmd)
 	/* Write download mode flags if restart_mode says so */
 	if (restart_mode == RESTART_DLOAD) {
 		set_dload_mode(1);
-#ifdef CONFIG_LGE_CRASH_HANDLER
-		writel(0x6d63c421, restart_reason);
-		goto reset;
-#endif
 	}
 
 	/* Kill download mode if master-kill switch is set */
@@ -306,11 +247,6 @@ void msm_restart(char mode, const char *cmd)
 	} else {
 		__raw_writel(0x776655AA, restart_reason);
 	}
-#ifdef CONFIG_LGE_CRASH_HANDLER
-	if (in_panic == 1)
-		set_kernel_crash_magic_number();
-reset:
-#endif /* CONFIG_LGE_CRASH_HANDLER */
 
 	if (in_panic) {
 		__raw_writel(0xC0DEDEAD, restart_reason);
@@ -354,10 +290,6 @@ static int __init msm_pmic_restart_init(void)
 		pr_warn("no pmic restart interrupt specified\n");
 	}
 
-#ifdef CONFIG_LGE_CRASH_HANDLER
-	__raw_writel(0x6d63ad00, restart_reason);
-#endif
-
 	return 0;
 }
 
@@ -381,10 +313,6 @@ static int __init msm_restart_init(void)
 #ifdef CONFIG_MSM_DLOAD_MODE
 	atomic_notifier_chain_register(&panic_notifier_list, &panic_blk);
 	dload_mode_addr = MSM_IMEM_BASE + DLOAD_MODE_ADDR;
-#ifdef CONFIG_LGE_CRASH_HANDLER
-	lge_error_handler_cookie_addr = MSM_IMEM_BASE +
-		LGE_ERROR_HANDLER_MAGIC_ADDR;
-#endif
 	set_dload_mode(download_mode);
 #endif
 	register_reboot_notifier(&msm_reboot_notifier);

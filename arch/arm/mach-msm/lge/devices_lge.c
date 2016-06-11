@@ -160,7 +160,7 @@ static struct persistent_ram_descriptor pram_descs[] = {
 		.size = LGE_RAM_CONSOLE_SIZE,
 	},
 #endif
-#ifdef CONFIG_LGE_CRASH_HANDLER
+#ifdef CONFIG_LGE_HANDLE_PANIC
 	{
 		.name = "panic-handler",
 		.size = LGE_CRASH_LOG_SIZE,
@@ -179,7 +179,7 @@ void __init lge_add_persistent_ram(void)
 	struct persistent_ram *pram = &lge_persistent_ram;
 	struct membank* bank = &meminfo.bank[0];
 
-	pram->start = bank->start + bank->size - LGE_PERSISTENT_RAM_SIZE;
+	pram->start = PHYS_OFFSET + bank->size - LGE_PERSISTENT_RAM_SIZE;
 
 	persistent_ram_early_init(pram);
 }
@@ -222,9 +222,9 @@ void __init lge_add_ramconsole_devices(void)
 {
 	platform_device_register(&ram_console_device);
 }
-#endif /* CONFIG_ANDROID_RAM_CONSOLE */
+#endif // CONFIG_ANDROID_RAM_CONSOLE
 
-#ifdef CONFIG_LGE_CRASH_HANDLER
+#ifdef CONFIG_LGE_HANDLE_PANIC
 static struct platform_device panic_handler_device = {
 	.name = "panic-handler",
 	.id = -1,
@@ -234,7 +234,7 @@ void __init lge_add_panic_handler_devices(void)
 {
 	platform_device_register(&panic_handler_device);
 }
-#endif /* CONFIG_LGE_CRASH_HANDLER */
+#endif // CONFIG_LGE_HANDLE_PANIC
 
 #ifdef CONFIG_LGE_QFPROM_INTERFACE
 static struct platform_device qfprom_device = {

@@ -36,12 +36,4 @@ config EARJACK_DEBUGGER
 	help
 	  Saying Y here will support earjack type UART debugger cable
 
-config LGE_CRASH_HANDLER
-	tristate "Support LGE Crash Handler"
-	depends on !S390 && !UML && HAVE_MEMBLOCK && MSM_DLOAD_MODE
-	select ANDROID_PERSISTENT_RAM
-	default n
-	help
-	  LGE Crash Handler
-
 endmenu
