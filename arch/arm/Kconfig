@@ -1941,7 +1941,7 @@ config ENABLE_DMM
 
 choice
 	prompt "Virtual Memory Reclaim"
-	default ENABLE_VMALLOC_SAVING
+	default NO_VM_RECLAIM
 	help
 	  Select the method of reclaiming virtual memory
 
