@@ -427,7 +427,6 @@ struct pm8921_chg_chip {
 	struct delayed_work		vin_collapse_check_work;
 	struct delayed_work		btc_override_work;
 	struct wake_lock		eoc_wake_lock;
-	struct input_dev		*chg_unplug_key;
 	enum pm8921_chg_cold_thr	cold_thr;
 	enum pm8921_chg_hot_thr		hot_thr;
 	bool				ibat_calib_enable;
@@ -3057,15 +3056,6 @@ static void vin_collapse_check_worker(struct work_struct *work)
 	}
 }
 
-static void
-notify_input_chg_plug_unplug(struct pm8921_chg_chip *chip, int value)
-{
-	if (chip->chg_unplug_key) {
-		input_report_key(chip->chg_unplug_key, KEY_F24, value ? 1 : 0);
-		input_sync(chip->chg_unplug_key);
-	}
-}
-
 #define VIN_MIN_COLLAPSE_CHECK_MS	50
 static irqreturn_t usbin_valid_irq_handler(int irq, void *data)
 {
@@ -3076,11 +3066,6 @@ static irqreturn_t usbin_valid_irq_handler(int irq, void *data)
 			      msecs_to_jiffies(VIN_MIN_COLLAPSE_CHECK_MS));
 	else
 	    handle_usb_insertion_removal(data);
-
-	if (!is_usb_chg_plugged_in(the_chip))
-		notify_input_chg_plug_unplug(the_chip, 0);
-	else
-		notify_input_chg_plug_unplug(the_chip, 1);
 
 	return IRQ_HANDLED;
 }
@@ -3522,11 +3507,6 @@ static void unplug_check_worker(struct work_struct *work)
 			"Stop: chg removed reg_loop = %d, fsm = %d ibat = %d\n",
 				pm_chg_get_regulation_loop(chip),
 				pm_chg_get_fsm_state(chip), ibat);
-			/*
-			 * just in case, if notification is not
-			 * done in the interrupt
-			 */
-			notify_input_chg_plug_unplug(chip, 0);
 			return;
 		} else {
 			goto check_again_later;
@@ -3851,11 +3831,6 @@ static irqreturn_t dcin_valid_irq_handler(int irq, void *data)
 	}
 
 	power_supply_changed(&chip->batt_psy);
-
-	if (dc_present)
-		notify_input_chg_plug_unplug(chip, 1);
-	else
-		notify_input_chg_plug_unplug(chip, 0);
 
 	return IRQ_HANDLED;
 }
@@ -5912,25 +5887,6 @@ static int __devinit pm8921_charger_probe(struct platform_device *pdev)
 	if (rc < 0)
 		dev_err(chip->dev, "sysfs create failed rc=%d\n", rc);
 
-	/* register input device */
-	chip->chg_unplug_key = input_allocate_device();
-	if (!chip->chg_unplug_key) {
-		pr_err("can't allocate unplug virtual button\n");
-		rc = -ENOMEM;
-		goto free_irq;
-	}
-
-	input_set_capability(chip->chg_unplug_key, EV_KEY, KEY_F24);
-
-	chip->chg_unplug_key->name = "pm8921_chg_unplug_key";
-	chip->chg_unplug_key->dev.parent = &pdev->dev;
-
-	rc = input_register_device(chip->chg_unplug_key);
-	if (rc) {
-		pr_err("can't register power key: %d\n", rc);
-		goto free_input_dev;
-	}
-
 	/* determine what state the charger is in */
 	determine_initial_state(chip);
 
@@ -5940,10 +5896,6 @@ static int __devinit pm8921_charger_probe(struct platform_device *pdev)
 							(chip->update_time)));
 	return 0;
 
-free_input_dev:
-	input_free_device(chip->chg_unplug_key);
-free_irq:
-	free_irqs(chip);
 unregister_swdev:
 	switch_dev_unregister(&chip->swdev);
 unregister_batt:
@@ -5963,7 +5915,6 @@ static int __devexit pm8921_charger_remove(struct platform_device *pdev)
 	struct pm8921_chg_chip *chip = platform_get_drvdata(pdev);
 
 	remove_sysfs_entries(chip);
-	input_unregister_device(chip->chg_unplug_key);
 	free_irqs(chip);
 	switch_dev_unregister(&chip->swdev);
 	wake_lock_destroy(&chip->dock_wake_lock);
